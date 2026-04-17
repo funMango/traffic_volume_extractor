@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(du:*)",
+      "Bash(python -c \"import oracledb, numpy, dotenv, openpyxl; print\\('모든 패키지 확인 완료'\\)\")",
+      "Bash(python -c ':*)",
+      "Bash(python -m pytest test_이상탐지.py -v)",
+      "Bash(pip install:*)",
+      "Bash(python -m pytest test_이상탐지.py::TestBuildBaselinesStageExpansion -v)",
+      "Bash(python -m pytest test_get_traffic.py -v)",
+      "Bash(python -c \"import ast, sys; ast.parse\\(open\\('get_traffic.py', encoding='utf-8'\\).read\\(\\)\\); print\\('문법 OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('get_traffic.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(python:*)",
+      "Bash(schtasks:*)",
+      "Bash(cmd:*)",
+      "Bash(powershell:*)"
+    ]
+  }
+}

@@ -1,0 +1,212 @@
+{
+  "year": 2026,
+  "country": "대한민국",
+  "description": "2026년 대한민국 공휴일 및 대체공휴일 목록",
+  "holidays": [
+    {
+      "date": "2026-01-01",
+      "day_of_week": "목",
+      "name": "신정",
+      "name_en": "New Year's Day",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null
+    },
+    {
+      "date": "2026-02-16",
+      "day_of_week": "월",
+      "name": "설날 연휴 (전날)",
+      "name_en": "Seollal Holiday (Eve)",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null
+    },
+    {
+      "date": "2026-02-17",
+      "day_of_week": "화",
+      "name": "설날",
+      "name_en": "Seollal (Lunar New Year)",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null
+    },
+    {
+      "date": "2026-02-18",
+      "day_of_week": "수",
+      "name": "설날 연휴 (다음날)",
+      "name_en": "Seollal Holiday (Day After)",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null
+    },
+    {
+      "date": "2026-03-01",
+      "day_of_week": "일",
+      "name": "삼일절",
+      "name_en": "Independence Movement Day",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null,
+      "note": "일요일 해당 → 대체공휴일 3월 2일 지정"
+    },
+    {
+      "date": "2026-03-02",
+      "day_of_week": "월",
+      "name": "삼일절 대체공휴일",
+      "name_en": "Independence Movement Day (Substitute)",
+      "type": "대체공휴일",
+      "is_substitute": true,
+      "substitute_for": "삼일절 (2026-03-01)"
+    },
+    {
+      "date": "2026-05-01",
+      "day_of_week": "금",
+      "name": "근로자의 날",
+      "name_en": "Labor Day",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null
+    },
+    {
+      "date": "2026-05-05",
+      "day_of_week": "화",
+      "name": "어린이날",
+      "name_en": "Children's Day",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null
+    },
+    {
+      "date": "2026-05-24",
+      "day_of_week": "일",
+      "name": "부처님오신날",
+      "name_en": "Buddha's Birthday",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null,
+      "note": "일요일 해당 → 대체공휴일 5월 25일 지정"
+    },
+    {
+      "date": "2026-05-25",
+      "day_of_week": "월",
+      "name": "부처님오신날 대체공휴일",
+      "name_en": "Buddha's Birthday (Substitute)",
+      "type": "대체공휴일",
+      "is_substitute": true,
+      "substitute_for": "부처님오신날 (2026-05-24)"
+    },
+    {
+      "date": "2026-06-06",
+      "day_of_week": "토",
+      "name": "현충일",
+      "name_en": "Memorial Day",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null,
+      "note": "토요일 해당, 현충일은 대체공휴일 미적용"
+    },
+    {
+      "date": "2026-08-15",
+      "day_of_week": "토",
+      "name": "광복절",
+      "name_en": "Liberation Day",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null,
+      "note": "토요일 해당 → 대체공휴일 8월 17일 지정"
+    },
+    {
+      "date": "2026-08-17",
+      "day_of_week": "월",
+      "name": "광복절 대체공휴일",
+      "name_en": "Liberation Day (Substitute)",
+      "type": "대체공휴일",
+      "is_substitute": true,
+      "substitute_for": "광복절 (2026-08-15)"
+    },
+    {
+      "date": "2026-09-24",
+      "day_of_week": "목",
+      "name": "추석 연휴 (전날)",
+      "name_en": "Chuseok Holiday (Eve)",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null
+    },
+    {
+      "date": "2026-09-25",
+      "day_of_week": "금",
+      "name": "추석",
+      "name_en": "Chuseok (Mid-Autumn Festival)",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null
+    },
+    {
+      "date": "2026-09-26",
+      "day_of_week": "토",
+      "name": "추석 연휴 (다음날)",
+      "name_en": "Chuseok Holiday (Day After)",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null,
+      "note": "토요일 해당, 설날·추석 연휴는 다른 공휴일과 겹칠 때만 대체공휴일 적용 (미해당)"
+    },
+    {
+      "date": "2026-10-03",
+      "day_of_week": "토",
+      "name": "개천절",
+      "name_en": "National Foundation Day",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null,
+      "note": "토요일 해당 → 대체공휴일 10월 5일 지정"
+    },
+    {
+      "date": "2026-10-05",
+      "day_of_week": "월",
+      "name": "개천절 대체공휴일",
+      "name_en": "National Foundation Day (Substitute)",
+      "type": "대체공휴일",
+      "is_substitute": true,
+      "substitute_for": "개천절 (2026-10-03)"
+    },
+    {
+      "date": "2026-10-09",
+      "day_of_week": "금",
+      "name": "한글날",
+      "name_en": "Hangul Day",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null
+    },
+    {
+      "date": "2026-12-25",
+      "day_of_week": "금",
+      "name": "성탄절",
+      "name_en": "Christmas Day",
+      "type": "공휴일",
+      "is_substitute": false,
+      "substitute_for": null
+    }
+  ],
+  "summary": {
+    "total_holidays": 20,
+    "public_holidays": 16,
+    "substitute_holidays": 4,
+    "substitute_holiday_dates": [
+      "2026-03-02 (삼일절 대체)",
+      "2026-05-25 (부처님오신날 대체)",
+      "2026-08-17 (광복절 대체)",
+      "2026-10-05 (개천절 대체)"
+    ],
+    "weekend_holidays_no_substitute": [
+      "2026-03-01 (삼일절, 일→대체있음)",
+      "2026-05-24 (부처님오신날, 일→대체있음)",
+      "2026-06-06 (현충일, 토→대체없음)",
+      "2026-08-15 (광복절, 토→대체있음)",
+      "2026-09-26 (추석다음날, 토→대체없음)",
+      "2026-10-03 (개천절, 토→대체있음)"
+    ]
+  }
+}

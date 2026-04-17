@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>구지사거리 교통량 (260401~260412)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+:root {
+  --bg:     #F0F2F5;
+  --card:   #FFFFFF;
+  --border: #E2E8F0;
+  --t1:     #1A202C;
+  --t2:     #4A5568;
+  --t3:     #A0AEC0;
+  --accent: #2B6CB0;
+  --r:      14px;
+  --sans:   'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono:   'JetBrains Mono', 'Consolas', monospace;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html { font-size:14px; -webkit-font-smoothing:antialiased; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--t1);
+  padding: 44px 36px;
+  min-height: 100vh;
+}
+.wrap { max-width:1600px; margin:0 auto; }
+
+/* ── 상단 헤더 ── */
+.topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--t1);
+  line-height: 1;
+}
+.page-desc {
+  font-size: 13px;
+  color: var(--t2);
+  margin-top: 6px;
+  font-weight: 400;
+}
+.period-badge {
+  align-self: flex-start;
+  background: #EBF4FF;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px 16px;
+  border-radius: 100px;
+  border: 1px solid #BEE3F8;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  margin-top: 4px;
+}
+
+/* ── 카드 ── */
+.card {
+  background: var(--card);
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.04),
+    0 4px 12px rgba(0,0,0,0.05),
+    0 16px 40px rgba(0,0,0,0.04);
+  padding: 32px 28px 24px;
+  animation: rise .5s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes rise {
+  from { opacity:0; transform:translateY(18px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* ── 범례 ── */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t2);
+}
+.legend-swatch {
+  width: 28px;
+  height: 3px;
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+
+/* ── 차트 제목 ── */
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--t1);
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+}
+
+/* ── 차트 ── */
+.chart-outer {
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+}
+.chart-inner {
+  position: relative;
+  height: 440px;
+  min-width: 100%;
+}
+.chart-inner canvas { display: block; }
+
+/* ── 통계 ── */
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.stat {
+  padding-right: 32px;
+  margin-right: 32px;
+  border-right: 1px solid var(--border);
+}
+.stat:last-child { border-right:none; padding-right:0; margin-right:0; }
+.stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--t3);
+  margin-bottom: 5px;
+}
+.stat-val {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--t1);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.stat-unit {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--t3);
+  margin-left: 4px;
+}
+
+/* ── 푸터 ── */
+.footer {
+  text-align: center;
+  font-size: 11px;
+  color: var(--t3);
+  margin-top: 20px;
+  letter-spacing: 0.03em;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <div class="eyebrow">교통량 분석 리포트</div>
+      <h1 class="page-title">구지사거리</h1>
+      <p class="page-desc">구지4R-서(동향) 방향 교통량</p>
+    </div>
+    <span class="period-badge">260401~260412</span>
+  </div>
+
+  <div class="card"><div class="chart-outer"><div class="chart-inner" id="ch0wrap"><canvas id="ch0"></canvas></div></div><div class="stats"><div class="stat"><div class="stat-label">최대 교통량</div><div class="stat-val">164<span class="stat-unit">대</span></div></div><div class="stat"><div class="stat-label">평균 교통량</div><div class="stat-val">94<span class="stat-unit">대</span></div></div><div class="stat"><div class="stat-label">데이터 수</div><div class="stat-val">60<span class="stat-unit">개</span></div></div></div></div><script>(function(){
+  var DS = [{"label": "구지4R-서(동향)", "data": [{"x": "04/01 07:00", "y": 104}, {"x": "04/01 08:00", "y": 160}, {"x": "04/01 09:00", "y": 155}, {"x": "04/01 14:00", "y": 105}, {"x": "04/01 15:00", "y": 90}, {"x": "04/02 07:00", "y": 93}, {"x": "04/02 08:00", "y": 136}, {"x": "04/02 09:00", "y": 133}, {"x": "04/02 14:00", "y": 84}, {"x": "04/02 15:00", "y": 58}, {"x": "04/03 07:00", "y": 91}, {"x": "04/03 08:00", "y": 122}, {"x": "04/03 09:00", "y": 164}, {"x": "04/03 14:00", "y": 85}, {"x": "04/03 15:00", "y": 92}, {"x": "04/04 07:00", "y": 45}, {"x": "04/04 08:00", "y": 71}, {"x": "04/04 09:00", "y": 80}, {"x": "04/04 14:00", "y": 93}, {"x": "04/04 15:00", "y": 116}, {"x": "04/05 07:00", "y": 33}, {"x": "04/05 08:00", "y": 50}, {"x": "04/05 09:00", "y": 60}, {"x": "04/05 14:00", "y": 87}, {"x": "04/05 15:00", "y": 92}, {"x": "04/06 07:00", "y": 91}, {"x": "04/06 08:00", "y": 136}, {"x": "04/06 09:00", "y": 107}, {"x": "04/06 14:00", "y": 78}, {"x": "04/06 15:00", "y": 70}, {"x": "04/07 07:00", "y": 87}, {"x": "04/07 08:00", "y": 120}, {"x": "04/07 09:00", "y": 124}, {"x": "04/07 14:00", "y": 79}, {"x": "04/07 15:00", "y": 72}, {"x": "04/08 07:00", "y": 90}, {"x": "04/08 08:00", "y": 144}, {"x": "04/08 09:00", "y": 134}, {"x": "04/08 14:00", "y": 79}, {"x": "04/08 15:00", "y": 81}, {"x": "04/09 07:00", "y": 98}, {"x": "04/09 08:00", "y": 139}, {"x": "04/09 09:00", "y": 132}, {"x": "04/09 14:00", "y": 80}, {"x": "04/09 15:00", "y": 67}, {"x": "04/10 07:00", "y": 95}, {"x": "04/10 08:00", "y": 147}, {"x": "04/10 09:00", "y": 131}, {"x": "04/10 14:00", "y": 81}, {"x": "04/10 15:00", "y": 82}, {"x": "04/11 07:00", "y": 42}, {"x": "04/11 08:00", "y": 51}, {"x": "04/11 09:00", "y": 99}, {"x": "04/11 14:00", "y": 93}, {"x": "04/11 15:00", "y": 78}, {"x": "04/12 07:00", "y": 25}, {"x": "04/12 08:00", "y": 57}, {"x": "04/12 09:00", "y": 69}, {"x": "04/12 14:00", "y": 94}, {"x": "04/12 15:00", "y": 95}], "borderColor": "#D97706", "borderWidth": 2.5, "tension": 0.35, "pointRadius": 0, "pointHoverRadius": 6, "pointHoverBorderWidth": 2.5, "pointHoverBorderColor": "#FFFFFF", "pointHoverBackgroundColor": "#D97706", "spanGaps": true, "_hasFill": true, "_fillTop": "rgba(217,119,6,0.18)", "_fillBot": "rgba(217,119,6,0)"}];
+  var canvas = document.getElementById('ch0');
+  var inner  = document.getElementById('ch0wrap');
+  var nHours = 60;
+  var PX_PER_HOUR = 20;
+  var VIEWPORT_HOURS = 48;
+  var MAX_CANVAS_PX = Math.floor(14000 / (window.devicePixelRatio || 1));
+  if (nHours > VIEWPORT_HOURS) {
+    var w = Math.min(nHours * PX_PER_HOUR, MAX_CANVAS_PX);
+    inner.style.width = w + 'px';
+  }
+  var ctx = canvas.getContext('2d');
+  DS.forEach(function(ds){
+    if (ds._hasFill) {
+      var g = ctx.createLinearGradient(0, 0, 0, 440);
+      g.addColorStop(0, ds._fillTop);
+      g.addColorStop(1, ds._fillBot);
+      ds.backgroundColor = g;
+      ds.fill = 'origin';
+    }
+  });
+  new Chart(ctx, {
+    type: 'line',
+    data: { datasets: DS },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      devicePixelRatio: 1,
+      animation: { duration: 900, easing: 'easeInOutCubic' },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1A202C',
+          titleColor: '#718096',
+          bodyColor:  '#EDF2F7',
+          borderColor: '#2D3748',
+          borderWidth: 1,
+          padding: { x:14, y:10 },
+          cornerRadius: 10,
+          titleFont: { family:"'JetBrains Mono',monospace", size:11 },
+          bodyFont:  { family:"'Noto Sans KR',sans-serif", size:13, weight:'500' },
+          callbacks: {
+            title: function(items) {
+              if (!items.length) return '';
+              return items[0].label;
+            },
+            label: function(item) {
+              return item.parsed.y != null
+                ? '  '+item.dataset.label+': '+item.parsed.y.toLocaleString()+' 대'
+                : '  '+item.dataset.label+': —';
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: 'category',
+          grid:   { color:'#EDF2F7', tickLength:4 },
+          border: { color:'#E2E8F0' },
+          ticks: {
+            color: '#A0AEC0',
+            font:  { family:"'JetBrains Mono',monospace", size:10 },
+            maxRotation: 30,
+            autoSkip: true,
+            maxTicksLimit: 18,
+          },
+        },
+        y: {
+          beginAtZero: true,
+          grid:   { color:'#EDF2F7' },
+          border: { display:false },
+          ticks: {
+            color: '#A0AEC0',
+            font:  { family:"'JetBrains Mono',monospace", size:10 },
+            padding: 8,
+            callback: function(v){ return v.toLocaleString(); },
+          },
+        },
+      },
+      elements: {
+        line: { tension:0.35, borderWidth:2.5, borderCapStyle:'round', borderJoinStyle:'round' },
+        point: { radius:0, hoverRadius:6, hoverBorderWidth:2.5, hoverBorderColor:'#fff' },
+      },
+      spanGaps: true,
+    },
+  });
+})();</script>
+
+  <p class="footer">교통량 추출 시스템&nbsp;&nbsp;·&nbsp;&nbsp;2026.04.14 17:44</p>
+</div>
+</body>
+</html>
