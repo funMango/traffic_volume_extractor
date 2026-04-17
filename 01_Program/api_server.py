@@ -63,7 +63,7 @@ app = FastAPI(
 # ── Pydantic 모델 ─────────────────────────────────────────────────────────────
 
 class JobRequest(BaseModel):
-    node_ids: list[int]
+    node_ids: list[str | int]
     date_start: str       # "YYYY-MM-DD"
     date_end: str         # "YYYY-MM-DD"
     hours: Optional[list[int]] = None
@@ -235,6 +235,72 @@ def _fetch_intersections() -> list[dict]:
         conn.close()
 
 
+def _fetch_corrected_traffic(req: JobRequest) -> dict:
+    """이상탐지+보정 결과를 동기적으로 계산 (executor에서 실행)
+
+    정상 슬롯도 포함해 반환하므로 이상 없을 때도 원본 교통량 그래프를 그릴 수 있다.
+    """
+    if _holiday_dates is None:
+        raise RuntimeError("서버 초기화가 완료되지 않았습니다. 잠시 후 다시 시도하세요.")
+
+    conn = ad.connect_db()
+    try:
+        date_start = date.fromisoformat(req.date_start)
+        date_end   = date.fromisoformat(req.date_end)
+        hours      = req.resolve_hours()
+
+        baseline_years = ad.select_baseline_years(date_start.year)
+        fallback_year  = ad.select_fallback_year(date_start.year)
+        adj_periods    = ad.get_adjacent_month_periods(date_start, date_end)
+
+        id_to_name = {nid: nm for nid, nm in ad.load_intersections(conn)}
+
+        all_slots: list[dict] = []
+        for node_id in req.node_ids:
+            node_name = id_to_name.get(node_id, str(node_id))
+            node_results, baselines, target_data = ad.analyse_node(
+                conn, node_id, node_name,
+                date_start, date_end, hours,
+                baseline_years, fallback_year, adj_periods,
+                _holiday_dates,
+            )
+
+            # approach name lookup — str 정규화로 Oracle 타입 불일치 방지
+            acsr_names: dict = {str(aid): anm for aid, anm in ad.load_approaches(conn, node_id)}
+            for r in node_results:
+                acsr_names.setdefault(str(r["_acsr_id"]), r["방향"])
+
+            # 이상 슬롯 인덱스 (중복 방지)
+            anomaly_index = {
+                (r["_acsr_id"], r["_date"], r["_hour"]): r
+                for r in node_results
+            }
+
+            # target_data 전체를 슬롯으로 직렬화 (이상 슬롯은 보정 정보 포함)
+            for (acsr_id, d, h), vol in target_data.items():
+                if (acsr_id, d, h) in anomaly_index:
+                    all_slots.append(_serialize_slot(anomaly_index[(acsr_id, d, h)], node_id, baselines))
+                else:
+                    all_slots.append({
+                        "date":              d.isoformat(),
+                        "hour":              h,
+                        "node_id":           node_id,
+                        "node_name":         node_name,
+                        "approach_id":       acsr_id,
+                        "approach_name":     acsr_names.get(str(acsr_id), str(acsr_id)),
+                        "traffic_volume":    vol,
+                        "anomaly_type":      None,
+                        "corrected_value":   None,
+                        "correction_method": None,
+                        "confidence":        None,
+                        "baseline":          None,
+                    })
+
+        return {"slots": all_slots}
+    finally:
+        conn.close()
+
+
 # ── 엔드포인트 ────────────────────────────────────────────────────────────────
 
 @app.post("/jobs", status_code=201)
@@ -291,6 +357,18 @@ async def get_job(job_id: str):
     if job is None:
         raise HTTPException(status_code=404, detail=f"job_id '{job_id}'를 찾을 수 없습니다.")
     return _serialize_job(job)
+
+
+@app.post("/corrected-traffic")
+async def corrected_traffic(req: JobRequest):
+    """이상탐지+보정 결과를 동기적으로 반환합니다.
+
+    /jobs 와 동일한 요청 형식이지만, 결과를 즉시 반환합니다 (job 대기 없음).
+    응답: {"slots": [...]}
+    """
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(executor, _fetch_corrected_traffic, req)
+    return result
 
 
 @app.get("/intersections")

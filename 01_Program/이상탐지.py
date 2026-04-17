@@ -79,26 +79,24 @@ def _parse_api_response(slots: list, node_name: str) -> tuple:
         if acsr_id not in approaches_seen:
             approaches_seen[acsr_id] = acsr_nm
 
-        # 원본 교통량 → target_data 재구성
-        orig_val = slot.get("original_volume")
+        # 원본 교통량 → target_data (정상 슬롯 포함 전체)
+        orig_val = slot.get("traffic_volume")
         if orig_val is not None:
             target_data[(acsr_id, d, h)] = orig_val
 
-        # 이상 슬롯만 node_results에 추가
-        판정 = slot.get("판정")
-        if 판정 is not None:
-            교통량 = orig_val if orig_val is not None else 0
-            보정값 = slot["traffic_volume"] if slot.get("is_corrected") else None
+        # A형/B형 이상 슬롯만 node_results에 추가
+        anomaly_type = slot.get("anomaly_type")
+        if anomaly_type in ("A형", "B형"):
             node_results.append({
                 "날짜":     d.strftime("%Y.%m.%d"),
                 "시간":     f"{h:02d}:00",
                 "교차로":   node_name,
                 "방향":     acsr_nm,
-                "교통량":   교통량,
-                "판정":     판정,
-                "보정값":   보정값,
-                "보정방법": slot.get("보정방법"),
-                "신뢰도":   slot.get("신뢰도"),
+                "교통량":   orig_val if orig_val is not None else 0,
+                "판정":     anomaly_type,
+                "보정값":   slot.get("corrected_value"),
+                "보정방법": slot.get("correction_method"),
+                "신뢰도":   slot.get("confidence"),
                 "_acsr_id": acsr_id,
                 "_date":    d,
                 "_hour":    h,
@@ -1255,6 +1253,16 @@ def input_hours() -> list:
         print("  1, 2, 3 중 선택하세요.")
 
 
+def input_approach_names(approaches: list, node_name: str) -> list:
+    """각 접근로 방향명을 사용자에게 입력받음. Enter → 기존 이름 유지."""
+    print(f"\n  [{node_name}] 접근로 방향명 입력 (Enter=기본값 유지):")
+    result = []
+    for acsr_id, acsr_nm in approaches:
+        custom = input(f"    {acsr_nm} → ").strip()
+        result.append((acsr_id, custom if custom else acsr_nm))
+    return result
+
+
 def make_filename(intersections: list, date_start: date, date_end: date) -> str:
     names     = [nm for _, nm in intersections]
     name_part = names[0] if len(names) == 1 else f"{names[0]}_{names[-1]}"
@@ -1315,6 +1323,8 @@ def main():
         if not approaches:
             print(f"  접근로 정보 없음, 건너뜀")
             continue
+
+        approaches = input_approach_names(approaches, node_name)
 
         cnt_a = sum(1 for r in node_results if r["판정"] == "A형")
         cnt_b = sum(1 for r in node_results if r["판정"] == "B형")
