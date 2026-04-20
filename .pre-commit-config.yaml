@@ -1,0 +1,38 @@
+minimum_pre_commit_version: "3.7.0"
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format
+        entry: .venv\Scripts\python -m ruff format 01_Program scripts
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: ruff-check
+        name: ruff check
+        entry: .venv\Scripts\python -m ruff check 01_Program scripts
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: conventional-commit-msg
+        name: conventional commit message
+        entry: .venv\Scripts\python scripts/validate_commit_msg.py
+        language: system
+        stages: [commit-msg]
+
+      - id: branch-name-check
+        name: branch name policy
+        entry: .venv\Scripts\python scripts/validate_branch_name.py
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: pytest
+        name: pytest
+        entry: .venv\Scripts\python -m pytest 01_Program --ignore=01_Program/test_db.py
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

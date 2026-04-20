@@ -1,0 +1,24 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [
+  "02_Result",
+  "node_modules",
+  "01_Program/__pycache__",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+"01_Program/test_*.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["01_Program"]
+python_files = ["test_*.py"]
+addopts = "--ignore=01_Program/test_db.py -q"

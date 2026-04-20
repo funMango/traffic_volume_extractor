@@ -1,0 +1,38 @@
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+jobs:
+  lint-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create venv
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python -m pip install --upgrade pip
+
+      - name: Install dependencies
+        run: |
+          .\.venv\Scripts\python -m pip install ruff pytest fastapi pydantic numpy openpyxl python-dotenv plotly tqdm oracledb
+
+      - name: Ruff format (check-only)
+        run: .\.venv\Scripts\python -m ruff format --check 01_Program scripts
+
+      - name: Ruff lint
+        run: .\.venv\Scripts\python -m ruff check 01_Program scripts
+
+      - name: Pytest
+        run: .\.venv\Scripts\python -m pytest 01_Program --ignore=01_Program/test_db.py

@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+
+# Editors/OS
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini
+
+# Local environment files
+.env
+00_Data/.env
+
+# Node
+node_modules/
+
+# Logs and temp files
+*.log
+tmp/
+temp/
+
+# Generated outputs: default untracked
+02_Result/**
+!02_Result/.gitkeep
+!02_Result/**/.gitkeep
