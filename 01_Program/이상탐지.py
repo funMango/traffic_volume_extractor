@@ -25,6 +25,7 @@ from dotenv import load_dotenv
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+import anomaly_core as core
 
 # ── 경로 설정 ────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -129,6 +130,20 @@ ZERO_RATE_EXPANSION_THRESHOLD = 0.8   # Stage 1/2 확장 진입 임계값
 PROFILE_DB_BREAKDOWN = os.getenv("ANOMALY_PROFILE_DB_BREAKDOWN", "1").strip().lower() in (
     "1", "true", "yes", "y", "on"
 )
+
+# Keep compatibility names in this module, but source values from core.
+AVAILABLE_YEARS = core.AVAILABLE_YEARS
+DATA_START_YEAR = core.DATA_START_YEAR
+ZERO_RATE_THRESHOLD = core.ZERO_RATE_THRESHOLD
+RATIO_THRESHOLD = core.RATIO_THRESHOLD
+IQR_MULTIPLIER = core.IQR_MULTIPLIER
+MEDIAN_RATIO = core.MEDIAN_RATIO
+MIN_CLEAN_SAMPLES = core.MIN_CLEAN_SAMPLES
+MIN_CONFIDENCE_SAMPLES = core.MIN_CONFIDENCE_SAMPLES
+MAX_INTERP_DAYS = core.MAX_INTERP_DAYS
+MAX_INTERP_DAYS_OK = core.MAX_INTERP_DAYS_OK
+ZERO_RATE_EXPANSION_THRESHOLD = core.ZERO_RATE_EXPANSION_THRESHOLD
+
 BASELINE_CACHE_ENABLED = os.getenv("ANOMALY_BASELINE_CACHE", "1").strip().lower() in (
     "1", "true", "yes", "y", "on"
 )
@@ -931,6 +946,17 @@ def apply_corrections(results: list, baselines: dict, target_data: dict) -> None
 # ════════════════════════════════════════════════════════════════
 # 단일 교차로 분석 (API·CLI 공용)
 # ════════════════════════════════════════════════════════════════
+
+# Core calculation functions are sourced from anomaly_core.
+# Keep these names in this module for backward compatibility.
+get_day_type = core.get_day_type
+select_baseline_years = core.select_baseline_years
+select_fallback_year = core.select_fallback_year
+compute_baseline = core.compute_baseline
+build_baselines = core.build_baselines
+detect_anomalies = core.detect_anomalies
+apply_corrections = core.apply_corrections
+
 
 def analyse_node(
     conn,
