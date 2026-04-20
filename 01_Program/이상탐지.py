@@ -184,7 +184,7 @@ def load_approaches(conn, node_id) -> list:
         return [(r[0], r[1]) for r in cur.fetchall()]
 
 
-def load_baseline_data(conn, node_id, baseline_years: list) -> list:
+def load_baseline_data(conn, node_id, baseline_years: list, hours: list | None = None) -> list:
     """베이스라인 연도 시간별 접근로 데이터: [(acsr_id, tot_dt, trf_qnty), ...]"""
     if not baseline_years:
         return []
@@ -193,15 +193,20 @@ def load_baseline_data(conn, node_id, baseline_years: list) -> list:
         f"AND TOT_DT < TO_DATE('{y + 1}-01-01','YYYY-MM-DD'))"
         for y in baseline_years
     )
+    hour_clause = ""
+    if hours and set(hours) != set(range(24)):
+        hour_in = ",".join(str(h) for h in sorted(set(hours)))
+        hour_clause = f"\n          AND TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')) IN ({hour_in})"
     sql = f"""
         SELECT ACSR_ID, TOT_DT, TRF_QNTY
         FROM S_CRSRD_ACSR_TRF_1HH
         WHERE NODE_ID = :nid
           AND ({year_conditions})
+          {hour_clause}
           AND TOT_DT < SYSDATE
-        ORDER BY ACSR_ID, TOT_DT
     """
     with conn.cursor() as cur:
+        cur.arraysize = 10000
         cur.execute(sql, nid=node_id)
         return cur.fetchall()
 
@@ -228,8 +233,12 @@ def get_adjacent_month_periods(date_start: date, date_end: date) -> list[tuple[i
     return sorted(adj)
 
 
-def load_adjacent_month_data(conn, node_id: int,
-                             adj_periods: list[tuple[int, int]]) -> list:
+def load_adjacent_month_data(
+    conn,
+    node_id: int,
+    adj_periods: list[tuple[int, int]],
+    hours: list | None = None,
+) -> list:
     """C형 인접 월 데이터 조회: [(acsr_id, tot_dt, trf_qnty), ...]"""
     if not adj_periods:
         return []
@@ -242,15 +251,20 @@ def load_adjacent_month_data(conn, node_id: int,
         f"AND TOT_DT < TO_DATE('{_next_month(y, m)[0]}-{_next_month(y, m)[1]:02d}-01','YYYY-MM-DD'))"
         for y, m in adj_periods
     )
+    hour_clause = ""
+    if hours and set(hours) != set(range(24)):
+        hour_in = ",".join(str(h) for h in sorted(set(hours)))
+        hour_clause = f"\n          AND TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')) IN ({hour_in})"
     sql = f"""
         SELECT ACSR_ID, TOT_DT, TRF_QNTY
         FROM S_CRSRD_ACSR_TRF_1HH
         WHERE NODE_ID = :nid
           AND ({conditions})
+          {hour_clause}
           AND TOT_DT < SYSDATE
-        ORDER BY ACSR_ID, TOT_DT
     """
     with conn.cursor() as cur:
+        cur.arraysize = 10000
         cur.execute(sql, nid=node_id)
         return cur.fetchall()
 
@@ -268,9 +282,9 @@ def load_target_data(conn, node_id, date_start: date, date_end: date, hours: lis
             WHERE NODE_ID = :nid
               AND TOT_DT >= :ds
               AND TOT_DT < :de_next
-            ORDER BY TOT_DT, ACSR_ID
         """
         with conn.cursor() as cur:
+            cur.arraysize = 10000
             cur.execute(sql, nid=node_id, ds=ds_dt, de_next=de_next)
             result = {}
             for acsr_id, tot_dt, trf_qnty in cur.fetchall():
@@ -287,9 +301,9 @@ def load_target_data(conn, node_id, date_start: date, date_end: date, hours: lis
               AND TOT_DT >= :ds
               AND TOT_DT < :de_next
               AND TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')) IN ({hour_in})
-            ORDER BY TOT_DT, ACSR_ID
         """
         with conn.cursor() as cur:
+            cur.arraysize = 10000
             cur.execute(sql, nid=node_id, ds=ds_dt, de_next=de_next)
             result = {}
             for acsr_id, tot_dt, trf_qnty in cur.fetchall():
@@ -837,15 +851,24 @@ def analyse_node(
         return [], {}, {}
 
     t0 = time.perf_counter()
-    raw_rows = load_baseline_data(conn, node_id, baseline_years)
+    raw_rows = load_baseline_data(conn, node_id, baseline_years, hours=hours)
     t_raw = time.perf_counter() - t0
 
     t1 = time.perf_counter()
-    adj_rows = load_adjacent_month_data(conn, node_id, adj_periods)
+    adj_rows = load_adjacent_month_data(conn, node_id, adj_periods, hours=hours)
     t_adj = time.perf_counter() - t1
 
     t2 = time.perf_counter()
-    fallback_raw_rows = load_baseline_data(conn, node_id, [fallback_year])
+    fallback_source = "query"
+    if fallback_year in baseline_years:
+        fallback_source = "reuse_baseline"
+        fallback_raw_rows = []
+        for acsr_id, tot_dt, trf_qnty in raw_rows:
+            d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
+            if d.year == fallback_year:
+                fallback_raw_rows.append((acsr_id, tot_dt, trf_qnty))
+    else:
+        fallback_raw_rows = load_baseline_data(conn, node_id, [fallback_year], hours=hours)
     t_fallback = time.perf_counter() - t2
     t_db = t_raw + t_adj + t_fallback
 
@@ -882,7 +905,7 @@ def analyse_node(
             f"[PROFILE_DB] {node_name} | "
             f"baseline={t_raw:.3f}s/{len(raw_rows):,}rows | "
             f"adj={t_adj:.3f}s/{len(adj_rows):,}rows | "
-            f"fallback={t_fallback:.3f}s/{len(fallback_raw_rows):,}rows | "
+            f"fallback={t_fallback:.3f}s/{len(fallback_raw_rows):,}rows({fallback_source}) | "
             f"target={t_target:.3f}s/{len(target_data):,}rows | "
             f"period={date_start}~{date_end} hours={len(hours)} "
             f"approaches={len(approaches)} baseline_years={baseline_years} "

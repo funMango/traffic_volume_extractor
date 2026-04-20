@@ -236,6 +236,22 @@ def _fetch_intersections() -> list[dict]:
         conn.close()
 
 
+def _get_id_to_name_map(conn) -> dict:
+    """교차로 id→name 맵 반환 (가능하면 메모리 캐시 재사용)"""
+    global _intersections_cache
+    if _intersections_cache is not None:
+        return {it["node_id"]: it["name"] for it in _intersections_cache}
+    return {nid: nm for nid, nm in ad.load_intersections(conn)}
+
+
+def _normalize_node_id(node_id: str | int):
+    if isinstance(node_id, int):
+        return node_id
+    if isinstance(node_id, str) and node_id.isdigit():
+        return int(node_id)
+    return node_id
+
+
 def _fetch_corrected_traffic(req: JobRequest) -> dict:
     """이상탐지+보정 결과를 동기적으로 계산 (executor에서 실행)
 
@@ -254,20 +270,21 @@ def _fetch_corrected_traffic(req: JobRequest) -> dict:
         fallback_year  = ad.select_fallback_year(date_start.year)
         adj_periods    = ad.get_adjacent_month_periods(date_start, date_end)
 
-        id_to_name = {nid: nm for nid, nm in ad.load_intersections(conn)}
+        id_to_name = _get_id_to_name_map(conn)
 
         all_slots: list[dict] = []
         for node_id in req.node_ids:
-            node_name = id_to_name.get(node_id, str(node_id))
+            norm_node_id = _normalize_node_id(node_id)
+            node_name = id_to_name.get(norm_node_id, str(node_id))
             node_results, baselines, target_data = ad.analyse_node(
-                conn, node_id, node_name,
+                conn, norm_node_id, node_name,
                 date_start, date_end, hours,
                 baseline_years, fallback_year, adj_periods,
                 _holiday_dates,
             )
 
             # approach name lookup — str 정규화로 Oracle 타입 불일치 방지
-            acsr_names: dict = {str(aid): anm for aid, anm in ad.load_approaches(conn, node_id)}
+            acsr_names: dict = {str(aid): anm for aid, anm in ad.load_approaches(conn, norm_node_id)}
             for r in node_results:
                 acsr_names.setdefault(str(r["_acsr_id"]), r["방향"])
 
@@ -285,7 +302,7 @@ def _fetch_corrected_traffic(req: JobRequest) -> dict:
                     all_slots.append({
                         "date":              d.isoformat(),
                         "hour":              h,
-                        "node_id":           node_id,
+                        "node_id":           norm_node_id,
                         "node_name":         node_name,
                         "approach_id":       acsr_id,
                         "approach_name":     acsr_names.get(str(acsr_id), str(acsr_id)),
@@ -375,19 +392,20 @@ def _fetch_anomaly_daily_summary(req: JobRequest) -> dict:
         fallback_year = ad.select_fallback_year(date_start.year)
         adj_periods = ad.get_adjacent_month_periods(date_start, date_end)
 
-        id_to_name = {nid: nm for nid, nm in ad.load_intersections(conn)}
+        id_to_name = _get_id_to_name_map(conn)
 
         all_rows: list[dict] = []
         for node_id in req.node_ids:
-            node_name = id_to_name.get(node_id, str(node_id))
+            norm_node_id = _normalize_node_id(node_id)
+            node_name = id_to_name.get(norm_node_id, str(node_id))
             node_results, _, target_data = ad.analyse_node(
-                conn, node_id, node_name,
+                conn, norm_node_id, node_name,
                 date_start, date_end, hours,
                 baseline_years, fallback_year, adj_periods,
                 _holiday_dates,
             )
             all_rows.extend(
-                _aggregate_daily_summary_rows(node_id, node_name, node_results, target_data)
+                _aggregate_daily_summary_rows(norm_node_id, node_name, node_results, target_data)
             )
 
         all_rows.sort(key=lambda r: (r["date"], r["node_id"], r["approach_id"] is not None, r["approach_id"] or -1))
