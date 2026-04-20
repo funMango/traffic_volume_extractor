@@ -9,6 +9,7 @@ import os
 import sys
 import json
 import difflib
+import time
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta
@@ -124,6 +125,11 @@ ZERO_RATE_EXPANSION_THRESHOLD = 0.8   # Stage 1/2 확장 진입 임계값
 # DB / 공휴일
 # ════════════════════════════════════════════════════════════════
 
+PROFILE_DB_BREAKDOWN = os.getenv("ANOMALY_PROFILE_DB_BREAKDOWN", "1").strip().lower() in (
+    "1", "true", "yes", "y", "on"
+)
+
+
 def connect_db():
     load_dotenv(ENV_PATH)
     return oracledb.connect(
@@ -180,12 +186,18 @@ def load_approaches(conn, node_id) -> list:
 
 def load_baseline_data(conn, node_id, baseline_years: list) -> list:
     """베이스라인 연도 시간별 접근로 데이터: [(acsr_id, tot_dt, trf_qnty), ...]"""
-    year_in = ",".join(str(y) for y in baseline_years)
+    if not baseline_years:
+        return []
+    year_conditions = " OR ".join(
+        f"(TOT_DT >= TO_DATE('{y}-01-01','YYYY-MM-DD') "
+        f"AND TOT_DT < TO_DATE('{y + 1}-01-01','YYYY-MM-DD'))"
+        for y in baseline_years
+    )
     sql = f"""
         SELECT ACSR_ID, TOT_DT, TRF_QNTY
         FROM S_CRSRD_ACSR_TRF_1HH
         WHERE NODE_ID = :nid
-          AND EXTRACT(YEAR FROM TOT_DT) IN ({year_in})
+          AND ({year_conditions})
           AND TOT_DT < SYSDATE
         ORDER BY ACSR_ID, TOT_DT
     """
@@ -221,8 +233,13 @@ def load_adjacent_month_data(conn, node_id: int,
     """C형 인접 월 데이터 조회: [(acsr_id, tot_dt, trf_qnty), ...]"""
     if not adj_periods:
         return []
+
+    def _next_month(y, m):
+        return (y + 1, 1) if m == 12 else (y, m + 1)
+
     conditions = " OR ".join(
-        f"(EXTRACT(YEAR FROM TOT_DT) = {y} AND EXTRACT(MONTH FROM TOT_DT) = {m})"
+        f"(TOT_DT >= TO_DATE('{y}-{m:02d}-01','YYYY-MM-DD') "
+        f"AND TOT_DT < TO_DATE('{_next_month(y, m)[0]}-{_next_month(y, m)[1]:02d}-01','YYYY-MM-DD'))"
         for y, m in adj_periods
     )
     sql = f"""
@@ -242,26 +259,44 @@ def load_target_data(conn, node_id, date_start: date, date_end: date, hours: lis
     """{(acsr_id, date, hour): trf_qnty}"""
     if not hours:
         return {}
-    hour_in = ",".join(str(h) for h in hours)
-    sql = f"""
-        SELECT ACSR_ID, TOT_DT, TRF_QNTY
-        FROM S_CRSRD_ACSR_TRF_1HH
-        WHERE NODE_ID = :nid
-          AND TRUNC(TOT_DT) >= :ds
-          AND TRUNC(TOT_DT) <= :de
-          AND TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')) IN ({hour_in})
-        ORDER BY TOT_DT, ACSR_ID
-    """
-    with conn.cursor() as cur:
-        cur.execute(sql, nid=node_id,
-                    ds=datetime(date_start.year, date_start.month, date_start.day),
-                    de=datetime(date_end.year, date_end.month, date_end.day))
-        result = {}
-        for acsr_id, tot_dt, trf_qnty in cur.fetchall():
-            d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
-            h = tot_dt.hour if isinstance(tot_dt, datetime) else 0
-            result[(acsr_id, d, h)] = trf_qnty
-        return result
+    ds_dt   = datetime(date_start.year, date_start.month, date_start.day)
+    de_next = datetime(date_end.year, date_end.month, date_end.day) + timedelta(days=1)
+    if set(hours) == set(range(24)):
+        sql = """
+            SELECT ACSR_ID, TOT_DT, TRF_QNTY
+            FROM S_CRSRD_ACSR_TRF_1HH
+            WHERE NODE_ID = :nid
+              AND TOT_DT >= :ds
+              AND TOT_DT < :de_next
+            ORDER BY TOT_DT, ACSR_ID
+        """
+        with conn.cursor() as cur:
+            cur.execute(sql, nid=node_id, ds=ds_dt, de_next=de_next)
+            result = {}
+            for acsr_id, tot_dt, trf_qnty in cur.fetchall():
+                d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
+                h = tot_dt.hour if isinstance(tot_dt, datetime) else 0
+                result[(acsr_id, d, h)] = trf_qnty
+            return result
+    else:
+        hour_in = ",".join(str(h) for h in hours)
+        sql = f"""
+            SELECT ACSR_ID, TOT_DT, TRF_QNTY
+            FROM S_CRSRD_ACSR_TRF_1HH
+            WHERE NODE_ID = :nid
+              AND TOT_DT >= :ds
+              AND TOT_DT < :de_next
+              AND TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')) IN ({hour_in})
+            ORDER BY TOT_DT, ACSR_ID
+        """
+        with conn.cursor() as cur:
+            cur.execute(sql, nid=node_id, ds=ds_dt, de_next=de_next)
+            result = {}
+            for acsr_id, tot_dt, trf_qnty in cur.fetchall():
+                d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
+                h = tot_dt.hour if isinstance(tot_dt, datetime) else 0
+                result[(acsr_id, d, h)] = trf_qnty
+            return result
 
 
 # ════════════════════════════════════════════════════════════════
@@ -801,23 +836,58 @@ def analyse_node(
     if not approaches:
         return [], {}, {}
 
-    raw_rows          = load_baseline_data(conn, node_id, baseline_years)
-    adj_rows          = load_adjacent_month_data(conn, node_id, adj_periods)
-    fallback_raw_rows = load_baseline_data(conn, node_id, [fallback_year])
+    t0 = time.perf_counter()
+    raw_rows = load_baseline_data(conn, node_id, baseline_years)
+    t_raw = time.perf_counter() - t0
 
-    baselines, _ = build_baselines(
+    t1 = time.perf_counter()
+    adj_rows = load_adjacent_month_data(conn, node_id, adj_periods)
+    t_adj = time.perf_counter() - t1
+
+    t2 = time.perf_counter()
+    fallback_raw_rows = load_baseline_data(conn, node_id, [fallback_year])
+    t_fallback = time.perf_counter() - t2
+    t_db = t_raw + t_adj + t_fallback
+
+    t3 = time.perf_counter()
+    baselines, fallback_summary = build_baselines(
         raw_rows, baseline_years, holiday_dates,
         approaches, date_start, date_end, hours,
         adj_month_rows=adj_rows,
         fallback_rows=fallback_raw_rows,
     )
+    t_baselines = time.perf_counter() - t3
 
-    target_data  = load_target_data(conn, node_id, date_start, date_end, hours)
+    t4 = time.perf_counter()
+    target_data = load_target_data(conn, node_id, date_start, date_end, hours)
+    t_target = time.perf_counter() - t4
+
     node_results = detect_anomalies(
         node_name, approaches, baselines, target_data,
         date_start, date_end, hours, holiday_dates,
     )
     apply_corrections(node_results, baselines, target_data)
+
+    n_cells = len(baselines)
+    n_s1 = fallback_summary.get("n_stage1", 0)
+    n_s2 = fallback_summary.get("n_stage2", 0)
+    print(
+        f"[PROFILE] {node_name} | "
+        f"DB쿼리={t_db:.3f}s | baselines={t_baselines:.3f}s | target_data={t_target:.3f}s | "
+        f"cells={n_cells} stage1={n_s1} stage2={n_s2}"
+    )
+
+    if PROFILE_DB_BREAKDOWN:
+        print(
+            f"[PROFILE_DB] {node_name} | "
+            f"baseline={t_raw:.3f}s/{len(raw_rows):,}rows | "
+            f"adj={t_adj:.3f}s/{len(adj_rows):,}rows | "
+            f"fallback={t_fallback:.3f}s/{len(fallback_raw_rows):,}rows | "
+            f"target={t_target:.3f}s/{len(target_data):,}rows | "
+            f"period={date_start}~{date_end} hours={len(hours)} "
+            f"approaches={len(approaches)} baseline_years={baseline_years} "
+            f"fallback_year={fallback_year} adj_months={len(adj_periods)}"
+        )
 
     return node_results, baselines, target_data
 

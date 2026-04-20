@@ -16,6 +16,7 @@ import json
 import sqlite3
 import sys
 import threading
+import time
 import urllib.error
 import urllib.request
 from collections import defaultdict
@@ -24,9 +25,6 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from tqdm import tqdm
-
-sys.path.insert(0, str(Path(__file__).parent))
-import 이상탐지 as ad
 
 # ── API 설정 ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +53,31 @@ def _api_post(path: str, payload: dict) -> dict:
         print(f"[DEBUG] 요청 payload: {json.dumps(payload, ensure_ascii=False)}")
         print(f"[DEBUG] 서버 응답: {body}")
         raise
+
+
+def _parse_api_slots_for_daily(slots: list, node_name: str) -> list[dict]:
+    """API /corrected-traffic 응답 슬롯에서 A/B형 이상만 추출해 일별집계 형태로 변환."""
+    node_results: list[dict] = []
+    for slot in slots:
+        anomaly_type = slot.get("anomaly_type")
+        if anomaly_type not in ("A형", "B형"):
+            continue
+
+        d = date.fromisoformat(slot["date"])
+        h = int(slot["hour"])
+        vol = slot.get("traffic_volume")
+        node_results.append({
+            "날짜": d.strftime("%Y.%m.%d"),
+            "시간": f"{h:02d}:00",
+            "교차로": node_name,
+            "방향": slot.get("approach_name"),
+            "교통량": vol if vol is not None else 0,
+            "판정": anomaly_type,
+            "_acsr_id": slot.get("approach_id"),
+            "_date": d,
+            "_hour": h,
+        })
+    return node_results
 
 # ── 경로 상수 ─────────────────────────────────────────────────────────────────
 
@@ -286,50 +309,76 @@ def aggregate_and_insert_daily(
     return rows_to_insert
 
 
+def insert_daily_rows(
+    db_conn: sqlite3.Connection,
+    db_lock: threading.Lock,
+    rows_to_insert: list[dict],
+) -> list[dict]:
+    """일별집계 행을 anomaly_daily 테이블에 일괄 저장."""
+    if rows_to_insert:
+        with db_lock:
+            db_conn.executemany(
+                """INSERT INTO anomaly_daily
+                   (date, node_id, node_name, approach_id, approach_name, missing_count)
+                   VALUES
+                   (:date, :node_id, :node_name, :approach_id, :approach_name, :missing_count)
+                """,
+                rows_to_insert,
+            )
+    return rows_to_insert
+
+
 # ── 교차로 단위 처리 (스레드 워커) ───────────────────────────────────────────
 
 def _process_node(
     node_id: int,
     node_name: str,
     year_split_segments: list,
-    db_conn: sqlite3.Connection,
-    db_lock: threading.Lock,
 ) -> tuple:
     node_inserted = 0
     local_summary: dict[date, int] = defaultdict(int)
     failed = False
+    pending_rows: list[dict] = []
 
     for seg_ds, seg_de in year_split_segments:
         try:
-            resp = _api_post("/corrected-traffic", {
+            t0 = time.perf_counter()
+            resp = _api_post("/anomaly-daily-summary", {
                 "node_ids":   [node_id],
                 "date_start": seg_ds.isoformat(),
                 "date_end":   seg_de.isoformat(),
                 "hours":      HOURS,
             })
-            all_slots = resp["slots"]
-            node_results, _, _ = ad._parse_api_response(all_slots, node_name)
+            t_api = time.perf_counter() - t0
+            rows_from_api = resp["rows"]
+
+            t1 = time.perf_counter()
+            for row in rows_from_api:
+                row.setdefault("node_id", node_id)
+                row.setdefault("node_name", node_name)
+            t_parse = time.perf_counter() - t1
         except Exception as e:
             tqdm.write(f"  [경고] {node_name} {seg_ds}~{seg_de} 분석 실패: {e}")
             failed = True
             continue
 
-        try:
-            inserted = aggregate_and_insert_daily(
-                db_conn, db_lock, node_id, node_name,
-                node_results, all_slots,
-                seg_ds, seg_de,
-            )
-        except sqlite3.Error as e:
-            tqdm.write(f"  [오류] DB 쓰기 실패 ({node_name}): {e}")
-            continue
+        t2 = time.perf_counter()
+        inserted = rows_from_api
+        pending_rows.extend(inserted)
+        t_agg = time.perf_counter() - t2
+
+        tqdm.write(
+            f"[PROFILE] {node_name} {seg_ds}~{seg_de} | "
+            f"rows={len(rows_from_api)} | "
+            f"API={t_api:.3f}s | parse={t_parse:.3f}s | agg+sqlite={t_agg:.3f}s"
+        )
 
         node_inserted += len(inserted)
         for row in inserted:
             d = date.fromisoformat(row["date"])
             local_summary[d] += 1
 
-    return node_inserted, node_name, local_summary, failed
+    return node_inserted, node_name, local_summary, failed, pending_rows
 
 
 # ── 요약 출력 ─────────────────────────────────────────────────────────────────
@@ -415,13 +464,21 @@ def main() -> None:
     with tqdm(total=len(intersections), desc="이상탐지 캐싱", unit="교차로", ncols=80) as pbar:
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = {
-                executor.submit(_process_node, nid, nm, year_split_segments, db_conn, db_lock): nm
+                executor.submit(_process_node, nid, nm, year_split_segments): nm
                 for nid, nm in intersections
             }
             for fut in as_completed(futures):
-                node_inserted, node_name, local_summary, failed = fut.result()
+                node_inserted, node_name, local_summary, failed, pending_rows = fut.result()
                 if failed:
                     failed_nodes.append(node_name)
+                try:
+                    insert_daily_rows(db_conn, db_lock, pending_rows)
+                except sqlite3.Error as e:
+                    tqdm.write(f"  [오류] DB 쓰기 실패 ({node_name}): {e}")
+                    failed_nodes.append(node_name)
+                    pbar.set_postfix_str(node_name[:12])
+                    pbar.update(1)
+                    continue
                 total_inserted += node_inserted
                 for d, cnt in local_summary.items():
                     summary[node_name][d] += cnt

@@ -16,6 +16,7 @@
 import asyncio
 import sys
 import uuid
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from datetime import date, datetime
@@ -301,6 +302,100 @@ def _fetch_corrected_traffic(req: JobRequest) -> dict:
         conn.close()
 
 
+def _aggregate_daily_summary_rows(
+    node_id: int,
+    node_name: str,
+    node_results: list,
+    target_data: dict,
+) -> list[dict]:
+    """anomaly 판정 결과 + 타겟 슬롯으로 일별 집계 행 생성."""
+    all_slot_index: dict[tuple[date, int], set[int]] = defaultdict(set)
+    for acsr_id, d, h in target_data.keys():
+        all_slot_index[(d, h)].add(acsr_id)
+
+    anomaly_index: dict[tuple[date, int], dict[int, dict]] = defaultdict(dict)
+    for r in node_results:
+        if r.get("판정") == "A형":
+            anomaly_index[(r["_date"], r["_hour"])][r["_acsr_id"]] = r
+
+    node_counter: dict[date, int] = defaultdict(int)
+    approach_counter: dict[tuple[date, int], list] = {}
+
+    for (d, h), expected in all_slot_index.items():
+        if not expected:
+            continue
+        anomaly_map = anomaly_index.get((d, h), {})
+        if not anomaly_map:
+            continue
+        if set(anomaly_map.keys()) == expected:
+            node_counter[d] += 1
+        else:
+            for acsr_id, r in anomaly_map.items():
+                key = (d, acsr_id)
+                if key not in approach_counter:
+                    approach_counter[key] = [r.get("방향"), 0]
+                approach_counter[key][1] += 1
+
+    rows: list[dict] = []
+    for d, cnt in node_counter.items():
+        rows.append({
+            "date": d.isoformat(),
+            "node_id": node_id,
+            "node_name": node_name,
+            "approach_id": None,
+            "approach_name": None,
+            "missing_count": cnt,
+        })
+    for (d, acsr_id), (name, cnt) in approach_counter.items():
+        rows.append({
+            "date": d.isoformat(),
+            "node_id": node_id,
+            "node_name": node_name,
+            "approach_id": acsr_id,
+            "approach_name": name,
+            "missing_count": cnt,
+        })
+
+    rows.sort(key=lambda r: (r["date"], r["node_id"], r["approach_id"] is not None, r["approach_id"] or -1))
+    return rows
+
+
+def _fetch_anomaly_daily_summary(req: JobRequest) -> dict:
+    """일별집계 전용 응답을 동기 계산 (executor에서 실행)."""
+    if _holiday_dates is None:
+        raise RuntimeError("서버 초기화가 완료되지 않았습니다. 잠시 후 다시 시도하세요.")
+
+    conn = ad.connect_db()
+    try:
+        date_start = date.fromisoformat(req.date_start)
+        date_end = date.fromisoformat(req.date_end)
+        hours = req.resolve_hours()
+
+        baseline_years = ad.select_baseline_years(date_start.year)
+        fallback_year = ad.select_fallback_year(date_start.year)
+        adj_periods = ad.get_adjacent_month_periods(date_start, date_end)
+
+        id_to_name = {nid: nm for nid, nm in ad.load_intersections(conn)}
+
+        all_rows: list[dict] = []
+        for node_id in req.node_ids:
+            node_name = id_to_name.get(node_id, str(node_id))
+            node_results, _, target_data = ad.analyse_node(
+                conn, node_id, node_name,
+                date_start, date_end, hours,
+                baseline_years, fallback_year, adj_periods,
+                _holiday_dates,
+            )
+            all_rows.extend(
+                _aggregate_daily_summary_rows(node_id, node_name, node_results, target_data)
+            )
+
+        all_rows.sort(key=lambda r: (r["date"], r["node_id"], r["approach_id"] is not None, r["approach_id"] or -1))
+        return {"rows": all_rows}
+    finally:
+        conn.close()
+
+
 # ── 엔드포인트 ────────────────────────────────────────────────────────────────
 
 @app.post("/jobs", status_code=201)
@@ -368,6 +463,17 @@ async def corrected_traffic(req: JobRequest):
     """
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(executor, _fetch_corrected_traffic, req)
+    return result
+
+
+@app.post("/anomaly-daily-summary")
+async def anomaly_daily_summary(req: JobRequest):
+    """일별집계 전용 결과를 즉시 반환합니다.
+
+    응답: {"rows": [{"date","node_id","node_name","approach_id","approach_name","missing_count"}, ...]}
+    """
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(executor, _fetch_anomaly_daily_summary, req)
     return result
 
 
