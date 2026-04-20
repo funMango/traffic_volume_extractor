@@ -184,30 +184,70 @@ def load_approaches(conn, node_id) -> list:
         return [(r[0], r[1]) for r in cur.fetchall()]
 
 
-def load_baseline_data(conn, node_id, baseline_years: list, hours: list | None = None) -> list:
+def load_baseline_data(
+    conn,
+    node_id,
+    baseline_years: list,
+    hours: list | None = None,
+    months: list[int] | None = None,
+    acsr_ids: list | None = None,
+) -> list:
     """베이스라인 연도 시간별 접근로 데이터: [(acsr_id, tot_dt, trf_qnty), ...]"""
     if not baseline_years:
         return []
-    year_conditions = " OR ".join(
-        f"(TOT_DT >= TO_DATE('{y}-01-01','YYYY-MM-DD') "
-        f"AND TOT_DT < TO_DATE('{y + 1}-01-01','YYYY-MM-DD'))"
-        for y in baseline_years
-    )
+    years = sorted(set(baseline_years))
+    if months:
+        month_vals = sorted({m for m in months if 1 <= m <= 12})
+        if not month_vals:
+            return []
+
+        def _next_month(y: int, m: int) -> tuple[int, int]:
+            return (y + 1, 1) if m == 12 else (y, m + 1)
+
+        range_conditions = []
+        for y in years:
+            for m in month_vals:
+                ny, nm = _next_month(y, m)
+                range_conditions.append(
+                    f"(TOT_DT >= TO_DATE('{y}-{m:02d}-01','YYYY-MM-DD') "
+                    f"AND TOT_DT < TO_DATE('{ny}-{nm:02d}-01','YYYY-MM-DD'))"
+                )
+        date_clause = " OR ".join(range_conditions)
+    else:
+        date_clause = " OR ".join(
+            f"(TOT_DT >= TO_DATE('{y}-01-01','YYYY-MM-DD') "
+            f"AND TOT_DT < TO_DATE('{y + 1}-01-01','YYYY-MM-DD'))"
+            for y in years
+        )
+
     hour_clause = ""
     if hours and set(hours) != set(range(24)):
         hour_in = ",".join(str(h) for h in sorted(set(hours)))
         hour_clause = f"\n          AND TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')) IN ({hour_in})"
+
+    acsr_clause = ""
+    bind_params = {"nid": node_id}
+    if acsr_ids:
+        uniq_acsr = sorted(set(acsr_ids), key=lambda x: str(x))
+        bind_names: list[str] = []
+        for idx, acsr_id in enumerate(uniq_acsr):
+            name = f"acsr_{idx}"
+            bind_names.append(f":{name}")
+            bind_params[name] = acsr_id
+        acsr_clause = f"\n          AND ACSR_ID IN ({', '.join(bind_names)})"
+
     sql = f"""
         SELECT ACSR_ID, TOT_DT, TRF_QNTY
         FROM S_CRSRD_ACSR_TRF_1HH
         WHERE NODE_ID = :nid
-          AND ({year_conditions})
+          AND ({date_clause})
+          {acsr_clause}
           {hour_clause}
           AND TOT_DT < SYSDATE
     """
     with conn.cursor() as cur:
         cur.arraysize = 10000
-        cur.execute(sql, nid=node_id)
+        cur.execute(sql, bind_params)
         return cur.fetchall()
 
 
@@ -375,7 +415,8 @@ def compute_baseline(values: list) -> dict | None:
 def build_baselines(raw_rows: list, baseline_years: list, holiday_dates: set,
                     approaches: list, date_start: date, date_end: date,
                     hours: list, adj_month_rows: list = None,
-                    fallback_rows: list = None) -> tuple:
+                    fallback_rows: list = None,
+                    expand_stages: bool = True) -> tuple:
     """
     대상 기간에서 필요한 셀만 베이스라인 계산.
     adj_month_rows: 대상 연도 인접 월 데이터 (샘플 보강용)
@@ -510,50 +551,51 @@ def build_baselines(raw_rows: list, baseline_years: list, holiday_dates: set,
             "n_total_baseline": len(cell_values.get(cell, [])),
         }
 
-    # ── Stage 1/2 zero_rate 확장 ──────────────────────────────────
-    # zero_rate >= ZERO_RATE_EXPANSION_THRESHOLD(0.8)인 셀에 대해
-    # 인접 월(Stage 1) → 연간 전체(Stage 2) 순으로 범위를 확장하여
-    # zero_rate 및 stats 재계산
-    for cell, bl in baselines.items():
-        if bl["zero_rate"] < ZERO_RATE_EXPANSION_THRESHOLD:
-            continue
-
-        acsr_id, day_type, hour, month = cell
-        prev_m = ((month - 2) % 12) + 1   # 1월 → 12월, 12월 → 11월
-        next_m = (month % 12) + 1          # 12월 → 1월, 1월 → 2월
-        stage1_months = [prev_m, month, next_m]
-
-        # Stage 1: ±1개월 확장
-        exp_1 = sum(expected_counts.get((day_type, hour, m), 0) for m in stage1_months)
-        if exp_1 > 0:
-            act_dates_1: set = set()
-            for m in stage1_months:
-                act_dates_1 |= all_month_actual_dates.get((acsr_id, day_type, hour, m), set())
-            zr_1 = (exp_1 - len(act_dates_1)) / exp_1
-            vals_1 = []
-            for m in stage1_months:
-                vals_1.extend(all_month_values.get((acsr_id, day_type, hour, m), []))
-            bl["zero_rate"]       = zr_1
-            bl["stage1_zr"]       = zr_1
-            bl["stats"]           = compute_baseline(vals_1)
-            bl["expansion_stage"] = 1
-            if zr_1 < ZERO_RATE_EXPANSION_THRESHOLD and bl["stats"] is not None:
+    if expand_stages:
+        # ── Stage 1/2 zero_rate 확장 ──────────────────────────────────
+        # zero_rate >= ZERO_RATE_EXPANSION_THRESHOLD(0.8)인 셀에 대해
+        # 인접 월(Stage 1) → 연간 전체(Stage 2) 순으로 범위를 확장하여
+        # zero_rate 및 stats 재계산
+        for cell, bl in baselines.items():
+            if bl["zero_rate"] < ZERO_RATE_EXPANSION_THRESHOLD:
                 continue
 
-        # Stage 2: 연간 전체 확장
-        exp_2 = sum(expected_counts.get((day_type, hour, m), 0) for m in range(1, 13))
-        if exp_2 > 0:
-            act_dates_2: set = set()
-            for m in range(1, 13):
-                act_dates_2 |= all_month_actual_dates.get((acsr_id, day_type, hour, m), set())
-            zr_2 = (exp_2 - len(act_dates_2)) / exp_2
-            vals_2 = []
-            for m in range(1, 13):
-                vals_2.extend(all_month_values.get((acsr_id, day_type, hour, m), []))
-            bl["zero_rate"]       = zr_2
-            bl["stage2_zr"]       = zr_2
-            bl["stats"]           = compute_baseline(vals_2)
-            bl["expansion_stage"] = 2
+            acsr_id, day_type, hour, month = cell
+            prev_m = ((month - 2) % 12) + 1   # 1월 → 12월, 12월 → 11월
+            next_m = (month % 12) + 1          # 12월 → 1월, 1월 → 2월
+            stage1_months = [prev_m, month, next_m]
+
+            # Stage 1: ±1개월 확장
+            exp_1 = sum(expected_counts.get((day_type, hour, m), 0) for m in stage1_months)
+            if exp_1 > 0:
+                act_dates_1: set = set()
+                for m in stage1_months:
+                    act_dates_1 |= all_month_actual_dates.get((acsr_id, day_type, hour, m), set())
+                zr_1 = (exp_1 - len(act_dates_1)) / exp_1
+                vals_1 = []
+                for m in stage1_months:
+                    vals_1.extend(all_month_values.get((acsr_id, day_type, hour, m), []))
+                bl["zero_rate"]       = zr_1
+                bl["stage1_zr"]       = zr_1
+                bl["stats"]           = compute_baseline(vals_1)
+                bl["expansion_stage"] = 1
+                if zr_1 < ZERO_RATE_EXPANSION_THRESHOLD and bl["stats"] is not None:
+                    continue
+
+            # Stage 2: 연간 전체 확장
+            exp_2 = sum(expected_counts.get((day_type, hour, m), 0) for m in range(1, 13))
+            if exp_2 > 0:
+                act_dates_2: set = set()
+                for m in range(1, 13):
+                    act_dates_2 |= all_month_actual_dates.get((acsr_id, day_type, hour, m), set())
+                zr_2 = (exp_2 - len(act_dates_2)) / exp_2
+                vals_2 = []
+                for m in range(1, 13):
+                    vals_2.extend(all_month_values.get((acsr_id, day_type, hour, m), []))
+                bl["zero_rate"]       = zr_2
+                bl["stage2_zr"]       = zr_2
+                bl["stats"]           = compute_baseline(vals_2)
+                bl["expansion_stage"] = 2
 
     fallback_applied = {c for c, v in cell_fallback_counts.items() if v > 0}
     n_stage1 = sum(1 for bl in baselines.values() if bl["expansion_stage"] >= 1)
@@ -850,40 +892,129 @@ def analyse_node(
     if not approaches:
         return [], {}, {}
 
+    # 대상 월 및 Stage1(±1개월) 월 집합
+    target_months: set[int] = set()
+    cur_m = date_start.replace(day=1)
+    while cur_m <= date_end:
+        target_months.add(cur_m.month)
+        cur_m = date(cur_m.year + 1, 1, 1) if cur_m.month == 12 else date(cur_m.year, cur_m.month + 1, 1)
+
+    stage1_months: set[int] = set(target_months)
+    for m in target_months:
+        stage1_months.add(((m - 2) % 12) + 1)  # prev
+        stage1_months.add((m % 12) + 1)         # next
+
+    approach_ids = [acsr_id for acsr_id, _ in approaches]
+
     t0 = time.perf_counter()
-    raw_rows = load_baseline_data(conn, node_id, baseline_years, hours=hours)
-    t_raw = time.perf_counter() - t0
+    raw_rows_core = load_baseline_data(
+        conn,
+        node_id,
+        baseline_years,
+        hours=hours,
+        months=sorted(stage1_months),
+        acsr_ids=approach_ids,
+    )
+    t_raw_core = time.perf_counter() - t0
 
     t1 = time.perf_counter()
     adj_rows = load_adjacent_month_data(conn, node_id, adj_periods, hours=hours)
     t_adj = time.perf_counter() - t1
 
     t2 = time.perf_counter()
-    fallback_source = "query"
-    if fallback_year in baseline_years:
-        fallback_source = "reuse_baseline"
-        fallback_raw_rows = []
-        for acsr_id, tot_dt, trf_qnty in raw_rows:
-            d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
-            if d.year == fallback_year:
-                fallback_raw_rows.append((acsr_id, tot_dt, trf_qnty))
-    else:
-        fallback_raw_rows = load_baseline_data(conn, node_id, [fallback_year], hours=hours)
-    t_fallback = time.perf_counter() - t2
-    t_db = t_raw + t_adj + t_fallback
+    baselines_pre, _ = build_baselines(
+        raw_rows_core, baseline_years, holiday_dates,
+        approaches, date_start, date_end, hours,
+        adj_month_rows=adj_rows,
+        fallback_rows=None,
+        expand_stages=False,
+    )
+    t_pre = time.perf_counter() - t2
+
+    stage2_keys = {
+        (acsr_id, day_type, hour)
+        for (acsr_id, day_type, hour, _), bl in baselines_pre.items()
+        if bl["zero_rate"] >= ZERO_RATE_EXPANSION_THRESHOLD
+    }
 
     t3 = time.perf_counter()
+    raw_rows_stage2: list = []
+    raw_rows_stage2_fetched = 0
+    if stage2_keys:
+        stage2_acsr_ids = sorted({acsr_id for acsr_id, _, _ in stage2_keys})
+        annual_rows = load_baseline_data(
+            conn,
+            node_id,
+            baseline_years,
+            hours=hours,
+            months=None,
+            acsr_ids=stage2_acsr_ids,
+        )
+        raw_rows_stage2_fetched = len(annual_rows)
+        for acsr_id, tot_dt, trf_qnty in annual_rows:
+            d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
+            h = tot_dt.hour if isinstance(tot_dt, datetime) else 0
+            day_type = get_day_type(d, holiday_dates)
+            if (acsr_id, day_type, h) in stage2_keys:
+                raw_rows_stage2.append((acsr_id, tot_dt, trf_qnty))
+    t_stage2 = time.perf_counter() - t3
+
+    # core + stage2 rows 병합 (중복 제거)
+    seen_positions: set[tuple[int, date, int]] = set()
+    raw_rows: list = []
+    for source_rows in (raw_rows_core, raw_rows_stage2):
+        for acsr_id, tot_dt, trf_qnty in source_rows:
+            d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
+            h = tot_dt.hour if isinstance(tot_dt, datetime) else 0
+            key = (acsr_id, d, h)
+            if key in seen_positions:
+                continue
+            seen_positions.add(key)
+            raw_rows.append((acsr_id, tot_dt, trf_qnty))
+
+    fallback_keys = {
+        (acsr_id, day_type, hour)
+        for (acsr_id, day_type, hour, _), bl in baselines_pre.items()
+        if bl.get("n_total_baseline", 0) < MIN_CLEAN_SAMPLES
+    }
+
+    t4 = time.perf_counter()
+    fallback_raw_rows: list = []
+    fallback_raw_rows_fetched = 0
+    if fallback_keys:
+        fallback_acsr_ids = sorted({acsr_id for acsr_id, _, _ in fallback_keys})
+        fallback_rows_all = load_baseline_data(
+            conn,
+            node_id,
+            [fallback_year],
+            hours=hours,
+            months=None,
+            acsr_ids=fallback_acsr_ids,
+        )
+        fallback_raw_rows_fetched = len(fallback_rows_all)
+        for acsr_id, tot_dt, trf_qnty in fallback_rows_all:
+            if trf_qnty is None:
+                continue
+            d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
+            h = tot_dt.hour if isinstance(tot_dt, datetime) else 0
+            day_type = get_day_type(d, holiday_dates)
+            if (acsr_id, day_type, h) in fallback_keys:
+                fallback_raw_rows.append((acsr_id, tot_dt, trf_qnty))
+    t_fallback = time.perf_counter() - t4
+    t_db = t_raw_core + t_adj + t_stage2 + t_fallback
+
+    t5 = time.perf_counter()
     baselines, fallback_summary = build_baselines(
         raw_rows, baseline_years, holiday_dates,
         approaches, date_start, date_end, hours,
         adj_month_rows=adj_rows,
         fallback_rows=fallback_raw_rows,
     )
-    t_baselines = time.perf_counter() - t3
+    t_baselines = (time.perf_counter() - t5) + t_pre
 
-    t4 = time.perf_counter()
+    t6 = time.perf_counter()
     target_data = load_target_data(conn, node_id, date_start, date_end, hours)
-    t_target = time.perf_counter() - t4
+    t_target = time.perf_counter() - t6
 
     node_results = detect_anomalies(
         node_name, approaches, baselines, target_data,
@@ -903,13 +1034,15 @@ def analyse_node(
     if PROFILE_DB_BREAKDOWN:
         print(
             f"[PROFILE_DB] {node_name} | "
-            f"baseline={t_raw:.3f}s/{len(raw_rows):,}rows | "
+            f"baseline_core={t_raw_core:.3f}s/{len(raw_rows_core):,}rows | "
             f"adj={t_adj:.3f}s/{len(adj_rows):,}rows | "
-            f"fallback={t_fallback:.3f}s/{len(fallback_raw_rows):,}rows({fallback_source}) | "
+            f"stage2={t_stage2:.3f}s/{len(raw_rows_stage2):,}rows(filtered:{raw_rows_stage2_fetched:,}) | "
+            f"fallback={t_fallback:.3f}s/{len(fallback_raw_rows):,}rows(filtered:{fallback_raw_rows_fetched:,}) | "
             f"target={t_target:.3f}s/{len(target_data):,}rows | "
             f"period={date_start}~{date_end} hours={len(hours)} "
             f"approaches={len(approaches)} baseline_years={baseline_years} "
-            f"fallback_year={fallback_year} adj_months={len(adj_periods)}"
+            f"fallback_year={fallback_year} adj_months={len(adj_periods)} "
+            f"stage2_keys={len(stage2_keys)} fallback_keys={len(fallback_keys)}"
         )
 
     return node_results, baselines, target_data
