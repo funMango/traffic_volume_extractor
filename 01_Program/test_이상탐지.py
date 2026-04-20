@@ -10,6 +10,7 @@
 
 import sys
 import os
+import time
 from datetime import date, datetime, timedelta
 from collections import defaultdict
 from unittest.mock import MagicMock, patch
@@ -38,14 +39,17 @@ if "dotenv" not in sys.modules:
     _dotenv.load_dotenv = lambda *a, **kw: None  # type: ignore
 
 # plotly
-for _pmod in ("plotly", "plotly.graph_objects"):
+for _pmod in ("plotly", "plotly.graph_objects", "plotly.subplots"):
     if _pmod not in sys.modules:
         _m = _make_module(_pmod)
-        _m.Figure = type("Figure", (), {"__init__": lambda s, **kw: None,
-                                         "add_trace": lambda s, *a, **kw: None,
-                                         "update_layout": lambda s, **kw: None,
-                                         "write_html": lambda s, *a, **kw: None})
-        _m.Scatter = type("Scatter", (), {"__init__": lambda s, **kw: None})
+        if _pmod == "plotly.subplots":
+            _m.make_subplots = lambda *a, **kw: None
+        else:
+            _m.Figure = type("Figure", (), {"__init__": lambda s, **kw: None,
+                                             "add_trace": lambda s, *a, **kw: None,
+                                             "update_layout": lambda s, **kw: None,
+                                             "write_html": lambda s, *a, **kw: None})
+            _m.Scatter = type("Scatter", (), {"__init__": lambda s, **kw: None})
 
 # openpyxl — 실제 설치 여부 무관하게 완전 stub
 _openpyxl = _make_module("openpyxl")
@@ -71,10 +75,12 @@ _utils.get_column_letter = lambda i: chr(64 + i)
 from 이상탐지 import (  # noqa: E402
     get_adjacent_month_periods,
     load_adjacent_month_data,
+    load_baseline_data,
     build_baselines,
     get_day_type,
     ZERO_RATE_EXPANSION_THRESHOLD,
 )
+import 이상탐지 as ad  # noqa: E402
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 헬퍼
@@ -698,6 +704,117 @@ class TestBuildBaselinesStageExpansion:
         if cell in baselines:
             # zero_rate=1.0 >= 0.8 → Stage 1 → Stage 2
             assert baselines[cell]["expansion_stage"] == 2
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 5. baseline query cache 성능 검증
+# ════════════════════════════════════════════════════════════════════════════════
+
+class _BenchCursor:
+    def __init__(self, rows, delay_s: float, stats: dict):
+        self._rows = rows
+        self._delay_s = delay_s
+        self._stats = stats
+        self.arraysize = 1000
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def execute(self, sql, params):
+        time.sleep(self._delay_s)
+        self._stats["execute_calls"] += 1
+        self._stats["last_sql"] = sql
+        self._stats["last_params"] = params
+
+    def fetchall(self):
+        return self._rows
+
+
+class _BenchConn:
+    def __init__(self, rows, delay_s: float, stats: dict):
+        self._rows = rows
+        self._delay_s = delay_s
+        self._stats = stats
+
+    def cursor(self):
+        return _BenchCursor(self._rows, self._delay_s, self._stats)
+
+
+class TestBaselineCachePerformance:
+    """load_baseline_data 캐시 hit/miss와 시간 단축 검증."""
+
+    def setup_method(self):
+        self._orig_enabled = ad.BASELINE_CACHE_ENABLED
+        self._orig_max_entries = ad.BASELINE_CACHE_MAX_ENTRIES
+        ad.BASELINE_CACHE_ENABLED = True
+        ad.BASELINE_CACHE_MAX_ENTRIES = 64
+        ad._baseline_query_cache.clear()
+        ad._baseline_cache_hits = 0
+        ad._baseline_cache_misses = 0
+
+    def teardown_method(self):
+        ad.BASELINE_CACHE_ENABLED = self._orig_enabled
+        ad.BASELINE_CACHE_MAX_ENTRIES = self._orig_max_entries
+
+    def test_same_query_uses_cache_and_skips_second_db_execute(self):
+        rows = [
+            ("A-01", _dt(2025, 1, 2, 8), 120),
+            ("A-01", _dt(2025, 1, 3, 8), 118),
+            ("A-02", _dt(2025, 1, 2, 8), 97),
+        ]
+        stats = {"execute_calls": 0, "last_sql": "", "last_params": {}}
+        conn = _BenchConn(rows, delay_s=0.03, stats=stats)
+        kwargs = dict(
+            node_id="BC001N0020",
+            baseline_years=[2024, 2025],
+            hours=list(range(24)),
+            months=[12, 1, 2],
+            acsr_ids=["A-01", "A-02"],
+        )
+
+        r1 = load_baseline_data(conn, **kwargs)
+        r2 = load_baseline_data(conn, **kwargs)
+
+        assert r1 == r2
+        assert stats["execute_calls"] == 1
+        assert ad._baseline_cache_hits >= 1
+        assert ad._baseline_cache_misses == 1
+
+    def test_cache_hit_is_faster_than_cache_miss(self):
+        rows = [
+            (f"A-{i:02d}", _dt(2025, 1, (i % 7) + 1, i % 24), i * 10)
+            for i in range(1, 200)
+        ]
+        stats = {"execute_calls": 0, "last_sql": "", "last_params": {}}
+        conn = _BenchConn(rows, delay_s=0.08, stats=stats)
+        kwargs = dict(
+            node_id="BC001N0020",
+            baseline_years=[2024, 2025],
+            hours=list(range(24)),
+            months=[12, 1, 2],
+            acsr_ids=[f"A-{i:02d}" for i in range(1, 10)],
+        )
+
+        t0 = time.perf_counter()
+        load_baseline_data(conn, **kwargs)  # miss
+        t_first = time.perf_counter() - t0
+
+        t1 = time.perf_counter()
+        load_baseline_data(conn, **kwargs)  # hit
+        t_second = time.perf_counter() - t1
+
+        improvement_pct = (1 - (t_second / t_first)) * 100 if t_first > 0 else 0
+        print(
+            f"\n[BENCH] baseline_cache miss={t_first:.4f}s "
+            f"hit={t_second:.4f}s improvement={improvement_pct:.2f}%"
+        )
+
+        assert stats["execute_calls"] == 1
+        assert t_second < (t_first * 0.3)
+        assert improvement_pct >= 70.0
 
 
 # ════════════════════════════════════════════════════════════════════════════════

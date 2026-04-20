@@ -14,7 +14,8 @@ import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
+from threading import Lock
 
 import numpy as np
 import oracledb
@@ -128,6 +129,61 @@ ZERO_RATE_EXPANSION_THRESHOLD = 0.8   # Stage 1/2 확장 진입 임계값
 PROFILE_DB_BREAKDOWN = os.getenv("ANOMALY_PROFILE_DB_BREAKDOWN", "1").strip().lower() in (
     "1", "true", "yes", "y", "on"
 )
+BASELINE_CACHE_ENABLED = os.getenv("ANOMALY_BASELINE_CACHE", "1").strip().lower() in (
+    "1", "true", "yes", "y", "on"
+)
+BASELINE_CACHE_MAX_ENTRIES = max(1, int(os.getenv("ANOMALY_BASELINE_CACHE_MAX_ENTRIES", "64")))
+_baseline_query_cache: OrderedDict[tuple, list] = OrderedDict()
+_baseline_cache_lock = Lock()
+_baseline_cache_hits = 0
+_baseline_cache_misses = 0
+
+
+def _baseline_cache_key(
+    node_id,
+    baseline_years: list,
+    hours: list | None,
+    months: list[int] | None,
+    acsr_ids: list | None,
+) -> tuple:
+    years_key = tuple(sorted({int(y) for y in baseline_years}))
+    hour_vals = None
+    if hours:
+        norm_hours = sorted({int(h) for h in hours if 0 <= int(h) <= 23})
+        if norm_hours and set(norm_hours) != set(range(24)):
+            hour_vals = tuple(norm_hours)
+    month_vals = tuple(sorted({int(m) for m in months})) if months else None
+    acsr_vals = tuple(sorted({str(a) for a in acsr_ids})) if acsr_ids else None
+    return ("baseline", str(node_id), years_key, hour_vals, month_vals, acsr_vals)
+
+
+def _baseline_cache_get(cache_key: tuple):
+    global _baseline_cache_hits, _baseline_cache_misses
+    if not BASELINE_CACHE_ENABLED:
+        return None
+    with _baseline_cache_lock:
+        rows = _baseline_query_cache.get(cache_key)
+        if rows is not None:
+            _baseline_query_cache.move_to_end(cache_key)
+            _baseline_cache_hits += 1
+            return rows
+        _baseline_cache_misses += 1
+        return None
+
+
+def _baseline_cache_set(cache_key: tuple, rows: list) -> None:
+    if not BASELINE_CACHE_ENABLED:
+        return
+    with _baseline_cache_lock:
+        _baseline_query_cache[cache_key] = rows
+        _baseline_query_cache.move_to_end(cache_key)
+        while len(_baseline_query_cache) > BASELINE_CACHE_MAX_ENTRIES:
+            _baseline_query_cache.popitem(last=False)
+
+
+def _baseline_cache_stats() -> tuple[int, int, int]:
+    with _baseline_cache_lock:
+        return _baseline_cache_hits, _baseline_cache_misses, len(_baseline_query_cache)
 
 
 def connect_db():
@@ -195,6 +251,12 @@ def load_baseline_data(
     """베이스라인 연도 시간별 접근로 데이터: [(acsr_id, tot_dt, trf_qnty), ...]"""
     if not baseline_years:
         return []
+
+    cache_key = _baseline_cache_key(node_id, baseline_years, hours, months, acsr_ids)
+    cached_rows = _baseline_cache_get(cache_key)
+    if cached_rows is not None:
+        return cached_rows
+
     years = sorted(set(baseline_years))
     if months:
         month_vals = sorted({m for m in months if 1 <= m <= 12})
@@ -248,7 +310,10 @@ def load_baseline_data(
     with conn.cursor() as cur:
         cur.arraysize = 10000
         cur.execute(sql, bind_params)
-        return cur.fetchall()
+        rows = cur.fetchall()
+
+    _baseline_cache_set(cache_key, rows)
+    return rows
 
 
 def get_adjacent_month_periods(date_start: date, date_end: date) -> list[tuple[int, int]]:
@@ -891,6 +956,7 @@ def analyse_node(
     approaches = load_approaches(conn, node_id)
     if not approaches:
         return [], {}, {}
+    cache_h0, cache_m0, _ = _baseline_cache_stats()
 
     # 대상 월 및 Stage1(±1개월) 월 집합
     target_months: set[int] = set()
@@ -1032,6 +1098,7 @@ def analyse_node(
     )
 
     if PROFILE_DB_BREAKDOWN:
+        cache_h1, cache_m1, cache_size = _baseline_cache_stats()
         print(
             f"[PROFILE_DB] {node_name} | "
             f"baseline_core={t_raw_core:.3f}s/{len(raw_rows_core):,}rows | "
@@ -1042,7 +1109,8 @@ def analyse_node(
             f"period={date_start}~{date_end} hours={len(hours)} "
             f"approaches={len(approaches)} baseline_years={baseline_years} "
             f"fallback_year={fallback_year} adj_months={len(adj_periods)} "
-            f"stage2_keys={len(stage2_keys)} fallback_keys={len(fallback_keys)}"
+            f"stage2_keys={len(stage2_keys)} fallback_keys={len(fallback_keys)} "
+            f"cache(hits={cache_h1-cache_h0}, misses={cache_m1-cache_m0}, size={cache_size})"
         )
 
     return node_results, baselines, target_data
