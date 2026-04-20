@@ -14,17 +14,25 @@ Excel(.xlsx) 파일과 선택적으로 HTML 그래프를 생성합니다.
 
 import difflib
 import json
+import os
 import re
 import sys
+import time
 import urllib.request
 import urllib.error
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from threading import Event, Lock, Thread
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+
+# 성능 로그 on/off (기본: ON)
+ENABLE_PERF_LOG = os.getenv("GET_TRAFFIC_PERF", "1").strip().lower() in (
+    "1", "true", "yes", "y", "on"
+)
 
 # ── API 서버 설정 ─────────────────────────────────────────────────────────────
 API_BASE_URL = "http://localhost:8000"
@@ -86,6 +94,7 @@ def input_intersections() -> list[dict]:
 
     print("\n[1단계] 교차로 이름 입력")
     print("  여러 교차로는 쉼표로 구분하세요. (예: 구지사거리, 멀뫼사거리)")
+    print("  전체 선택: 전체 또는 all 또는 *")
     print(f"  전체 교차로 수: {len(all_names)}개")
 
     selected: list[dict] = []
@@ -97,48 +106,58 @@ def input_intersections() -> list[dict]:
             continue
 
         inputs = [s.strip() for s in raw.split(",") if s.strip()]
+        select_all = len(inputs) == 1 and (
+            inputs[0] == "전체" or inputs[0].lower() in ("all", "*")
+        )
         resolved: list[dict] = []
         failed = False
 
-        for name in inputs:
-            if name in name_to_id:
-                resolved.append({"node_id": name_to_id[name], "name": name})
-            else:
-                candidates = difflib.get_close_matches(name, all_names, n=3, cutoff=0.3)
-                if candidates:
-                    print(f"\n  '{name}' 을(를) 찾을 수 없습니다. 비슷한 교차로:")
-                    for i, c in enumerate(candidates, 1):
-                        print(f"    {i}. {c}")
-                    print(f"    0. 직접 다시 입력")
-                    while True:
-                        choice = input("  선택 (번호 입력): ").strip()
-                        if choice == "0":
-                            failed = True
-                            break
-                        if choice.isdigit() and 1 <= int(choice) <= len(candidates):
-                            chosen = candidates[int(choice) - 1]
-                            resolved.append({"node_id": name_to_id[chosen], "name": chosen})
-                            break
-                        print("  올바른 번호를 입력해 주세요.")
-                    if failed:
-                        break
+        if select_all:
+            resolved = [{"node_id": it["node_id"], "name": it["name"]} for it in items]
+        else:
+            for name in inputs:
+                if name in name_to_id:
+                    resolved.append({"node_id": name_to_id[name], "name": name})
                 else:
-                    print(f"\n  '{name}' 과(와) 유사한 교차로를 찾을 수 없습니다.")
-                    failed = True
-                    break
+                    candidates = difflib.get_close_matches(name, all_names, n=3, cutoff=0.3)
+                    if candidates:
+                        print(f"\n  '{name}' 을(를) 찾을 수 없습니다. 비슷한 교차로:")
+                        for i, c in enumerate(candidates, 1):
+                            print(f"    {i}. {c}")
+                        print(f"    0. 직접 다시 입력")
+                        while True:
+                            choice = input("  선택 (번호 입력): ").strip()
+                            if choice == "0":
+                                failed = True
+                                break
+                            if choice.isdigit() and 1 <= int(choice) <= len(candidates):
+                                chosen = candidates[int(choice) - 1]
+                                resolved.append({"node_id": name_to_id[chosen], "name": chosen})
+                                break
+                            print("  올바른 번호를 입력해 주세요.")
+                        if failed:
+                            break
+                    else:
+                        print(f"\n  '{name}' 과(와) 유사한 교차로를 찾을 수 없습니다.")
+                        failed = True
+                        break
 
         if failed:
             continue
 
         # 중복 제거 (node_id 기준)
-        seen: set[str] = set()
+        seen: set[int | str] = set()
         unique: list[dict] = []
         for item in resolved:
             if item["node_id"] not in seen:
                 seen.add(item["node_id"])
                 unique.append(item)
 
-        names_str = ", ".join(d["name"] for d in unique)
+        if len(unique) <= 10:
+            names_str = ", ".join(d["name"] for d in unique)
+        else:
+            preview = ", ".join(d["name"] for d in unique[:10])
+            names_str = f"{preview} ... 외 {len(unique) - 10}개"
         print(f"\n  선택된 교차로 ({len(unique)}개): {names_str}")
         confirm = input("  계속 진행하시겠습니까? (y/n) [y]: ").strip().lower()
         if confirm in ("", "y"):
@@ -328,6 +347,70 @@ def input_sheet_type(has_node: bool, has_dir: bool) -> str:
 # 데이터 조회
 # ════════════════════════════════════════════════════════════════
 
+class _ConsoleProgress:
+    """콘솔 진행 표시(스피너 + 진행바 + 퍼센트)"""
+
+    def __init__(self, total: int, width: int = 30):
+        self.total = max(total, 0)
+        self.width = width
+        self.done = 0
+        self.phase = ""
+        self._frames = ["|", "/", "-", "\\"]
+        self._frame_idx = 0
+        self._last_len = 0
+        self._lock = Lock()
+        self._stop_event = Event()
+        self._thread: Thread | None = None
+
+    def start(self) -> None:
+        if self.total <= 0:
+            return
+        self._thread = Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def update_phase(self, phase: str) -> None:
+        with self._lock:
+            self.phase = phase
+
+    def advance(self, step: int = 1) -> None:
+        with self._lock:
+            self.done = min(self.total, self.done + step)
+
+    def finish(self, success: bool = True) -> None:
+        if self.total <= 0:
+            return
+        if success:
+            with self._lock:
+                self.done = self.total
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join(timeout=1.0)
+        self._render()
+        print()
+
+    def _run(self) -> None:
+        while not self._stop_event.wait(0.1):
+            self._frame_idx = (self._frame_idx + 1) % len(self._frames)
+            self._render()
+
+    def _render(self) -> None:
+        with self._lock:
+            done = self.done
+            total = self.total
+            phase = self.phase
+
+        ratio = (done / total) if total else 1.0
+        pct = ratio * 100
+        fill = int(self.width * ratio)
+        bar = "#" * fill + "-" * (self.width - fill)
+        frame = self._frames[self._frame_idx]
+
+        line = f"\r{frame} [{bar}] {pct:6.2f}% ({done}/{total}) {phase}"
+        pad = max(0, self._last_len - len(line))
+        print(line + (" " * pad), end="", flush=True)
+        self._last_len = len(line)
+
+
 def fetch_data(intersections: list[dict],
                periods: list[tuple[date, date, str]],
                hours: list[int]) -> list[dict]:
@@ -336,28 +419,72 @@ def fetch_data(intersections: list[dict],
     복수 기간을 순환하여 조회하고 합산한다.
     """
     rows: list[dict] = []
-    for inter in intersections:
-        node_id   = inter["node_id"]
-        node_name = inter["name"]
+    total_steps = len(intersections) * len(periods)
+    progress = _ConsoleProgress(total_steps)
+    progress.start()
+    req_times: list[float] = []
+    parse_times: list[float] = []
+    req_total_s = 0.0
+    parse_total_s = 0.0
+    fetched_slots = 0
+    t_fetch_all = time.perf_counter()
 
-        for ds, de, _ in periods:
-            resp = _api_post("/corrected-traffic", {
-                "node_ids":   [node_id],
-                "date_start": ds.isoformat(),
-                "date_end":   de.isoformat(),
-                "hours":      hours,
-            })
-            for slot in resp["slots"]:
-                rows.append({
-                    "date":           date.fromisoformat(slot["date"]),
-                    "hour":           slot["hour"],
-                    "node_name":      node_name,
-                    "approach_name":  slot["approach_name"],
-                    "traffic_volume": slot["traffic_volume"],
+    success = False
+    try:
+        for inter in intersections:
+            node_id = inter["node_id"]
+            node_name = inter["name"]
+
+            for ds, de, _ in periods:
+                progress.update_phase(f"{node_name} {ds}~{de}")
+                t_req = time.perf_counter()
+                resp = _api_post("/corrected-traffic", {
+                    "node_ids":   [node_id],
+                    "date_start": ds.isoformat(),
+                    "date_end":   de.isoformat(),
+                    "hours":      hours,
                 })
+                req_elapsed = time.perf_counter() - t_req
+                req_times.append(req_elapsed)
+                req_total_s += req_elapsed
+
+                t_parse = time.perf_counter()
+                for slot in resp["slots"]:
+                    rows.append({
+                        "date":           date.fromisoformat(slot["date"]),
+                        "hour":           slot["hour"],
+                        "node_name":      node_name,
+                        "approach_name":  slot["approach_name"],
+                        "traffic_volume": slot["traffic_volume"],
+                    })
+                parse_elapsed = time.perf_counter() - t_parse
+                parse_times.append(parse_elapsed)
+                parse_total_s += parse_elapsed
+                fetched_slots += len(resp["slots"])
+                progress.advance(1)
+
+        success = True
+    finally:
+        progress.finish(success=success)
+
+    if ENABLE_PERF_LOG and total_steps > 0:
+        t_fetch_elapsed = time.perf_counter() - t_fetch_all
+        req_avg = req_total_s / total_steps
+        parse_avg = parse_total_s / total_steps
+        req_max = max(req_times) if req_times else 0.0
+        parse_max = max(parse_times) if parse_times else 0.0
+        print(
+            "[PERF] 데이터조회 "
+            f"total={t_fetch_elapsed:.2f}s | steps={total_steps} | slots={fetched_slots:,} | "
+            f"api_sum={req_total_s:.2f}s(avg={req_avg:.3f}s, max={req_max:.3f}s) | "
+            f"parse_sum={parse_total_s:.2f}s(avg={parse_avg:.3f}s, max={parse_max:.3f}s)"
+        )
 
     # 정렬: 교차로 → 날짜 → 시간 → 방향
+    t_sort = time.perf_counter()
     rows.sort(key=lambda r: (r["node_name"], r["date"], r["hour"], r["approach_name"]))
+    if ENABLE_PERF_LOG:
+        print(f"[PERF] 정렬 sort={time.perf_counter() - t_sort:.2f}s | rows={len(rows):,}")
     return rows
 
 
@@ -1030,10 +1157,29 @@ def build_graphs(rows: list[dict], has_dir: bool,
 # 파일명 생성
 # ════════════════════════════════════════════════════════════════
 
-def make_filename(intersections: list[dict], period_str: str) -> str:
-    """[교차로이름]_[기간]  (교차로 이름은 언더스코어로 결합)"""
-    names = "_".join(d["name"] for d in intersections)
-    return f"{names}_{period_str}"
+def make_filename(
+    intersections: list[dict],
+    period_str: str,
+    total_intersection_count: int | None = None,
+) -> str:
+    """파일명 생성
+    - 전체 선택: 전체교차로_[기간]
+    - 2개 이상 : [대표교차로]외_[x]개_[기간]
+    - 1개      : [교차로명]_[기간]
+    """
+    count = len(intersections)
+    if count <= 0:
+        base = "교차로미지정"
+    elif total_intersection_count is not None and count >= total_intersection_count:
+        base = "전체교차로"
+    elif count >= 2:
+        base = f"{intersections[0]['name']}외_{count - 1}개"
+    else:
+        base = intersections[0]["name"]
+
+    # Windows 파일명 금지 문자 치환
+    safe_base = re.sub(r'[\\/*?:"<>|]', "_", base)
+    return f"{safe_base}_{period_str}"
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1041,6 +1187,7 @@ def make_filename(intersections: list[dict], period_str: str) -> str:
 # ════════════════════════════════════════════════════════════════
 
 def main():
+    t_main = time.perf_counter()
     print("=" * 55)
     print("   교통량 추출 프로그램")
     print("=" * 55)
@@ -1048,12 +1195,13 @@ def main():
     # API 서버 접속 확인
     print(f"\nAPI 서버 연결 확인 중... ({API_BASE_URL})")
     try:
-        _api_get("/intersections")
+        inter_resp = _api_get("/intersections")
     except urllib.error.URLError as e:
         print(f"\nAPI 서버에 접속할 수 없습니다: {e}")
         print(f"  → api_server.py가 실행 중인지 확인하세요. ({API_BASE_URL})")
         sys.exit(1)
     print("API 서버 연결 성공")
+    total_intersection_count = inter_resp.get("count")
 
     # 1. 교차로 입력
     intersections = input_intersections()
@@ -1074,28 +1222,36 @@ def main():
 
     # 6. 데이터 조회 (API 경유, 보정값 적용)
     print("\n데이터 조회 중...")
+    t_fetch = time.perf_counter()
     raw_rows = fetch_data(intersections, periods, hours)
+    t_fetch_elapsed = time.perf_counter() - t_fetch
     if not raw_rows:
         print("조회된 데이터가 없습니다.")
         return
 
     # 방향 합산이 필요한 경우
+    t_transform = time.perf_counter()
     if not has_dir:
         data = aggregate_by_node(raw_rows)
     else:
         data = raw_rows
+    t_transform_elapsed = time.perf_counter() - t_transform
 
     print(f"  조회된 레코드 수: {len(data)}")
 
     # 7. Excel 저장
-    filename = make_filename(intersections, period_str)
+    filename = make_filename(intersections, period_str, total_intersection_count)
     excel_path = EXCEL_DIR / f"{filename}.xlsx"
+    t_excel = time.perf_counter()
     save_excel(data, attrs, sheet_type, excel_path)
+    t_excel_elapsed = time.perf_counter() - t_excel
 
     # 8. 그래프 출력
     print("\n[6단계] 그래프 출력")
+    t_graph_elapsed = 0.0
     graph_yn = input("  그래프를 출력하시겠습니까? (y/n) [n]: ").strip().lower()
     if graph_yn == "y":
+        t_graph = time.perf_counter()
         node_names = [d["name"] for d in intersections]
         if len(periods) == 1:
             # 단일 기간: 기존과 동일
@@ -1110,8 +1266,18 @@ def main():
                 else:
                     print(f"  기간 {p_str}: 데이터 없음, 건너뜁니다.")
         print("  그래프 저장 완료.")
+        t_graph_elapsed = time.perf_counter() - t_graph
     else:
         print("  그래프 생성을 건너뜁니다.")
+
+    if ENABLE_PERF_LOG:
+        t_total = time.perf_counter() - t_main
+        print("\n[PERF] 단계별 소요시간")
+        print(f"  - 데이터 조회  : {t_fetch_elapsed:.2f}s")
+        print(f"  - 조회 후 가공 : {t_transform_elapsed:.2f}s")
+        print(f"  - Excel 저장   : {t_excel_elapsed:.2f}s")
+        print(f"  - 그래프 생성  : {t_graph_elapsed:.2f}s")
+        print(f"  - 총 소요      : {t_total:.2f}s")
 
     print("\n완료.")
 
