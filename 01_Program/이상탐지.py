@@ -160,6 +160,7 @@ def _baseline_cache_key(
     hours: list | None,
     months: list[int] | None,
     acsr_ids: list | None,
+    source: str = "ACSR",
 ) -> tuple:
     years_key = tuple(sorted({int(y) for y in baseline_years}))
     hour_vals = None
@@ -169,7 +170,7 @@ def _baseline_cache_key(
             hour_vals = tuple(norm_hours)
     month_vals = tuple(sorted({int(m) for m in months})) if months else None
     acsr_vals = tuple(sorted({str(a) for a in acsr_ids})) if acsr_ids else None
-    return ("baseline", str(node_id), years_key, hour_vals, month_vals, acsr_vals)
+    return ("baseline", source, str(node_id), years_key, hour_vals, month_vals, acsr_vals)
 
 
 def _baseline_cache_get(cache_key: tuple):
@@ -253,6 +254,271 @@ def load_approaches(conn, node_id) -> list:
             nid=node_id
         )
         return [(r[0], r[1]) for r in cur.fetchall()]
+
+
+def _normalize_drct_cd(drct_cd) -> str:
+    if drct_cd is None:
+        return ""
+    value = str(drct_cd).strip()
+    if not value:
+        return ""
+    if value.isdigit():
+        return value.zfill(2)
+    return value
+
+
+def load_drct_code_map(conn) -> dict:
+    """{drct_cd: drct_name} from M_CD_INF where GRP_CD='DRCT_CD'."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT CD, CD_NM
+            FROM M_CD_INF
+            WHERE GRP_CD = 'DRCT_CD'
+            ORDER BY CD
+            """
+        )
+        return {_normalize_drct_cd(cd): cd_nm for cd, cd_nm in cur.fetchall()}
+
+
+def load_drct_approaches(conn, node_id, drct_code_map: dict | None = None) -> tuple[list, dict]:
+    """Return DRCT analysis units and metadata.
+
+    Returns:
+      - approaches: [((acsr_id, drct_cd), drct_name), ...]
+      - meta_by_key: {
+            (acsr_id, drct_cd): {
+                "approach_id": acsr_id,
+                "approach_name": acsr_nm,
+                "drct_cd": drct_cd,
+                "drct_name": drct_nm,
+            }
+        }
+    """
+    if drct_code_map is None:
+        drct_code_map = load_drct_code_map(conn)
+    acsr_name_map = {aid: anm for aid, anm in load_approaches(conn, node_id)}
+    sql = """
+        SELECT DISTINCT ACSR_ID, LPAD(TRIM(TO_CHAR(DRCT_CD)), 2, '0') AS DRCT_CD
+        FROM S_CRSRD_DRCT_TRF_1HH
+        WHERE NODE_ID = :nid
+          AND TOT_DT < SYSDATE
+        ORDER BY ACSR_ID, DRCT_CD
+    """
+    with conn.cursor() as cur:
+        cur.arraysize = 10000
+        cur.execute(sql, nid=node_id)
+        rows = cur.fetchall()
+
+    approaches: list = []
+    meta_by_key: dict = {}
+    for acsr_id, drct_cd in rows:
+        norm_drct_cd = _normalize_drct_cd(drct_cd)
+        key = (acsr_id, norm_drct_cd)
+        acsr_nm = acsr_name_map.get(acsr_id, str(acsr_id))
+        drct_nm = drct_code_map.get(norm_drct_cd, norm_drct_cd)
+        approaches.append((key, drct_nm))
+        meta_by_key[key] = {
+            "approach_id": acsr_id,
+            "approach_name": acsr_nm,
+            "drct_cd": norm_drct_cd,
+            "drct_name": drct_nm,
+        }
+    return approaches, meta_by_key
+
+
+def _build_drct_pair_clause(drct_keys: list | None, bind_params: dict) -> str:
+    if not drct_keys:
+        return ""
+    unique_keys = sorted(
+        {(key[0], _normalize_drct_cd(key[1])) for key in drct_keys},
+        key=lambda x: (str(x[0]), str(x[1])),
+    )
+    clauses: list[str] = []
+    for idx, (acsr_id, drct_cd) in enumerate(unique_keys):
+        acsr_name = f"drct_acsr_{idx}"
+        code_name = f"drct_cd_{idx}"
+        bind_params[acsr_name] = acsr_id
+        bind_params[code_name] = drct_cd
+        clauses.append(
+            f"(ACSR_ID = :{acsr_name} AND LPAD(TRIM(TO_CHAR(DRCT_CD)), 2, '0') = :{code_name})"
+        )
+    return f"\n          AND ({' OR '.join(clauses)})"
+
+
+def load_drct_baseline_data(
+    conn,
+    node_id,
+    baseline_years: list,
+    hours: list | None = None,
+    months: list[int] | None = None,
+    drct_keys: list | None = None,
+) -> list:
+    """DRCT 베이스라인 조회: [((acsr_id, drct_cd), tot_dt, trf_qnty), ...]."""
+    if not baseline_years:
+        return []
+
+    drct_tokens = None
+    if drct_keys:
+        drct_tokens = [f"{key[0]}|{_normalize_drct_cd(key[1])}" for key in drct_keys]
+    cache_key = _baseline_cache_key(
+        node_id,
+        baseline_years,
+        hours,
+        months,
+        drct_tokens,
+        source="DRCT",
+    )
+    cached_rows = _baseline_cache_get(cache_key)
+    if cached_rows is not None:
+        return cached_rows
+
+    years = sorted(set(baseline_years))
+    if months:
+        month_vals = sorted({m for m in months if 1 <= m <= 12})
+        if not month_vals:
+            return []
+
+        def _next_month(y: int, m: int) -> tuple[int, int]:
+            return (y + 1, 1) if m == 12 else (y, m + 1)
+
+        range_conditions = []
+        for y in years:
+            for m in month_vals:
+                ny, nm = _next_month(y, m)
+                range_conditions.append(
+                    f"(TOT_DT >= TO_DATE('{y}-{m:02d}-01','YYYY-MM-DD') "
+                    f"AND TOT_DT < TO_DATE('{ny}-{nm:02d}-01','YYYY-MM-DD'))"
+                )
+        date_clause = " OR ".join(range_conditions)
+    else:
+        date_clause = " OR ".join(
+            f"(TOT_DT >= TO_DATE('{y}-01-01','YYYY-MM-DD') "
+            f"AND TOT_DT < TO_DATE('{y + 1}-01-01','YYYY-MM-DD'))"
+            for y in years
+        )
+
+    hour_clause = ""
+    if hours and set(hours) != set(range(24)):
+        hour_in = ",".join(str(h) for h in sorted(set(hours)))
+        hour_clause = f"\n          AND TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')) IN ({hour_in})"
+
+    bind_params = {"nid": node_id}
+    drct_clause = _build_drct_pair_clause(drct_keys, bind_params)
+
+    sql = f"""
+        SELECT ACSR_ID, LPAD(TRIM(TO_CHAR(DRCT_CD)), 2, '0') AS DRCT_CD, TOT_DT, TRF_QNTY
+        FROM S_CRSRD_DRCT_TRF_1HH
+        WHERE NODE_ID = :nid
+          AND ({date_clause})
+          {drct_clause}
+          {hour_clause}
+          AND TOT_DT < SYSDATE
+    """
+    with conn.cursor() as cur:
+        cur.arraysize = 10000
+        cur.execute(sql, bind_params)
+        rows = [
+            ((acsr_id, _normalize_drct_cd(drct_cd)), tot_dt, trf_qnty)
+            for acsr_id, drct_cd, tot_dt, trf_qnty in cur.fetchall()
+        ]
+
+    _baseline_cache_set(cache_key, rows)
+    return rows
+
+
+def load_drct_adjacent_month_data(
+    conn,
+    node_id: int,
+    adj_periods: list[tuple[int, int]],
+    hours: list | None = None,
+    drct_keys: list | None = None,
+) -> list:
+    """DRCT 인접 월 조회: [((acsr_id, drct_cd), tot_dt, trf_qnty), ...]."""
+    if not adj_periods:
+        return []
+
+    def _next_month(y, m):
+        return (y + 1, 1) if m == 12 else (y, m + 1)
+
+    conditions = " OR ".join(
+        f"(TOT_DT >= TO_DATE('{y}-{m:02d}-01','YYYY-MM-DD') "
+        f"AND TOT_DT < TO_DATE('{_next_month(y, m)[0]}-{_next_month(y, m)[1]:02d}-01','YYYY-MM-DD'))"
+        for y, m in adj_periods
+    )
+    hour_clause = ""
+    if hours and set(hours) != set(range(24)):
+        hour_in = ",".join(str(h) for h in sorted(set(hours)))
+        hour_clause = f"\n          AND TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')) IN ({hour_in})"
+    bind_params = {"nid": node_id}
+    drct_clause = _build_drct_pair_clause(drct_keys, bind_params)
+    sql = f"""
+        SELECT ACSR_ID, LPAD(TRIM(TO_CHAR(DRCT_CD)), 2, '0') AS DRCT_CD, TOT_DT, TRF_QNTY
+        FROM S_CRSRD_DRCT_TRF_1HH
+        WHERE NODE_ID = :nid
+          AND ({conditions})
+          {drct_clause}
+          {hour_clause}
+          AND TOT_DT < SYSDATE
+    """
+    with conn.cursor() as cur:
+        cur.arraysize = 10000
+        cur.execute(sql, bind_params)
+        return [
+            ((acsr_id, _normalize_drct_cd(drct_cd)), tot_dt, trf_qnty)
+            for acsr_id, drct_cd, tot_dt, trf_qnty in cur.fetchall()
+        ]
+
+
+def load_drct_target_data(
+    conn,
+    node_id,
+    date_start: date,
+    date_end: date,
+    hours: list,
+) -> dict:
+    """{((acsr_id, drct_cd), date, hour): trf_qnty}"""
+    if not hours:
+        return {}
+    ds_dt = datetime(date_start.year, date_start.month, date_start.day)
+    de_next = datetime(date_end.year, date_end.month, date_end.day) + timedelta(days=1)
+    if set(hours) == set(range(24)):
+        sql = """
+            SELECT ACSR_ID, LPAD(TRIM(TO_CHAR(DRCT_CD)), 2, '0') AS DRCT_CD, TOT_DT, TRF_QNTY
+            FROM S_CRSRD_DRCT_TRF_1HH
+            WHERE NODE_ID = :nid
+              AND TOT_DT >= :ds
+              AND TOT_DT < :de_next
+        """
+        with conn.cursor() as cur:
+            cur.arraysize = 10000
+            cur.execute(sql, nid=node_id, ds=ds_dt, de_next=de_next)
+            result = {}
+            for acsr_id, drct_cd, tot_dt, trf_qnty in cur.fetchall():
+                d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
+                h = tot_dt.hour if isinstance(tot_dt, datetime) else 0
+                key = (acsr_id, _normalize_drct_cd(drct_cd))
+                result[(key, d, h)] = trf_qnty
+            return result
+    hour_in = ",".join(str(h) for h in hours)
+    sql = f"""
+        SELECT ACSR_ID, LPAD(TRIM(TO_CHAR(DRCT_CD)), 2, '0') AS DRCT_CD, TOT_DT, TRF_QNTY
+        FROM S_CRSRD_DRCT_TRF_1HH
+        WHERE NODE_ID = :nid
+          AND TOT_DT >= :ds
+          AND TOT_DT < :de_next
+          AND TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')) IN ({hour_in})
+    """
+    with conn.cursor() as cur:
+        cur.arraysize = 10000
+        cur.execute(sql, nid=node_id, ds=ds_dt, de_next=de_next)
+        result = {}
+        for acsr_id, drct_cd, tot_dt, trf_qnty in cur.fetchall():
+            d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
+            h = tot_dt.hour if isinstance(tot_dt, datetime) else 0
+            key = (acsr_id, _normalize_drct_cd(drct_cd))
+            result[(key, d, h)] = trf_qnty
+        return result
 
 
 def load_baseline_data(
@@ -1140,6 +1406,195 @@ def analyse_node(
         )
 
     return node_results, baselines, target_data
+
+
+def analyse_node_drct(
+    conn,
+    node_id: int,
+    node_name: str,
+    date_start: date,
+    date_end: date,
+    hours: list,
+    baseline_years: list,
+    fallback_year: int,
+    adj_periods: list,
+    holiday_dates: set,
+) -> tuple[list, dict, dict, dict]:
+    """DRCT 단위 이상탐지+보정 수행.
+
+    Returns:
+      (node_results, baselines, target_data, drct_meta)
+      - node_results : detect_anomalies + apply_corrections 적용 슬롯
+      - baselines    : DRCT 단위 베이스라인
+      - target_data  : {((acsr_id, drct_cd), date, hour): trf_qnty}
+      - drct_meta    : {(acsr_id, drct_cd): {approach_id, approach_name, drct_cd, drct_name}}
+    """
+    drct_code_map = load_drct_code_map(conn)
+    approaches, drct_meta = load_drct_approaches(conn, node_id, drct_code_map=drct_code_map)
+    if not approaches:
+        return [], {}, {}, {}
+    cache_h0, cache_m0, _ = _baseline_cache_stats()
+
+    target_months: set[int] = set()
+    cur_m = date_start.replace(day=1)
+    while cur_m <= date_end:
+        target_months.add(cur_m.month)
+        cur_m = date(cur_m.year + 1, 1, 1) if cur_m.month == 12 else date(cur_m.year, cur_m.month + 1, 1)
+
+    stage1_months: set[int] = set(target_months)
+    for m in target_months:
+        stage1_months.add(((m - 2) % 12) + 1)  # prev
+        stage1_months.add((m % 12) + 1)         # next
+
+    drct_keys = [drct_key for drct_key, _ in approaches]
+
+    t0 = time.perf_counter()
+    raw_rows_core = load_drct_baseline_data(
+        conn,
+        node_id,
+        baseline_years,
+        hours=hours,
+        months=sorted(stage1_months),
+        drct_keys=drct_keys,
+    )
+    t_raw_core = time.perf_counter() - t0
+
+    t1 = time.perf_counter()
+    adj_rows = load_drct_adjacent_month_data(conn, node_id, adj_periods, hours=hours, drct_keys=drct_keys)
+    t_adj = time.perf_counter() - t1
+
+    t2 = time.perf_counter()
+    baselines_pre, _ = build_baselines(
+        raw_rows_core, baseline_years, holiday_dates,
+        approaches, date_start, date_end, hours,
+        adj_month_rows=adj_rows,
+        fallback_rows=None,
+        expand_stages=False,
+    )
+    t_pre = time.perf_counter() - t2
+
+    stage2_keys = {
+        (drct_key, day_type, hour)
+        for (drct_key, day_type, hour, _), bl in baselines_pre.items()
+        if bl["zero_rate"] >= ZERO_RATE_EXPANSION_THRESHOLD
+    }
+
+    t3 = time.perf_counter()
+    raw_rows_stage2: list = []
+    raw_rows_stage2_fetched = 0
+    if stage2_keys:
+        stage2_drct_keys = sorted(
+            {drct_key for drct_key, _, _ in stage2_keys},
+            key=lambda x: (str(x[0]), str(x[1])),
+        )
+        annual_rows = load_drct_baseline_data(
+            conn,
+            node_id,
+            baseline_years,
+            hours=hours,
+            months=None,
+            drct_keys=stage2_drct_keys,
+        )
+        raw_rows_stage2_fetched = len(annual_rows)
+        for drct_key, tot_dt, trf_qnty in annual_rows:
+            d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
+            h = tot_dt.hour if isinstance(tot_dt, datetime) else 0
+            day_type = get_day_type(d, holiday_dates)
+            if (drct_key, day_type, h) in stage2_keys:
+                raw_rows_stage2.append((drct_key, tot_dt, trf_qnty))
+    t_stage2 = time.perf_counter() - t3
+
+    seen_positions: set[tuple[tuple, date, int]] = set()
+    raw_rows: list = []
+    for source_rows in (raw_rows_core, raw_rows_stage2):
+        for drct_key, tot_dt, trf_qnty in source_rows:
+            d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
+            h = tot_dt.hour if isinstance(tot_dt, datetime) else 0
+            key = (drct_key, d, h)
+            if key in seen_positions:
+                continue
+            seen_positions.add(key)
+            raw_rows.append((drct_key, tot_dt, trf_qnty))
+
+    fallback_keys = {
+        (drct_key, day_type, hour)
+        for (drct_key, day_type, hour, _), bl in baselines_pre.items()
+        if bl.get("n_total_baseline", 0) < MIN_CLEAN_SAMPLES
+    }
+
+    t4 = time.perf_counter()
+    fallback_raw_rows: list = []
+    fallback_raw_rows_fetched = 0
+    if fallback_keys:
+        fallback_drct_keys = sorted(
+            {drct_key for drct_key, _, _ in fallback_keys},
+            key=lambda x: (str(x[0]), str(x[1])),
+        )
+        fallback_rows_all = load_drct_baseline_data(
+            conn,
+            node_id,
+            [fallback_year],
+            hours=hours,
+            months=None,
+            drct_keys=fallback_drct_keys,
+        )
+        fallback_raw_rows_fetched = len(fallback_rows_all)
+        for drct_key, tot_dt, trf_qnty in fallback_rows_all:
+            if trf_qnty is None:
+                continue
+            d = tot_dt.date() if isinstance(tot_dt, datetime) else tot_dt
+            h = tot_dt.hour if isinstance(tot_dt, datetime) else 0
+            day_type = get_day_type(d, holiday_dates)
+            if (drct_key, day_type, h) in fallback_keys:
+                fallback_raw_rows.append((drct_key, tot_dt, trf_qnty))
+    t_fallback = time.perf_counter() - t4
+    t_db = t_raw_core + t_adj + t_stage2 + t_fallback
+
+    t5 = time.perf_counter()
+    baselines, fallback_summary = build_baselines(
+        raw_rows, baseline_years, holiday_dates,
+        approaches, date_start, date_end, hours,
+        adj_month_rows=adj_rows,
+        fallback_rows=fallback_raw_rows,
+    )
+    t_baselines = (time.perf_counter() - t5) + t_pre
+
+    t6 = time.perf_counter()
+    target_data = load_drct_target_data(conn, node_id, date_start, date_end, hours)
+    t_target = time.perf_counter() - t6
+
+    node_results = detect_anomalies(
+        node_name, approaches, baselines, target_data,
+        date_start, date_end, hours, holiday_dates,
+    )
+    apply_corrections(node_results, baselines, target_data)
+
+    n_cells = len(baselines)
+    n_s1 = fallback_summary.get("n_stage1", 0)
+    n_s2 = fallback_summary.get("n_stage2", 0)
+    print(
+        f"[PROFILE][DRCT] {node_name} | "
+        f"DB쿼리={t_db:.3f}s | baselines={t_baselines:.3f}s | target_data={t_target:.3f}s | "
+        f"cells={n_cells} stage1={n_s1} stage2={n_s2}"
+    )
+
+    if PROFILE_DB_BREAKDOWN:
+        cache_h1, cache_m1, cache_size = _baseline_cache_stats()
+        print(
+            f"[PROFILE_DB][DRCT] {node_name} | "
+            f"baseline_core={t_raw_core:.3f}s/{len(raw_rows_core):,}rows | "
+            f"adj={t_adj:.3f}s/{len(adj_rows):,}rows | "
+            f"stage2={t_stage2:.3f}s/{len(raw_rows_stage2):,}rows(filtered:{raw_rows_stage2_fetched:,}) | "
+            f"fallback={t_fallback:.3f}s/{len(fallback_raw_rows):,}rows(filtered:{fallback_raw_rows_fetched:,}) | "
+            f"target={t_target:.3f}s/{len(target_data):,}rows | "
+            f"period={date_start}~{date_end} hours={len(hours)} "
+            f"drct_keys={len(drct_keys)} baseline_years={baseline_years} "
+            f"fallback_year={fallback_year} adj_months={len(adj_periods)} "
+            f"stage2_keys={len(stage2_keys)} fallback_keys={len(fallback_keys)} "
+            f"cache(hits={cache_h1-cache_h0}, misses={cache_m1-cache_m0}, size={cache_size})"
+        )
+
+    return node_results, baselines, target_data, drct_meta
 
 
 # ════════════════════════════════════════════════════════════════

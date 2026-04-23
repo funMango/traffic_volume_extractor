@@ -10,6 +10,8 @@
 엔드포인트:
   POST /jobs              분석 작업 시작 → job_id 반환
   GET  /jobs/{job_id}     작업 상태·결과 조회
+  POST /corrected-traffic ACSR 단위 보정 결과 즉시 조회
+  POST /corrected-traffic-drct DRCT 단위 보정 + ACSR 집계 즉시 조회
   GET  /intersections     교차로 목록 조회
 """
 
@@ -127,6 +129,103 @@ def _serialize_slot(r: dict, node_id: int, baselines: dict) -> dict:
             "expansion_stage": bl.get("expansion_stage", 0),
         },
     }
+
+
+def _serialize_drct_slot(r: dict, node_id: int, baselines: dict, drct_meta: dict) -> dict:
+    """DRCT 단위 이상탐지 결과 dict → API 응답 스키마로 변환."""
+    drct_key = r["_acsr_id"]  # (acsr_id, drct_cd)
+    meta = drct_meta.get(drct_key, {})
+    approach_id = meta.get("approach_id")
+    drct_cd = meta.get("drct_cd")
+    if approach_id is None and isinstance(drct_key, tuple) and len(drct_key) >= 1:
+        approach_id = drct_key[0]
+    if drct_cd is None and isinstance(drct_key, tuple) and len(drct_key) >= 2:
+        drct_cd = drct_key[1]
+
+    cell = r["_cell"]
+    bl = baselines.get(cell, {})
+    stats = bl.get("stats")
+
+    return {
+        "date":              r["날짜"].replace(".", "-"),
+        "hour":              r["_hour"],
+        "node_id":           node_id,
+        "node_name":         r["교차로"],
+        "approach_id":       approach_id,
+        "approach_name":     meta.get("approach_name", str(approach_id)),
+        "drct_cd":           drct_cd,
+        "drct_name":         meta.get("drct_name", str(drct_cd)),
+        "traffic_volume":    r["교통량"],
+        "anomaly_type":      r["판정"],
+        "corrected_value":   r.get("보정값"),
+        "correction_method": r.get("보정방법"),
+        "confidence":        r.get("신뢰도"),
+        "baseline": {
+            "median":          stats["median"] if stats else None,
+            "q1":              stats["q1"] if stats else None,
+            "q3":              stats["q3"] if stats else None,
+            "n_clean":         stats["n_clean"] if stats else None,
+            "zero_rate":       bl.get("zero_rate"),
+            "expansion_stage": bl.get("expansion_stage", 0),
+        },
+    }
+
+
+def _aggregate_acsr_slots_from_drct(drct_slots: list[dict]) -> list[dict]:
+    """DRCT 슬롯 목록을 ACSR+시각 단위로 합산해 기존 slots 스키마로 변환."""
+    agg: dict[tuple, dict] = {}
+    for slot in drct_slots:
+        key = (
+            slot["date"],
+            slot["hour"],
+            slot["node_id"],
+            slot["node_name"],
+            slot["approach_id"],
+            slot["approach_name"],
+        )
+        if key not in agg:
+            agg[key] = {
+                "date":              slot["date"],
+                "hour":              slot["hour"],
+                "node_id":           slot["node_id"],
+                "node_name":         slot["node_name"],
+                "approach_id":       slot["approach_id"],
+                "approach_name":     slot["approach_name"],
+                "traffic_volume":    0,
+                "corrected_value":   0,
+                "_has_raw":          False,
+                "_has_corr":         False,
+            }
+        acc = agg[key]
+        raw_val = slot.get("traffic_volume")
+        if raw_val is not None:
+            acc["traffic_volume"] += raw_val
+            acc["_has_raw"] = True
+        corr_val = slot.get("corrected_value")
+        if corr_val is None:
+            corr_val = raw_val
+        if corr_val is not None:
+            acc["corrected_value"] += corr_val
+            acc["_has_corr"] = True
+
+    rows: list[dict] = []
+    for _, item in agg.items():
+        rows.append({
+            "date":              item["date"],
+            "hour":              item["hour"],
+            "node_id":           item["node_id"],
+            "node_name":         item["node_name"],
+            "approach_id":       item["approach_id"],
+            "approach_name":     item["approach_name"],
+            "traffic_volume":    item["traffic_volume"] if item["_has_raw"] else None,
+            "anomaly_type":      None,
+            "corrected_value":   item["corrected_value"] if item["_has_corr"] else None,
+            "correction_method": None,
+            "confidence":        None,
+            "baseline":          None,
+        })
+    rows.sort(key=lambda r: (r["date"], r["node_id"], r["hour"], r["approach_id"]))
+    return rows
 
 
 # ── 헬퍼: job 직렬화 ─────────────────────────────────────────────────────────
@@ -319,6 +418,89 @@ def _fetch_corrected_traffic(req: JobRequest) -> dict:
         conn.close()
 
 
+def _fetch_corrected_traffic_drct(req: JobRequest) -> dict:
+    """DRCT 단위 이상탐지+보정 결과와 ACSR 집계 결과를 함께 반환."""
+    if _holiday_dates is None:
+        raise RuntimeError("서버 초기화가 완료되지 않았습니다. 잠시 후 다시 시도하세요.")
+
+    conn = ad.connect_db()
+    try:
+        date_start = date.fromisoformat(req.date_start)
+        date_end = date.fromisoformat(req.date_end)
+        hours = req.resolve_hours()
+
+        baseline_years = ad.select_baseline_years(date_start.year)
+        fallback_year = ad.select_fallback_year(date_start.year)
+        adj_periods = ad.get_adjacent_month_periods(date_start, date_end)
+
+        id_to_name = _get_id_to_name_map(conn)
+
+        drct_slots: list[dict] = []
+        for node_id in req.node_ids:
+            norm_node_id = _normalize_node_id(node_id)
+            node_name = id_to_name.get(norm_node_id, str(node_id))
+            node_results, baselines, target_data, drct_meta = ad.analyse_node_drct(
+                conn,
+                norm_node_id,
+                node_name,
+                date_start,
+                date_end,
+                hours,
+                baseline_years,
+                fallback_year,
+                adj_periods,
+                _holiday_dates,
+            )
+
+            anomaly_index = {
+                (r["_acsr_id"], r["_date"], r["_hour"]): r
+                for r in node_results
+            }
+            seen_positions: set[tuple] = set()
+
+            for (drct_key, d, h), vol in target_data.items():
+                position = (drct_key, d, h)
+                seen_positions.add(position)
+                if position in anomaly_index:
+                    drct_slots.append(_serialize_drct_slot(anomaly_index[position], norm_node_id, baselines, drct_meta))
+                    continue
+
+                meta = drct_meta.get(drct_key, {})
+                approach_id = meta.get("approach_id")
+                drct_cd = meta.get("drct_cd")
+                if approach_id is None and isinstance(drct_key, tuple) and len(drct_key) >= 1:
+                    approach_id = drct_key[0]
+                if drct_cd is None and isinstance(drct_key, tuple) and len(drct_key) >= 2:
+                    drct_cd = drct_key[1]
+                drct_slots.append({
+                    "date":              d.isoformat(),
+                    "hour":              h,
+                    "node_id":           norm_node_id,
+                    "node_name":         node_name,
+                    "approach_id":       approach_id,
+                    "approach_name":     meta.get("approach_name", str(approach_id)),
+                    "drct_cd":           drct_cd,
+                    "drct_name":         meta.get("drct_name", str(drct_cd)),
+                    "traffic_volume":    vol,
+                    "anomaly_type":      None,
+                    "corrected_value":   None,
+                    "correction_method": None,
+                    "confidence":        None,
+                    "baseline":          None,
+                })
+
+            for r in node_results:
+                position = (r["_acsr_id"], r["_date"], r["_hour"])
+                if position in seen_positions:
+                    continue
+                drct_slots.append(_serialize_drct_slot(r, norm_node_id, baselines, drct_meta))
+
+        slots = _aggregate_acsr_slots_from_drct(drct_slots)
+        return {"slots": slots, "drct_slots": drct_slots}
+    finally:
+        conn.close()
+
+
 def _aggregate_daily_summary_rows(
     node_id: int,
     node_name: str,
@@ -481,6 +663,19 @@ async def corrected_traffic(req: JobRequest):
     """
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(executor, _fetch_corrected_traffic, req)
+    return result
+
+
+@app.post("/corrected-traffic-drct")
+async def corrected_traffic_drct(req: JobRequest):
+    """DRCT 단위 결과와 ACSR 집계 결과를 동기적으로 반환합니다.
+
+    응답:
+    - slots: ACSR 집계 결과
+    - drct_slots: DRCT 단위 상세 결과
+    """
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(executor, _fetch_corrected_traffic_drct, req)
     return result
 
 
