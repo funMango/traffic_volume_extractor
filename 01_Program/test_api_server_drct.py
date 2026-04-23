@@ -159,6 +159,105 @@ class TestFetchCorrectedTrafficDrct(unittest.TestCase):
         acsr_h8 = next(s for s in result["slots"] if s["hour"] == 8 and s["approach_id"] == 2001)
         self.assertEqual(acsr_h8["traffic_volume"], 0)
         self.assertEqual(acsr_h8["corrected_value"], 120)
+        self.assertEqual(acsr_h8["anomaly_type"], "A형")
+
+    def test_aggregate_marks_mixed_and_ignores_drct_00(self):
+        rows = api_server._aggregate_acsr_slots_from_drct([
+            {
+                "date": "2026-03-22",
+                "hour": 8,
+                "node_id": 260322,
+                "node_name": "송내사거리",
+                "approach_id": 2001,
+                "approach_name": "북향",
+                "drct_cd": "00",
+                "traffic_volume": 999,
+                "anomaly_type": "B형",
+                "corrected_value": 999,
+            },
+            {
+                "date": "2026-03-22",
+                "hour": 8,
+                "node_id": 260322,
+                "node_name": "송내사거리",
+                "approach_id": 2001,
+                "approach_name": "북향",
+                "drct_cd": "01",
+                "traffic_volume": 0,
+                "anomaly_type": "A형",
+                "corrected_value": 120,
+            },
+            {
+                "date": "2026-03-22",
+                "hour": 8,
+                "node_id": 260322,
+                "node_name": "송내사거리",
+                "approach_id": 2001,
+                "approach_name": "북향",
+                "drct_cd": "02",
+                "traffic_volume": 30,
+                "anomaly_type": "B형",
+                "corrected_value": 95,
+            },
+        ])
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["traffic_volume"], 30)
+        self.assertEqual(row["corrected_value"], 215)
+        self.assertEqual(row["anomaly_type"], "A+B혼합")
+
+    def test_fetch_drct_excludes_drct_00_from_outputs(self):
+        d = date(2026, 3, 22)
+        node_results = [
+            {
+                "날짜": "2026.03.22",
+                "시간": "08:00",
+                "교차로": "송내사거리",
+                "방향": "미분류",
+                "교통량": 0,
+                "판정": "A형",
+                "_acsr_id": (2001, "00"),
+                "_date": d,
+                "_hour": 8,
+                "_cell": ((2001, "00"), 1, 8, 3),
+                "보정값": 100,
+                "보정방법": "median",
+                "신뢰도": "OK",
+            }
+        ]
+        baselines = {
+            ((2001, "00"), 1, 8, 3): {
+                "zero_rate": 0.1,
+                "expansion_stage": 0,
+                "stats": {"median": 100.0, "q1": 90.0, "q3": 110.0, "n_clean": 14},
+            }
+        }
+        target_data = {
+            ((2001, "00"), d, 8): 77,
+        }
+        drct_meta = {
+            (2001, "00"): {
+                "approach_id": 2001,
+                "approach_name": "북향",
+                "drct_cd": "00",
+                "drct_name": "미분류",
+            }
+        }
+
+        with patch.object(api_server.ad, "connect_db", return_value=MagicMock()), \
+             patch.object(api_server, "_get_id_to_name_map", return_value={260322: "송내사거리"}), \
+             patch.object(api_server.ad, "select_baseline_years", return_value=[2024, 2025]), \
+             patch.object(api_server.ad, "select_fallback_year", return_value=2025), \
+             patch.object(api_server.ad, "get_adjacent_month_periods", return_value=[]), \
+             patch.object(
+                 api_server.ad,
+                 "analyse_node_drct",
+                 return_value=(node_results, baselines, target_data, drct_meta),
+             ):
+            result = api_server._fetch_corrected_traffic_drct(self._make_request())
+
+        self.assertEqual(result["drct_slots"], [])
+        self.assertEqual(result["slots"], [])
 
 
 class TestCorrectedTrafficDrctEndpoint(unittest.TestCase):

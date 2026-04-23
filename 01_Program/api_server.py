@@ -171,10 +171,18 @@ def _serialize_drct_slot(r: dict, node_id: int, baselines: dict, drct_meta: dict
     }
 
 
+def _normalize_drct_cd(drct_cd) -> str:
+    if drct_cd is None:
+        return ""
+    return str(drct_cd).strip().zfill(2)
+
+
 def _aggregate_acsr_slots_from_drct(drct_slots: list[dict]) -> list[dict]:
-    """DRCT 슬롯 목록을 ACSR+시각 단위로 합산해 기존 slots 스키마로 변환."""
+    """DRCT 슬롯 목록을 ACSR+시각 단위로 집계(전/후 합계 + A/B/혼합 판정)."""
     agg: dict[tuple, dict] = {}
     for slot in drct_slots:
+        if _normalize_drct_cd(slot.get("drct_cd")) == "00":
+            continue
         key = (
             slot["date"],
             slot["hour"],
@@ -195,6 +203,8 @@ def _aggregate_acsr_slots_from_drct(drct_slots: list[dict]) -> list[dict]:
                 "corrected_value":   0,
                 "_has_raw":          False,
                 "_has_corr":         False,
+                "_has_a":            False,
+                "_has_b":            False,
             }
         acc = agg[key]
         raw_val = slot.get("traffic_volume")
@@ -207,9 +217,24 @@ def _aggregate_acsr_slots_from_drct(drct_slots: list[dict]) -> list[dict]:
         if corr_val is not None:
             acc["corrected_value"] += corr_val
             acc["_has_corr"] = True
+        anomaly_type = slot.get("anomaly_type")
+        if anomaly_type == "A형":
+            acc["_has_a"] = True
+        elif anomaly_type == "B형":
+            acc["_has_b"] = True
+        elif anomaly_type == "A+B혼합":
+            acc["_has_a"] = True
+            acc["_has_b"] = True
 
     rows: list[dict] = []
     for _, item in agg.items():
+        anomaly_type = None
+        if item["_has_a"] and item["_has_b"]:
+            anomaly_type = "A+B혼합"
+        elif item["_has_a"]:
+            anomaly_type = "A형"
+        elif item["_has_b"]:
+            anomaly_type = "B형"
         rows.append({
             "date":              item["date"],
             "hour":              item["hour"],
@@ -218,7 +243,7 @@ def _aggregate_acsr_slots_from_drct(drct_slots: list[dict]) -> list[dict]:
             "approach_id":       item["approach_id"],
             "approach_name":     item["approach_name"],
             "traffic_volume":    item["traffic_volume"] if item["_has_raw"] else None,
-            "anomaly_type":      None,
+            "anomaly_type":      anomaly_type,
             "corrected_value":   item["corrected_value"] if item["_has_corr"] else None,
             "correction_method": None,
             "confidence":        None,
@@ -495,8 +520,12 @@ def _fetch_corrected_traffic_drct(req: JobRequest) -> dict:
                     continue
                 drct_slots.append(_serialize_drct_slot(r, norm_node_id, baselines, drct_meta))
 
-        slots = _aggregate_acsr_slots_from_drct(drct_slots)
-        return {"slots": slots, "drct_slots": drct_slots}
+        filtered_drct_slots = [
+            slot for slot in drct_slots
+            if _normalize_drct_cd(slot.get("drct_cd")) != "00"
+        ]
+        slots = _aggregate_acsr_slots_from_drct(filtered_drct_slots)
+        return {"slots": slots, "drct_slots": filtered_drct_slots}
     finally:
         conn.close()
 

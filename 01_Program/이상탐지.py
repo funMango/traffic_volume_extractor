@@ -9,13 +9,14 @@ import os
 import sys
 import json
 import difflib
+import re
 import time
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from collections import defaultdict, OrderedDict
-from threading import Lock
+from threading import Event, Lock, Thread
 
 import numpy as np
 import oracledb
@@ -87,9 +88,9 @@ def _parse_api_response(slots: list, node_name: str) -> tuple:
         if orig_val is not None:
             target_data[(acsr_id, d, h)] = orig_val
 
-        # A형/B형 이상 슬롯만 node_results에 추가
+        # A형/B형/A+B혼합 이상 슬롯만 node_results에 추가
         anomaly_type = slot.get("anomaly_type")
-        if anomaly_type in ("A형", "B형"):
+        if anomaly_type in ("A형", "B형", "A+B혼합"):
             node_results.append({
                 "날짜":     d.strftime("%Y.%m.%d"),
                 "시간":     f"{h:02d}:00",
@@ -108,6 +109,266 @@ def _parse_api_response(slots: list, node_name: str) -> tuple:
 
     approaches = list(approaches_seen.items())
     return node_results, target_data, approaches
+
+
+def _sanitize_sheet_title(text: str) -> str:
+    """Excel 시트명 제약(31자/금지문자)에 맞춰 정규화."""
+    cleaned = re.sub(r"[\[\]\:\*\?\/\\]", "_", str(text)).strip()
+    return cleaned or "Sheet"
+
+
+def _sanitize_path_component(text: str) -> str:
+    """Windows 경로 구성요소 금지문자를 치환."""
+    cleaned = re.sub(r"[<>:\"/\\|?*]", "_", str(text)).strip()
+    return cleaned or "_"
+
+
+SPINNER_FRAMES = ("|", "/", "-", "\\")
+
+
+def _print_inline_progress(message: str, min_width: int = 100) -> None:
+    print(f"\r{message.ljust(min_width)}", end="", flush=True)
+
+
+class _SpinnerProgress:
+    """단일 작업 구간용 스피너+퍼센트 진행 표시."""
+
+    def __init__(self, label: str, start_percent: int = 0, max_percent: int = 95, interval_sec: float = 0.12):
+        self.label = label
+        self.percent = max(0, min(start_percent, 100))
+        self.max_percent = max(0, min(max_percent, 100))
+        self.interval_sec = interval_sec
+        self._stop_event = Event()
+        self._lock = Lock()
+        self._thread: Thread | None = None
+
+    def start(self) -> None:
+        if self._thread is not None:
+            return
+        self._thread = Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def set_percent(self, value: int) -> None:
+        with self._lock:
+            self.percent = max(0, min(value, 100))
+
+    def _run(self) -> None:
+        idx = 0
+        while not self._stop_event.is_set():
+            with self._lock:
+                pct = self.percent
+                if pct < self.max_percent:
+                    self.percent += 1
+            frame = SPINNER_FRAMES[idx % len(SPINNER_FRAMES)]
+            idx += 1
+            _print_inline_progress(f"  {self.label}... {frame} {pct:3d}%")
+            time.sleep(self.interval_sec)
+
+    def stop(self, final_percent: int = 100, done_text: str = "완료") -> None:
+        self.set_percent(final_percent)
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join()
+        _print_inline_progress(f"  {self.label}... {done_text} {max(0, min(final_percent, 100)):3d}%")
+        print()
+
+
+def _make_step_progress_callback(label: str, start_percent: int, end_percent: int):
+    """다중 스텝 작업용 진행 콜백 생성."""
+    state = {"idx": 0}
+    start = max(0, min(start_percent, 100))
+    end = max(start, min(end_percent, 100))
+
+    def _callback(done: int, total: int, detail: str = "") -> None:
+        bounded_total = max(total, 1)
+        bounded_done = max(0, min(done, bounded_total))
+        ratio = bounded_done / bounded_total
+        pct = start + int((end - start) * ratio)
+        frame = SPINNER_FRAMES[state["idx"] % len(SPINNER_FRAMES)]
+        state["idx"] += 1
+
+        detail_txt = f" ({bounded_done}/{bounded_total})"
+        if detail:
+            detail_txt += f" {detail}"
+
+        if bounded_done >= bounded_total:
+            _print_inline_progress(f"  {label}... 완료 {pct:3d}%{detail_txt}")
+            print()
+        else:
+            _print_inline_progress(f"  {label}... {frame} {pct:3d}%{detail_txt}")
+
+    return _callback
+
+
+def _parse_api_response_drct(drct_slots: list, node_name: str) -> tuple:
+    """API /corrected-traffic-drct 응답 파싱.
+
+    Returns:
+      - node_results: A/B 이상 슬롯 목록
+      - target_data: {(acsr_id, drct_cd, date, hour): original_volume}
+      - approaches: [(acsr_id, acsr_nm), ...]
+      - drct_options_by_acsr: {
+            acsr_id: {
+                "approach_name": acsr_nm,
+                "drcts": [(drct_cd, drct_name), ...],
+            }
+        }
+    """
+    node_results: list = []
+    target_data: dict = {}
+    approaches_seen: OrderedDict = OrderedDict()
+    drct_options_by_acsr: OrderedDict = OrderedDict()
+    drct_seen: dict = defaultdict(set)
+
+    for slot in drct_slots:
+        d = date.fromisoformat(slot["date"])
+        h = int(slot["hour"])
+        acsr_id = slot["approach_id"]
+        acsr_nm = slot.get("approach_name") or str(acsr_id)
+        drct_cd = _normalize_drct_cd(slot.get("drct_cd"))
+        drct_nm = slot.get("drct_name") or drct_cd
+
+        # DRCT 00(미분류)은 전체 흐름에서 제외
+        if drct_cd == "00":
+            continue
+
+        if acsr_id not in approaches_seen:
+            approaches_seen[acsr_id] = acsr_nm
+
+        if acsr_id not in drct_options_by_acsr:
+            drct_options_by_acsr[acsr_id] = {
+                "approach_name": acsr_nm,
+                "drcts": [],
+            }
+        if drct_cd not in drct_seen[acsr_id]:
+            drct_seen[acsr_id].add(drct_cd)
+            drct_options_by_acsr[acsr_id]["drcts"].append((drct_cd, drct_nm))
+
+        orig_val = slot.get("traffic_volume")
+        if orig_val is not None:
+            target_data[(acsr_id, drct_cd, d, h)] = orig_val
+
+        anomaly_type = slot.get("anomaly_type")
+        if anomaly_type not in ("A형", "B형"):
+            continue
+
+        node_results.append({
+            "날짜":      d.strftime("%Y.%m.%d"),
+            "시간":      f"{h:02d}:00",
+            "교차로":    node_name,
+            "방향":      acsr_nm,
+            "접근로방향": drct_nm,
+            "교통량":    orig_val if orig_val is not None else 0,
+            "판정":      anomaly_type,
+            "보정값":    slot.get("corrected_value"),
+            "보정방법":  slot.get("correction_method"),
+            "신뢰도":    slot.get("confidence"),
+            "_acsr_id":  acsr_id,
+            "_drct_cd":  drct_cd,
+            "_drct_name": drct_nm,
+            "_date":     d,
+            "_hour":     h,
+            "_cell":     None,
+        })
+
+    approaches = list(approaches_seen.items())
+    return node_results, target_data, approaches, drct_options_by_acsr
+
+
+def _parse_api_response_acsr_from_drct(drct_slots: list, node_name: str) -> tuple:
+    """DRCT 슬롯을 ACSR+시각 단위로 집계해 ACSR 출력 포맷으로 변환."""
+    target_data: dict = {}
+    node_results: list = []
+    approaches_seen: OrderedDict = OrderedDict()
+    aggregated: dict = {}
+
+    for slot in drct_slots:
+        d = date.fromisoformat(slot["date"])
+        h = int(slot["hour"])
+        acsr_id = slot["approach_id"]
+        acsr_nm = slot.get("approach_name") or str(acsr_id)
+        drct_cd = _normalize_drct_cd(slot.get("drct_cd"))
+
+        # DRCT 00(미분류)은 전체 흐름에서 제외
+        if drct_cd == "00":
+            continue
+
+        if acsr_id not in approaches_seen:
+            approaches_seen[acsr_id] = acsr_nm
+
+        key = (acsr_id, d, h)
+        if key not in aggregated:
+            aggregated[key] = {
+                "acsr_nm": acsr_nm,
+                "raw_sum": 0,
+                "corr_sum": 0,
+                "has_raw": False,
+                "has_corr": False,
+                "has_a": False,
+                "has_b": False,
+            }
+        item = aggregated[key]
+
+        raw_val = slot.get("traffic_volume")
+        if raw_val is not None:
+            item["raw_sum"] += raw_val
+            item["has_raw"] = True
+
+        corr_val = slot.get("corrected_value")
+        if corr_val is None:
+            corr_val = raw_val
+        if corr_val is not None:
+            item["corr_sum"] += corr_val
+            item["has_corr"] = True
+
+        anomaly_type = slot.get("anomaly_type")
+        if anomaly_type == "A형":
+            item["has_a"] = True
+        elif anomaly_type == "B형":
+            item["has_b"] = True
+        elif anomaly_type == "A+B혼합":
+            item["has_a"] = True
+            item["has_b"] = True
+
+    for (acsr_id, d, h), item in sorted(
+        aggregated.items(),
+        key=lambda kv: (kv[0][1], kv[0][2], str(kv[0][0])),
+    ):
+        raw_sum = item["raw_sum"] if item["has_raw"] else None
+        corr_sum = item["corr_sum"] if item["has_corr"] else None
+        if raw_sum is not None:
+            target_data[(acsr_id, d, h)] = raw_sum
+
+        anomaly_type = None
+        if item["has_a"] and item["has_b"]:
+            anomaly_type = "A+B혼합"
+        elif item["has_a"]:
+            anomaly_type = "A형"
+        elif item["has_b"]:
+            anomaly_type = "B형"
+
+        if anomaly_type is None:
+            continue
+
+        node_results.append({
+            "날짜": d.strftime("%Y.%m.%d"),
+            "시간": f"{h:02d}:00",
+            "교차로": node_name,
+            "방향": item["acsr_nm"],
+            "교통량": raw_sum if raw_sum is not None else 0,
+            "판정": anomaly_type,
+            "보정값": corr_sum,
+            "보정방법": None,
+            "신뢰도": None,
+            "_acsr_id": acsr_id,
+            "_date": d,
+            "_hour": h,
+            "_cell": None,
+        })
+
+    approaches = list(approaches_seen.items())
+    return node_results, target_data, approaches
+
 
 # ── 상수 ────────────────────────────────────────────────────────────────────
 AVAILABLE_YEARS = [2022, 2024, 2025, 2026]
@@ -1601,10 +1862,319 @@ def analyse_node_drct(
 # 시각화
 # ════════════════════════════════════════════════════════════════
 
+def _write_plotly_html(fig, out_path: Path, verbose: bool = True) -> None:
+    plotly_div = fig.to_html(include_plotlyjs="cdn", full_html=False)
+    html = (
+        "<!DOCTYPE html>\n<html>\n<head><meta charset=\"utf-8\">\n"
+        "<style>body{margin:0;} .scroll-wrap{overflow-x:auto; width:100%;}</style>\n"
+        "</head>\n<body>\n"
+        f"<div class=\"scroll-wrap\">{plotly_div}</div>\n"
+        "</body>\n</html>"
+    )
+    out_path.write_text(html, encoding="utf-8")
+    if verbose:
+        print(f"  시각화 저장: {out_path}")
+
+
+def export_acsr_visualizations(
+    node_name: str,
+    approaches: list,
+    target_data: dict,
+    node_results: list,
+    date_start: date,
+    date_end: date,
+    hours: list,
+    viz_dir: Path,
+    progress_callback=None,
+    verbose: bool = True,
+) -> None:
+    """ACSR 기준 시각화 생성.
+
+    - 교차로 전체 교통량(보정 전/후) 1개
+    - 교차로 방향별 개별 그래프(보정 전/후) N개
+    """
+    period = f"{date_start.strftime('%y%m%d')}~{date_end.strftime('%y%m%d')}"
+    sub_dir = viz_dir / _sanitize_path_component(f"{node_name}_{period}")
+    sub_dir.mkdir(parents=True, exist_ok=True)
+    hours_sorted = sorted(hours)
+
+    total_tasks = len(approaches) + 1
+    if progress_callback:
+        progress_callback(0, total_tasks, "준비 중")
+
+    anomaly_map = {(r["_acsr_id"], r["_date"], r["_hour"]): r for r in node_results}
+
+    x_all, y_orig, y_corr = [], [], []
+    a_x, a_y = [], []
+    b_x, b_y = [], []
+
+    cur_d = date_start
+    while cur_d <= date_end:
+        for hour in hours_sorted:
+            dt = datetime(cur_d.year, cur_d.month, cur_d.day, hour)
+            total_orig = 0
+            total_corr = 0
+            has_a = False
+            has_b = False
+            for acsr_id, _ in approaches:
+                pos = (acsr_id, cur_d, hour)
+                if pos in anomaly_map:
+                    r = anomaly_map[pos]
+                    orig_val = r["교통량"]
+                    corr_val = r["보정값"] if r["보정값"] is not None else orig_val
+                    anomaly_type = r["판정"]
+                    if anomaly_type in ("A형", "A+B혼합"):
+                        has_a = True
+                    if anomaly_type in ("B형", "A+B혼합"):
+                        has_b = True
+                else:
+                    orig_val = target_data.get(pos, 0) or 0
+                    corr_val = orig_val
+                total_orig += orig_val
+                total_corr += corr_val
+
+            x_all.append(dt)
+            y_orig.append(total_orig)
+            y_corr.append(total_corr)
+            if has_a:
+                a_x.append(dt)
+                a_y.append(total_orig)
+            if has_b:
+                b_x.append(dt)
+                b_y.append(total_orig)
+        cur_d += timedelta(days=1)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=x_all, y=y_orig, mode="lines", name="보정 전",
+        line=dict(color="#4C72B0", width=1.5, dash="dot", shape="spline"),
+        connectgaps=False,
+    ))
+    if a_x:
+        fig.add_trace(go.Scatter(
+            x=a_x, y=a_y, mode="markers", name="A형(결측)",
+            marker=dict(color="red", symbol="triangle-up", size=10),
+        ))
+    if b_x:
+        fig.add_trace(go.Scatter(
+            x=b_x, y=b_y, mode="markers", name="B형(이상저값)",
+            marker=dict(color="orange", symbol="diamond", size=10),
+        ))
+    fig.add_trace(go.Scatter(
+        x=x_all, y=y_corr, mode="lines", name="보정 후",
+        line=dict(color="#DD4949", width=2, shape="spline"),
+        connectgaps=False,
+    ))
+    fig.update_layout(
+        title=f"{node_name} — 전체 교통량 보정 전/후",
+        xaxis_title="일시",
+        yaxis_title="교통량 (대/시)",
+        hovermode="x unified",
+        width=max(1200, len(x_all) * 6),
+        height=675,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    _write_plotly_html(fig, sub_dir / "_전체.html", verbose=verbose)
+    done = 1
+    if progress_callback:
+        progress_callback(done, total_tasks, "_전체")
+
+    for acsr_id, acsr_nm in approaches:
+        corrections_by_pos = {
+            (r["_acsr_id"], r["_date"], r["_hour"]): r
+            for r in node_results if r["_acsr_id"] == acsr_id
+        }
+        export_visualization(
+            node_name=node_name,
+            acsr_id=acsr_id,
+            acsr_nm=acsr_nm,
+            target_data=target_data,
+            corrections_by_pos=corrections_by_pos,
+            date_start=date_start,
+            date_end=date_end,
+            hours=hours_sorted,
+            viz_dir=viz_dir,
+            verbose=verbose,
+        )
+        done += 1
+        if progress_callback:
+            progress_callback(done, total_tasks, acsr_nm)
+
+
+def export_drct_visualizations(
+    node_name: str,
+    drct_options_by_acsr: dict,
+    drct_selection_by_acsr: dict,
+    target_data: dict,
+    node_results: list,
+    date_start: date,
+    date_end: date,
+    hours: list,
+    viz_dir: Path,
+    progress_callback=None,
+    verbose: bool = True,
+) -> None:
+    """DRCT 전용 시각화 생성.
+
+    경로:
+      02_Result/보정_시각화/<교차로명_기간>/<교차로방향>/
+        - <drct_name>.html
+        - _전체.html
+    """
+    period = f"{date_start.strftime('%y%m%d')}~{date_end.strftime('%y%m%d')}"
+    node_dir = viz_dir / _sanitize_path_component(f"{node_name}_{period}")
+    node_dir.mkdir(parents=True, exist_ok=True)
+    hours_sorted = sorted(hours)
+
+    anomaly_map = {
+        (r["_acsr_id"], r["_drct_cd"], r["_date"], r["_hour"]): r
+        for r in node_results
+    }
+
+    tasks_by_approach: list[tuple] = []
+    total_tasks = 0
+    for acsr_id, info in drct_options_by_acsr.items():
+        selected_codes = drct_selection_by_acsr.get(acsr_id, set())
+        selected_drcts = [
+            (drct_cd, drct_name)
+            for drct_cd, drct_name in info.get("drcts", [])
+            if drct_cd in selected_codes
+        ]
+        if not selected_drcts:
+            continue
+        tasks_by_approach.append((acsr_id, info, selected_drcts))
+        total_tasks += len(selected_drcts) + 1  # 개별 + 전체
+
+    generated_tasks = 0
+    if progress_callback and total_tasks == 0:
+        progress_callback(1, 1, "생성 대상 없음")
+        return
+    if progress_callback:
+        progress_callback(0, total_tasks, "준비 중")
+
+    for acsr_id, info, selected_drcts in tasks_by_approach:
+        approach_name = info.get("approach_name") or str(acsr_id)
+        approach_dir = node_dir / _sanitize_path_component(approach_name)
+        approach_dir.mkdir(parents=True, exist_ok=True)
+
+        drct_series: list[dict] = []
+        x_all_common = []
+        for drct_cd, drct_name in selected_drcts:
+            x_all, y_orig, y_corr = [], [], []
+            a_x, a_y = [], []
+            b_x, b_y = [], []
+
+            cur_d = date_start
+            while cur_d <= date_end:
+                for hour in hours_sorted:
+                    dt = datetime(cur_d.year, cur_d.month, cur_d.day, hour)
+                    pos = (acsr_id, drct_cd, cur_d, hour)
+                    anomaly = anomaly_map.get(pos)
+                    orig_val = target_data.get(pos)
+                    corr_val = orig_val
+                    if anomaly:
+                        corr_val = anomaly.get("보정값")
+                        if corr_val is None:
+                            corr_val = orig_val
+                        if anomaly["판정"] == "A형":
+                            a_x.append(dt)
+                            a_y.append(orig_val)
+                        elif anomaly["판정"] == "B형":
+                            b_x.append(dt)
+                            b_y.append(orig_val)
+                    x_all.append(dt)
+                    y_orig.append(orig_val)
+                    y_corr.append(corr_val)
+                cur_d += timedelta(days=1)
+
+            x_all_common = x_all
+            drct_series.append({
+                "name": drct_name,
+                "x": x_all,
+                "y_orig": y_orig,
+                "y_corr": y_corr,
+            })
+
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=x_all, y=y_orig, mode="lines", name="보정 전",
+                line=dict(color="#4C72B0", width=1.5, dash="dot", shape="spline"),
+                connectgaps=False,
+            ))
+            if a_x:
+                fig.add_trace(go.Scatter(
+                    x=a_x, y=a_y, mode="markers", name="A형(결측)",
+                    marker=dict(color="red", symbol="triangle-up", size=9),
+                ))
+            if b_x:
+                fig.add_trace(go.Scatter(
+                    x=b_x, y=b_y, mode="markers", name="B형(이상저값)",
+                    marker=dict(color="orange", symbol="diamond", size=9),
+                ))
+            fig.add_trace(go.Scatter(
+                x=x_all, y=y_corr, mode="lines", name="보정 후",
+                line=dict(color="#DD4949", width=2, shape="spline"),
+                connectgaps=False,
+            ))
+
+            fig.update_layout(
+                title=f"{node_name} — {approach_name} — {drct_name}",
+                xaxis_title="일시",
+                yaxis_title="교통량 (대/시)",
+                hovermode="x unified",
+                width=max(1200, len(x_all) * 6),
+                height=675,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            )
+            out_file = approach_dir / f"{_sanitize_path_component(drct_name)}.html"
+            _write_plotly_html(fig, out_file, verbose=verbose)
+            generated_tasks += 1
+            if progress_callback:
+                progress_callback(generated_tasks, total_tasks, f"{approach_name}/{drct_name}")
+
+        y_total_orig = []
+        y_total_corr = []
+        for idx in range(len(x_all_common)):
+            sum_orig = 0
+            sum_corr = 0
+            for series in drct_series:
+                v_orig = series["y_orig"][idx]
+                v_corr = series["y_corr"][idx]
+                sum_orig += (v_orig if v_orig is not None else 0)
+                sum_corr += (v_corr if v_corr is not None else 0)
+            y_total_orig.append(sum_orig)
+            y_total_corr.append(sum_corr)
+
+        fig_total = go.Figure()
+        fig_total.add_trace(go.Scatter(
+            x=x_all_common, y=y_total_orig, mode="lines", name="보정 전",
+            line=dict(color="#4C72B0", width=1.5, dash="dot", shape="spline"),
+            connectgaps=False,
+        ))
+        fig_total.add_trace(go.Scatter(
+            x=x_all_common, y=y_total_corr, mode="lines", name="보정 후",
+            line=dict(color="#DD4949", width=2, shape="spline"),
+            connectgaps=False,
+        ))
+        fig_total.update_layout(
+            title=f"{node_name} — {approach_name} — 전체 교통량 보정 전/후",
+            xaxis_title="일시",
+            yaxis_title="교통량 (대/시)",
+            hovermode="x unified",
+            width=max(1200, len(x_all_common) * 6),
+            height=675,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        )
+        _write_plotly_html(fig_total, approach_dir / "_전체.html", verbose=verbose)
+        generated_tasks += 1
+        if progress_callback:
+            progress_callback(generated_tasks, total_tasks, f"{approach_name}/_전체")
+
+
 def export_visualization(node_name: str, acsr_id, acsr_nm: str,
                           target_data: dict, corrections_by_pos: dict,
                           date_start: date, date_end: date, hours: list,
-                          viz_dir: Path) -> None:
+                          viz_dir: Path, verbose: bool = True) -> None:
     """접근로 하나의 보정 전/후 시계열 HTML 파일 생성"""
     x_all, y_orig, y_corr = [], [], []
     a_x, a_y = [], []  # A형 이상값 마커
@@ -1623,10 +2193,11 @@ def export_visualization(node_name: str, acsr_id, acsr_nm: str,
                 x_all.append(dt)
                 y_orig.append(orig_val)
                 y_corr.append(corr_val)
-                if r["판정"] == "A형":
+                anomaly_type = r["판정"]
+                if anomaly_type in ("A형", "A+B혼합"):
                     a_x.append(dt)
                     a_y.append(orig_val)
-                else:
+                if anomaly_type in ("B형", "A+B혼합"):
                     b_x.append(dt)
                     b_y.append(orig_val)
             else:
@@ -1683,7 +2254,8 @@ def export_visualization(node_name: str, acsr_id, acsr_nm: str,
         "</body>\n</html>"
     )
     out_path.write_text(html, encoding="utf-8")
-    print(f"  시각화 저장: {out_path}")
+    if verbose:
+        print(f"  시각화 저장: {out_path}")
 
 
 def export_total_visualization(node_name: str, approaches: list,
@@ -1717,7 +2289,8 @@ def export_total_visualization(node_name: str, approaches: list,
         for hour in sorted(hours):
             dt = datetime(cur_d.year, cur_d.month, cur_d.day, hour)
             total_orig, total_corr = 0, 0
-            anomaly_types = set()
+            has_a = False
+            has_b = False
 
             for acsr_id, _ in approaches:
                 pos = (acsr_id, cur_d, hour)
@@ -1725,7 +2298,11 @@ def export_total_visualization(node_name: str, approaches: list,
                     r = anomaly_map[pos]
                     total_orig += r["교통량"]
                     total_corr += r["보정값"] if r["보정값"] is not None else r["교통량"]
-                    anomaly_types.add(r["판정"])
+                    anomaly_type = r["판정"]
+                    if anomaly_type in ("A형", "A+B혼합"):
+                        has_a = True
+                    if anomaly_type in ("B형", "A+B혼합"):
+                        has_b = True
                 else:
                     val = target_data.get(pos, 0) or 0
                     total_orig += val
@@ -1735,9 +2312,9 @@ def export_total_visualization(node_name: str, approaches: list,
             y_orig.append(total_orig)
             y_corr.append(total_corr)
 
-            if "A형" in anomaly_types:
+            if has_a:
                 a_x.append(dt); a_y.append(total_orig)
-            elif "B형" in anomaly_types:
+            if has_b:
                 b_x.append(dt); b_y.append(total_orig)
 
         cur_d += timedelta(days=1)
@@ -1848,30 +2425,79 @@ def export_total_visualization(node_name: str, approaches: list,
 # 엑셀 출력
 # ════════════════════════════════════════════════════════════════
 
-def export_excel(results: list, filepath: Path):
-    wb = Workbook()
+def _build_excel_sheet_groups(results: list, intersections_count: int, has_drct: bool) -> OrderedDict:
+    """출력 정책에 맞는 시트 그룹을 구성."""
+    grouped: OrderedDict = OrderedDict()
+    multi_intersections = intersections_count >= 2
 
-    headers    = ["날짜", "시간", "교차로 이름", "교차로 방향", "교통량",
-                  "보정값", "보정방법", "신뢰도", "이상 판단"]
-    col_widths = [14, 8, 22, 18, 10, 10, 12, 10, 12]
+    for row in results:
+        if row.get("판정") not in ("A형", "B형", "A+B혼합"):
+            continue
+        if has_drct:
+            if multi_intersections:
+                sheet_key = row["교차로"]
+            else:
+                sheet_key = f"{row['교차로']}-{row['방향']}"
+        else:
+            if multi_intersections:
+                sheet_key = row["교차로"]
+            else:
+                sheet_key = row["방향"]
+        if sheet_key not in grouped:
+            grouped[sheet_key] = []
+        grouped[sheet_key].append(row)
+    return grouped
+
+
+def _unique_sheet_title(raw_title: str, used_titles: set) -> str:
+    base = _sanitize_sheet_title(raw_title)[:31]
+    title = base
+    suffix_idx = 1
+    while title in used_titles:
+        suffix = f"_{suffix_idx}"
+        title = f"{base[:31 - len(suffix)]}{suffix}"
+        suffix_idx += 1
+    used_titles.add(title)
+    return title
+
+
+def export_excel(results: list, filepath: Path, intersections_count: int = 1):
+    wb = Workbook()
+    multi_intersections = intersections_count >= 2
+    has_drct = any((r.get("접근로방향") or r.get("_drct_name")) for r in results)
 
     thin   = Side(style="thin")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
     center = Alignment(horizontal="center", vertical="center")
     fill_a = PatternFill("solid", fgColor="FFD7D7")  # A형: 연빨강
     fill_b = PatternFill("solid", fgColor="FFF3CD")  # B형: 연노랑
+    fill_m = PatternFill("solid", fgColor="FFE6CC")  # A+B혼합: 연주황
     fill_n = PatternFill("solid", fgColor="E8E8E8")  # 정상(Stage2): 연회색
 
-    # 방향별 그룹핑 (첫 등장 순서 유지)
-    sheets: dict[str, list] = {}
-    for r in results:
-        direction = r["방향"]
-        if direction not in sheets:
-            sheets[direction] = []
-        sheets[direction].append(r)
+    sheets = _build_excel_sheet_groups(results, intersections_count, has_drct)
+    used_titles: set = set()
 
-    for direction, rows in sheets.items():
-        ws = wb.create_sheet(title=direction)
+    for sheet_key, rows in sheets.items():
+        ws = wb.create_sheet(title=_unique_sheet_title(sheet_key, used_titles))
+
+        if has_drct:
+            if multi_intersections:
+                headers = ["날짜", "시간", "교차로 방향", "접근로 방향", "교통량",
+                           "보정값", "보정방법", "신뢰도", "이상 판단"]
+                col_widths = [14, 8, 20, 20, 10, 10, 12, 10, 12]
+            else:
+                headers = ["날짜", "시간", "접근로 방향", "교통량",
+                           "보정값", "보정방법", "신뢰도", "이상 판단"]
+                col_widths = [14, 8, 20, 10, 10, 12, 10, 12]
+        else:
+            if multi_intersections:
+                headers = ["날짜", "시간", "교차로 이름", "교차로 방향", "교통량",
+                           "보정값", "보정방법", "신뢰도", "이상 판단"]
+                col_widths = [14, 8, 22, 18, 10, 10, 12, 10, 12]
+            else:
+                headers = ["날짜", "시간", "교차로 방향", "교통량",
+                           "보정값", "보정방법", "신뢰도", "이상 판단"]
+                col_widths = [14, 8, 18, 10, 10, 12, 10, 12]
 
         for col, (hdr, w) in enumerate(zip(headers, col_widths), 1):
             cell = ws.cell(row=1, column=col, value=hdr)
@@ -1883,14 +2509,35 @@ def export_excel(results: list, filepath: Path):
         ws.row_dimensions[1].height = 20
 
         for row_idx, row in enumerate(rows, 2):
-            vals = [
-                row["날짜"], row["시간"], row["교차로"], row["방향"], row["교통량"],
-                row.get("보정값"), row.get("보정방법"), row.get("신뢰도"), row["판정"],
-            ]
+            if has_drct:
+                drct_name = row.get("접근로방향") or row.get("_drct_name") or ""
+                if multi_intersections:
+                    vals = [
+                        row["날짜"], row["시간"], row["방향"], drct_name, row["교통량"],
+                        row.get("보정값"), row.get("보정방법"), row.get("신뢰도"), row["판정"],
+                    ]
+                else:
+                    vals = [
+                        row["날짜"], row["시간"], drct_name, row["교통량"],
+                        row.get("보정값"), row.get("보정방법"), row.get("신뢰도"), row["판정"],
+                    ]
+            else:
+                if multi_intersections:
+                    vals = [
+                        row["날짜"], row["시간"], row["교차로"], row["방향"], row["교통량"],
+                        row.get("보정값"), row.get("보정방법"), row.get("신뢰도"), row["판정"],
+                    ]
+                else:
+                    vals = [
+                        row["날짜"], row["시간"], row["방향"], row["교통량"],
+                        row.get("보정값"), row.get("보정방법"), row.get("신뢰도"), row["판정"],
+                    ]
             if row["판정"] == "A형":
                 fill = fill_a
             elif row["판정"] == "B형":
                 fill = fill_b
+            elif row["판정"] == "A+B혼합":
+                fill = fill_m
             else:
                 fill = fill_n
             for col, val in enumerate(vals, 1):
@@ -2028,6 +2675,19 @@ def input_hours() -> list:
         print("  1, 2, 3 중 선택하세요.")
 
 
+def input_view_mode() -> str:
+    print("\n출력 기준을 선택하세요:")
+    print("  1. 방향별 교통량(ACSR)")
+    print("  2. 접근로 방향별 교통량(DRCT)")
+    while True:
+        choice = input("  선택 (1/2): ").strip()
+        if choice == "1":
+            return "ACSR"
+        if choice == "2":
+            return "DRCT"
+        print("  1 또는 2를 입력하세요.")
+
+
 def input_approach_names(approaches: list, node_name: str) -> list:
     """각 접근로 방향명을 사용자에게 입력받음. Enter → 기존 이름 유지."""
     print(f"\n  [{node_name}] 접근로 방향명 입력 (Enter=기본값 유지):")
@@ -2036,6 +2696,100 @@ def input_approach_names(approaches: list, node_name: str) -> list:
         custom = input(f"    {acsr_nm} → ").strip()
         result.append((acsr_id, custom if custom else acsr_nm))
     return result
+
+
+def input_drct_selection_by_approach(drct_options_by_acsr: dict) -> dict:
+    """ACSR별 DRCT 선택 입력.
+
+    Returns:
+      {acsr_id: {drct_cd, ...}}
+    """
+    print("\n  접근로별 DRCT 선택 (콤마 입력, Enter=전체 선택):")
+    selected_by_acsr: dict = {}
+
+    for acsr_id, info in drct_options_by_acsr.items():
+        approach_name = info.get("approach_name") or str(acsr_id)
+        drcts = info.get("drcts") or []
+        if not drcts:
+            selected_by_acsr[acsr_id] = set()
+            print(f"    - {approach_name}: 선택 가능한 DRCT 없음")
+            continue
+
+        print(f"\n    [{approach_name}]")
+        idx_to_cd = {}
+        for idx, (drct_cd, drct_name) in enumerate(drcts, 1):
+            idx_to_cd[str(idx)] = drct_cd
+            print(f"      {idx}. {drct_cd} - {drct_name}")
+
+        all_codes = {drct_cd for drct_cd, _ in drcts}
+        while True:
+            raw = input("      선택: ").strip()
+            if not raw:
+                selected_by_acsr[acsr_id] = all_codes
+                break
+
+            tokens = [t.strip() for t in raw.split(",") if t.strip()]
+            picked: set = set()
+            invalid: list = []
+            for token in tokens:
+                norm_token = _normalize_drct_cd(token)
+                if token in idx_to_cd:
+                    picked.add(idx_to_cd[token])
+                elif norm_token in all_codes:
+                    picked.add(norm_token)
+                else:
+                    invalid.append(token)
+
+            if invalid:
+                print(f"      [오류] 유효하지 않은 선택: {', '.join(invalid)}")
+                continue
+            if not picked:
+                print("      [오류] 최소 1개 이상 선택하세요.")
+                continue
+
+            selected_by_acsr[acsr_id] = picked
+            break
+
+    return selected_by_acsr
+
+
+def apply_approach_name_overrides(
+    node_results: list,
+    approaches: list,
+    drct_options_by_acsr: dict,
+) -> tuple[list, dict]:
+    """사용자 입력 접근로명(ACSR)을 결과/옵션에 반영."""
+    acsr_name_map = {acsr_id: acsr_nm for acsr_id, acsr_nm in approaches}
+
+    for r in node_results:
+        acsr_id = r.get("_acsr_id")
+        if acsr_id in acsr_name_map:
+            r["방향"] = acsr_name_map[acsr_id]
+
+    for acsr_id, info in drct_options_by_acsr.items():
+        if acsr_id in acsr_name_map:
+            info["approach_name"] = acsr_name_map[acsr_id]
+
+    return node_results, drct_options_by_acsr
+
+
+def filter_by_drct_selection(
+    node_results: list,
+    target_data: dict,
+    drct_selection_by_acsr: dict,
+) -> tuple[list, dict]:
+    """ACSR별 DRCT 선택 필터를 이상 슬롯/원본 슬롯 모두에 적용."""
+    filtered_results = [
+        r for r in node_results
+        if r.get("_drct_cd") in drct_selection_by_acsr.get(r.get("_acsr_id"), set())
+    ]
+
+    filtered_target_data = {
+        key: val
+        for key, val in target_data.items()
+        if key[1] in drct_selection_by_acsr.get(key[0], set())
+    }
+    return filtered_results, filtered_target_data
 
 
 def make_filename(intersections: list, date_start: date, date_end: date) -> str:
@@ -2075,6 +2829,9 @@ def main():
     # Step 3: 시간대
     hours = input_hours()
 
+    # Step 4: 기준 선택
+    view_mode = input_view_mode()
+
     all_results = []
     viz_dir     = RESULT_DIR / "보정_시각화"
     excel_dir   = RESULT_DIR / "이상탐지_결과"
@@ -2083,48 +2840,119 @@ def main():
         print(f"\n{'─'*50}")
         print(f"[{node_name}] 처리 중...")
 
-        print(f"  데이터 조회 및 이상탐지 중 (API)...")
-        resp = _api_post("/corrected-traffic", {
-            "node_ids":   [node_id],
-            "date_start": date_start.isoformat(),
-            "date_end":   date_end.isoformat(),
-            "hours":      hours,
-        })
-
-        node_results, target_data, approaches = _parse_api_response(
-            resp["slots"], node_name
+        api_label_suffix = "API-DRCT"
+        api_progress = _SpinnerProgress(
+            label=f"[{node_name}] 데이터 조회 및 이상탐지 ({api_label_suffix})",
+            start_percent=5,
+            max_percent=38,
         )
+        api_progress.start()
+        try:
+            api_path = "/corrected-traffic-drct"
+            resp = _api_post(api_path, {
+                "node_ids":   [node_id],
+                "date_start": date_start.isoformat(),
+                "date_end":   date_end.isoformat(),
+                "hours":      hours,
+            })
+        finally:
+            api_progress.stop(final_percent=40)
+
+        drct_options_by_acsr = None
+        drct_selection_by_acsr = None
+        if view_mode == "ACSR":
+            node_results, target_data, approaches = _parse_api_response_acsr_from_drct(
+                resp.get("drct_slots", []), node_name
+            )
+            _print_inline_progress(f"  [{node_name}] DRCT→ACSR 집계 파싱... 완료 50%")
+        else:
+            node_results, target_data, approaches, drct_options_by_acsr = _parse_api_response_drct(
+                resp.get("drct_slots", []), node_name
+            )
+            _print_inline_progress(f"  [{node_name}] DRCT 응답 파싱... 완료 50%")
+        print()
 
         if not approaches:
             print(f"  접근로 정보 없음, 건너뜀")
             continue
 
         approaches = input_approach_names(approaches, node_name)
+        if view_mode == "ACSR":
+            acsr_name_map = {acsr_id: acsr_nm for acsr_id, acsr_nm in approaches}
+            for r in node_results:
+                if r.get("_acsr_id") in acsr_name_map:
+                    r["방향"] = acsr_name_map[r["_acsr_id"]]
+        else:
+            node_results, drct_options_by_acsr = apply_approach_name_overrides(
+                node_results, approaches, drct_options_by_acsr
+            )
+            drct_selection_by_acsr = input_drct_selection_by_approach(drct_options_by_acsr)
+            node_results, target_data = filter_by_drct_selection(
+                node_results, target_data, drct_selection_by_acsr
+            )
 
         cnt_a = sum(1 for r in node_results if r["판정"] == "A형")
         cnt_b = sum(1 for r in node_results if r["판정"] == "B형")
-        cnt_n = sum(1 for r in node_results if r["판정"] == "정상")
-        print(f"  수신 슬롯: {len(resp['slots']):,}건")
-        print(f"  이상 탐지: {len(node_results)}건  (A형: {cnt_a}, B형: {cnt_b}, 정상(Stage2): {cnt_n})")
-
-        # 접근로별 시각화 HTML 생성
-        print(f"  시각화 생성 중...")
-        for acsr_id, acsr_nm in approaches:
-            corrections_by_pos = {
-                (r["_acsr_id"], r["_date"], r["_hour"]): r
-                for r in node_results if r["_acsr_id"] == acsr_id
-            }
-            export_visualization(
-                node_name, acsr_id, acsr_nm,
-                target_data, corrections_by_pos,
-                date_start, date_end, hours, viz_dir
+        cnt_m = sum(1 for r in node_results if r["판정"] == "A+B혼합")
+        if view_mode == "ACSR":
+            filtered_slots = [
+                s for s in resp.get("drct_slots", [])
+                if _normalize_drct_cd(s.get("drct_cd")) != "00"
+            ]
+            print(f"  수신 DRCT 슬롯(00 제외): {len(filtered_slots):,}건")
+            print(
+                f"  이상 탐지(A/B/혼합): {len(node_results)}건  "
+                f"(A형: {cnt_a}, B형: {cnt_b}, A+B혼합: {cnt_m})"
             )
 
-        # 전체 합산 시각화
-        export_total_visualization(
-            node_name, approaches, target_data, node_results,
-            date_start, date_end, hours, viz_dir
-        )
+            viz_progress = _make_step_progress_callback(
+                label=f"[{node_name}] ACSR 시각화 생성",
+                start_percent=60,
+                end_percent=95,
+            )
+            export_acsr_visualizations(
+                node_name=node_name,
+                approaches=approaches,
+                target_data=target_data,
+                node_results=node_results,
+                date_start=date_start,
+                date_end=date_end,
+                hours=hours,
+                viz_dir=viz_dir,
+                progress_callback=viz_progress,
+                verbose=False,
+            )
+        else:
+            filtered_slots = [
+                s for s in resp.get("drct_slots", [])
+                if _normalize_drct_cd(s.get("drct_cd")) != "00"
+            ]
+            print(f"  수신 DRCT 슬롯(00 제외): {len(filtered_slots):,}건")
+            print(
+                f"  이상 탐지(A/B/혼합): {len(node_results)}건  "
+                f"(A형: {cnt_a}, B형: {cnt_b}, A+B혼합: {cnt_m})"
+            )
+
+            viz_progress = _make_step_progress_callback(
+                label=f"[{node_name}] DRCT 시각화 생성",
+                start_percent=60,
+                end_percent=95,
+            )
+            export_drct_visualizations(
+                node_name=node_name,
+                drct_options_by_acsr=drct_options_by_acsr,
+                drct_selection_by_acsr=drct_selection_by_acsr,
+                target_data=target_data,
+                node_results=node_results,
+                date_start=date_start,
+                date_end=date_end,
+                hours=hours,
+                viz_dir=viz_dir,
+                progress_callback=viz_progress,
+                verbose=False,
+            )
+        _print_inline_progress(f"  [{node_name}] 노드 처리 완료... 완료 100%")
+        print()
 
         all_results.extend(node_results)
 
@@ -2134,12 +2962,20 @@ def main():
         print("이상 슬롯이 발견되지 않았습니다.")
         return
 
-    # 정렬: 날짜 → 시간 → 교차로 → 방향
-    all_results.sort(key=lambda r: (r["날짜"], r["시간"], r["교차로"], r["방향"]))
+    # 정렬: 날짜 → 시간 → 교차로 → 교차로방향 → 접근로방향
+    all_results.sort(
+        key=lambda r: (
+            r["날짜"],
+            r["시간"],
+            r["교차로"],
+            r["방향"],
+            r.get("접근로방향") or r.get("_drct_name") or "",
+        )
+    )
 
     filename = make_filename(intersections, date_start, date_end)
     filepath = excel_dir / filename
-    export_excel(all_results, filepath)
+    export_excel(all_results, filepath, intersections_count=len(intersections))
     print(f"총 {len(all_results)}건의 이상값이 탐지되었습니다.")
 
 
