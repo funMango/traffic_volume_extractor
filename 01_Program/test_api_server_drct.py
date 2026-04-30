@@ -288,5 +288,147 @@ class TestCorrectedTrafficDrctEndpoint(unittest.TestCase):
         self.assertEqual(mock_fetch.call_count, 1)
 
 
+class TestRawTraffic(unittest.TestCase):
+    def _make_request(self):
+        return api_server.JobRequest(
+            node_ids=[260322],
+            date_start="2026-03-22",
+            date_end="2026-03-22",
+            hours=[8],
+        )
+
+    def test_raw_aggregates_ignore_drct_00_and_preserve_null_detail(self):
+        drct_slots = [
+            {
+                "date": "2026-03-22",
+                "hour": 8,
+                "node_id": 260322,
+                "node_name": "Node",
+                "approach_id": 2001,
+                "approach_name": "North",
+                "drct_cd": "00",
+                "drct_name": "Unknown",
+                "traffic_volume": 999,
+            },
+            {
+                "date": "2026-03-22",
+                "hour": 8,
+                "node_id": 260322,
+                "node_name": "Node",
+                "approach_id": 2001,
+                "approach_name": "North",
+                "drct_cd": "01",
+                "drct_name": "Left",
+                "traffic_volume": 120,
+            },
+            {
+                "date": "2026-03-22",
+                "hour": 8,
+                "node_id": 260322,
+                "node_name": "Node",
+                "approach_id": 2001,
+                "approach_name": "North",
+                "drct_cd": "02",
+                "drct_name": "Through",
+                "traffic_volume": None,
+            },
+            {
+                "date": "2026-03-22",
+                "hour": 8,
+                "node_id": 260322,
+                "node_name": "Node",
+                "approach_id": 2002,
+                "approach_name": "South",
+                "drct_cd": "01",
+                "drct_name": "Left",
+                "traffic_volume": None,
+            },
+        ]
+
+        slots = api_server._aggregate_raw_slots_from_drct(drct_slots)
+        node_slots = api_server._aggregate_raw_node_slots(slots)
+
+        self.assertEqual(len(slots), 2)
+        north = next(s for s in slots if s["approach_id"] == 2001)
+        south = next(s for s in slots if s["approach_id"] == 2002)
+        self.assertEqual(north["traffic_volume"], 120)
+        self.assertIsNone(south["traffic_volume"])
+        self.assertEqual(node_slots[0]["traffic_volume"], 120)
+
+    def test_fetch_raw_traffic_returns_three_levels(self):
+        d = date(2026, 3, 22)
+        mock_conn = MagicMock()
+        drct_meta = {
+            (2001, "01"): {
+                "approach_id": 2001,
+                "approach_name": "North",
+                "drct_cd": "01",
+                "drct_name": "Left",
+            },
+            (2001, "02"): {
+                "approach_id": 2001,
+                "approach_name": "North",
+                "drct_cd": "02",
+                "drct_name": "Through",
+            },
+            (2002, "01"): {
+                "approach_id": 2002,
+                "approach_name": "South",
+                "drct_cd": "01",
+                "drct_name": "Left",
+            },
+            (2001, "00"): {
+                "approach_id": 2001,
+                "approach_name": "North",
+                "drct_cd": "00",
+                "drct_name": "Unknown",
+            },
+        }
+        target_data = {
+            ((2001, "01"), d, 8): 120,
+            ((2001, "02"), d, 8): None,
+            ((2002, "01"), d, 8): 80,
+            ((2001, "00"), d, 8): 999,
+        }
+
+        with patch.object(api_server.ad, "connect_db", return_value=mock_conn), \
+             patch.object(api_server, "_get_id_to_name_map", return_value={260322: "Node"}), \
+             patch.object(api_server.ad, "load_drct_code_map", return_value={"01": "Left", "02": "Through", "00": "Unknown"}), \
+             patch.object(api_server.ad, "load_drct_approaches", return_value=([], drct_meta)) as mock_approaches, \
+             patch.object(api_server.ad, "load_drct_target_data", return_value=target_data) as mock_target:
+            result = api_server._fetch_raw_traffic(self._make_request())
+
+        self.assertEqual(len(result["drct_slots"]), 3)
+        self.assertFalse(any(s["drct_cd"] == "00" for s in result["drct_slots"]))
+        self.assertEqual(
+            next(s for s in result["drct_slots"] if s["drct_cd"] == "01" and s["approach_id"] == 2001)["traffic_volume"],
+            120,
+        )
+        self.assertIsNone(next(s for s in result["drct_slots"] if s["drct_cd"] == "02")["traffic_volume"])
+        self.assertEqual(next(s for s in result["slots"] if s["approach_id"] == 2001)["traffic_volume"], 120)
+        self.assertEqual(result["node_slots"][0]["traffic_volume"], 200)
+        mock_approaches.assert_called_once()
+        mock_target.assert_called_once()
+        mock_conn.close.assert_called_once()
+
+
+class TestRawTrafficEndpoint(unittest.TestCase):
+    def test_endpoint_returns_raw_payload(self):
+        payload = {"drct_slots": [], "slots": [], "node_slots": []}
+        with patch.object(api_server, "_fetch_raw_traffic", return_value=payload) as mock_fetch:
+            resp = _client.post(
+                "/raw-traffic",
+                json={
+                    "node_ids": [260322],
+                    "date_start": "2026-03-22",
+                    "date_end": "2026-03-22",
+                },
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json(), payload)
+        self.assertEqual(mock_fetch.call_count, 1)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

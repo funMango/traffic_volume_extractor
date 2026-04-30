@@ -312,35 +312,21 @@ def input_attributes() -> tuple[list[str], bool, bool]:
 
 def input_sheet_type(has_node: bool, has_dir: bool) -> str:
     """시트 설정 선택
-    반환: "교차로별" | "방향별" | "단일"
+    반환: "단일시트" | "교차로별"
     """
     print("\n[5단계] 시트 설정")
-
-    options: list[tuple[str, str]] = []
-    if has_node:
-        options.append(("교차로별", "교차로 하나당 시트 1개"))
-    if has_dir:
-        options.append(("방향별", "방향 하나당 시트 1개"))
-
-    if not options:
-        print("  속성에 교차로명/방향명이 없어 단일 시트로 저장합니다.")
-        return "단일"
-
-    if len(options) == 1:
-        name, desc = options[0]
-        print(f"  → {name} ({desc}) 으로 자동 설정됩니다.")
-        return name
-
-    for i, (name, desc) in enumerate(options, 1):
-        print(f"  {i}. {name}  ({desc})")
+    print("  1. 단일 시트  (시간 오름차순, 교차로명 오름차순)")
+    print("  2. 교차로별 시트  (각 시트 시간 오름차순)")
 
     while True:
-        choice = input("\n선택 (번호): ").strip()
-        if choice.isdigit() and 1 <= int(choice) <= len(options):
-            chosen = options[int(choice) - 1][0]
-            print(f"  → {chosen}")
-            return chosen
-        print(f"  1~{len(options)} 중 하나를 입력하세요.")
+        choice = input("\n선택 (1/2) [1]: ").strip()
+        if choice in ("", "1"):
+            print("  → 단일시트")
+            return "단일시트"
+        if choice == "2":
+            print("  → 교차로별")
+            return "교차로별"
+        print("  1 또는 2를 입력하세요.")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -565,7 +551,11 @@ def save_excel(data: list[dict], attrs: list[str], sheet_type: str, path: Path) 
         groups: dict[str, list[dict]] = defaultdict(list)
         for r in data:
             groups[r["node_name"]].append(r)
-        for node_name, rows in groups.items():
+        for node_name in sorted(groups.keys()):
+            rows = sorted(
+                groups[node_name],
+                key=lambda r: (r["date"], r["hour"], r["approach_name"]),
+            )
             ws = wb.create_sheet(title=_safe_sheet_name(node_name))
             ws.append(attrs)
             _style_header(ws, len(attrs))
@@ -579,7 +569,11 @@ def save_excel(data: list[dict], attrs: list[str], sheet_type: str, path: Path) 
         for r in data:
             key = f"{r['node_name']}_{r['approach_name']}"
             groups[key].append(r)
-        for sheet_key, rows in groups.items():
+        for sheet_key in sorted(groups.keys()):
+            rows = sorted(
+                groups[sheet_key],
+                key=lambda r: (r["date"], r["hour"], r["node_name"]),
+            )
             ws = wb.create_sheet(title=_safe_sheet_name(sheet_key))
             ws.append(attrs)
             _style_header(ws, len(attrs))
@@ -587,11 +581,15 @@ def save_excel(data: list[dict], attrs: list[str], sheet_type: str, path: Path) 
                 ws.append([_cell_value(r, a) for a in attrs])
             _auto_width(ws)
 
-    else:  # 단일 시트
+    else:  # 단일시트 / 단일
+        rows = sorted(
+            data,
+            key=lambda r: (r["date"], r["hour"], r["node_name"], r["approach_name"]),
+        )
         ws = wb.create_sheet(title="교통량")
         ws.append(attrs)
         _style_header(ws, len(attrs))
-        for r in data:
+        for r in rows:
             ws.append([_cell_value(r, a) for a in attrs])
         _auto_width(ws)
 

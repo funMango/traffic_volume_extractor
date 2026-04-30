@@ -255,6 +255,76 @@ def _aggregate_acsr_slots_from_drct(drct_slots: list[dict]) -> list[dict]:
 
 # ── 헬퍼: job 직렬화 ─────────────────────────────────────────────────────────
 
+def _sum_optional(current, value):
+    if value is None:
+        return current
+    if current is None:
+        return value
+    return current + value
+
+
+def _aggregate_raw_slots_from_drct(drct_slots: list[dict]) -> list[dict]:
+    """Aggregate raw DRCT rows into approach slots with NULL-aware sums."""
+    agg: dict[tuple, dict] = {}
+    for slot in drct_slots:
+        if _normalize_drct_cd(slot.get("drct_cd")) == "00":
+            continue
+        key = (
+            slot["date"],
+            slot["hour"],
+            slot["node_id"],
+            slot["node_name"],
+            slot["approach_id"],
+            slot["approach_name"],
+        )
+        if key not in agg:
+            agg[key] = {
+                "date": slot["date"],
+                "hour": slot["hour"],
+                "node_id": slot["node_id"],
+                "node_name": slot["node_name"],
+                "approach_id": slot["approach_id"],
+                "approach_name": slot["approach_name"],
+                "traffic_volume": None,
+            }
+        agg[key]["traffic_volume"] = _sum_optional(
+            agg[key]["traffic_volume"],
+            slot.get("traffic_volume"),
+        )
+
+    rows = list(agg.values())
+    rows.sort(key=lambda r: (r["date"], r["node_id"], r["hour"], r["approach_id"]))
+    return rows
+
+
+def _aggregate_raw_node_slots(slots: list[dict]) -> list[dict]:
+    """Aggregate approach slots into node slots with NULL-aware sums."""
+    agg: dict[tuple, dict] = {}
+    for slot in slots:
+        key = (
+            slot["date"],
+            slot["hour"],
+            slot["node_id"],
+            slot["node_name"],
+        )
+        if key not in agg:
+            agg[key] = {
+                "date": slot["date"],
+                "hour": slot["hour"],
+                "node_id": slot["node_id"],
+                "node_name": slot["node_name"],
+                "traffic_volume": None,
+            }
+        agg[key]["traffic_volume"] = _sum_optional(
+            agg[key]["traffic_volume"],
+            slot.get("traffic_volume"),
+        )
+
+    rows = list(agg.values())
+    rows.sort(key=lambda r: (r["date"], r["node_id"], r["hour"]))
+    return rows
+
+
 def _serialize_job(job: dict) -> dict:
     def fmt(dt: datetime | None) -> str | None:
         return dt.isoformat() if dt else None
@@ -530,6 +600,84 @@ def _fetch_corrected_traffic_drct(req: JobRequest) -> dict:
         conn.close()
 
 
+def _fetch_raw_traffic(req: JobRequest) -> dict:
+    """Return raw DRCT rows plus approach and node aggregates."""
+    conn = ad.connect_db()
+    try:
+        date_start = date.fromisoformat(req.date_start)
+        date_end = date.fromisoformat(req.date_end)
+        hours = req.resolve_hours()
+
+        id_to_name = _get_id_to_name_map(conn)
+        drct_code_map = ad.load_drct_code_map(conn)
+
+        drct_slots: list[dict] = []
+        for node_id in req.node_ids:
+            norm_node_id = _normalize_node_id(node_id)
+            node_name = id_to_name.get(norm_node_id, str(node_id))
+            _, drct_meta = ad.load_drct_approaches(
+                conn,
+                norm_node_id,
+                drct_code_map=drct_code_map,
+            )
+            target_data = ad.load_drct_target_data(
+                conn,
+                norm_node_id,
+                date_start,
+                date_end,
+                hours,
+            )
+
+            for (drct_key, d, h), vol in target_data.items():
+                approach_id = None
+                drct_cd = None
+                if isinstance(drct_key, tuple) and len(drct_key) >= 1:
+                    approach_id = drct_key[0]
+                if isinstance(drct_key, tuple) and len(drct_key) >= 2:
+                    drct_cd = _normalize_drct_cd(drct_key[1])
+
+                meta_key = (approach_id, drct_cd)
+                meta = drct_meta.get(meta_key, {})
+                approach_id = meta.get("approach_id", approach_id)
+                drct_cd = _normalize_drct_cd(meta.get("drct_cd", drct_cd))
+                if drct_cd == "00":
+                    continue
+
+                drct_slots.append({
+                    "date": d.isoformat(),
+                    "hour": h,
+                    "node_id": norm_node_id,
+                    "node_name": node_name,
+                    "approach_id": approach_id,
+                    "approach_name": meta.get("approach_name", str(approach_id)),
+                    "drct_cd": drct_cd,
+                    "drct_name": meta.get(
+                        "drct_name",
+                        drct_code_map.get(drct_cd, str(drct_cd)),
+                    ),
+                    "traffic_volume": vol,
+                })
+
+        drct_slots.sort(
+            key=lambda r: (
+                r["date"],
+                r["node_id"],
+                r["hour"],
+                r["approach_id"],
+                r["drct_cd"],
+            )
+        )
+        slots = _aggregate_raw_slots_from_drct(drct_slots)
+        node_slots = _aggregate_raw_node_slots(slots)
+        return {
+            "drct_slots": drct_slots,
+            "slots": slots,
+            "node_slots": node_slots,
+        }
+    finally:
+        conn.close()
+
+
 def _aggregate_daily_summary_rows(
     node_id: int,
     node_name: str,
@@ -705,6 +853,14 @@ async def corrected_traffic_drct(req: JobRequest):
     """
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(executor, _fetch_corrected_traffic_drct, req)
+    return result
+
+
+@app.post("/raw-traffic")
+async def raw_traffic(req: JobRequest):
+    """Return raw DRCT traffic plus approach and node aggregates."""
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(executor, _fetch_raw_traffic, req)
     return result
 
 

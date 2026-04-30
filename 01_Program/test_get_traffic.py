@@ -621,7 +621,7 @@ class TestMakeFilename(unittest.TestCase):
         inter = [{"node_id": 1001, "name": "구지사거리"},
                  {"node_id": 1002, "name": "멀뫼사거리"}]
         self.assertEqual(gt.make_filename(inter, "260413~260414"),
-                         "구지사거리_멀뫼사거리_260413~260414")
+                         "구지사거리외_1개_260413~260414")
 
     def test_period_preserved(self):
         inter = [{"node_id": 1001, "name": "A"}]
@@ -696,22 +696,30 @@ class TestSaveExcel(unittest.TestCase):
         self.assertIn("멀뫼사거리", sheet_names)
         self.assertEqual(len(sheet_names), 2)
 
-    def test_방향별_sheet_count(self):
-        CapturingWB, captured = self._captured_wb()
-        with patch("get_traffic.Workbook", CapturingWB), \
-             patch.object(Path, "mkdir", return_value=None):
-            gt.save_excel(self._sample_data(),
-                          ["시간", "교차로명", "방향명", "교통량"],
-                          "방향별", Path("/tmp/t.xlsx"))
-        self.assertEqual(len(captured[0]._sheets), 3)
-
-    def test_단일_sheet(self):
+    def test_단일시트_sheet(self):
         CapturingWB, captured = self._captured_wb()
         with patch("get_traffic.Workbook", CapturingWB), \
              patch.object(Path, "mkdir", return_value=None):
             gt.save_excel(self._sample_data(), ["시간", "교통량"],
-                          "단일", Path("/tmp/t.xlsx"))
+                          "단일시트", Path("/tmp/t.xlsx"))
         self.assertEqual([ws.title for ws in captured[0]._sheets], ["교통량"])
+
+    def test_단일시트_정렬_시간_교차로명(self):
+        data = [
+            {"date": D1, "hour": 8, "node_name": "멀뫼사거리", "approach_name": "동", "traffic_volume": 1},
+            {"date": D1, "hour": 7, "node_name": "원미사거리", "approach_name": "북", "traffic_volume": 2},
+            {"date": D1, "hour": 7, "node_name": "구지사거리", "approach_name": "남", "traffic_volume": 3},
+        ]
+        CapturingWB, captured = self._captured_wb()
+        with patch("get_traffic.Workbook", CapturingWB), \
+             patch.object(Path, "mkdir", return_value=None):
+            gt.save_excel(data, ["시간", "교차로명", "교통량"], "단일시트", Path("/tmp/t.xlsx"))
+
+        ws = captured[0]._sheets[0]
+        # row0: header, row1~: data
+        self.assertEqual(ws._rows[1][1], "구지사거리")
+        self.assertEqual(ws._rows[2][1], "원미사거리")
+        self.assertEqual(ws._rows[3][1], "멀뫼사거리")
 
     def test_header_written_as_first_row(self):
         captured_ws = []
@@ -741,25 +749,20 @@ class TestSaveExcel(unittest.TestCase):
 
 class TestInputSheetType(unittest.TestCase):
 
-    def test_no_attrs_returns_단일(self):
-        self.assertEqual(gt.input_sheet_type(has_node=False, has_dir=False), "단일")
+    def test_default_returns_단일시트(self):
+        with patch("builtins.input", return_value=""):
+            self.assertEqual(gt.input_sheet_type(has_node=False, has_dir=False), "단일시트")
 
-    def test_only_node_returns_교차로별(self):
-        self.assertEqual(gt.input_sheet_type(has_node=True, has_dir=False), "교차로별")
-
-    def test_only_dir_returns_방향별(self):
-        self.assertEqual(gt.input_sheet_type(has_node=False, has_dir=True), "방향별")
-
-    def test_both_user_selects_교차로별(self):
-        with patch("builtins.input", return_value="1"):
+    def test_user_selects_교차로별(self):
+        with patch("builtins.input", return_value="2"):
             self.assertEqual(gt.input_sheet_type(has_node=True, has_dir=True), "교차로별")
 
-    def test_both_user_selects_방향별(self):
-        with patch("builtins.input", return_value="2"):
-            self.assertEqual(gt.input_sheet_type(has_node=True, has_dir=True), "방향별")
+    def test_user_selects_단일시트(self):
+        with patch("builtins.input", return_value="1"):
+            self.assertEqual(gt.input_sheet_type(has_node=True, has_dir=True), "단일시트")
 
     def test_invalid_then_valid_input(self):
-        with patch("builtins.input", side_effect=["9", "abc", "1"]):
+        with patch("builtins.input", side_effect=["9", "abc", "2"]):
             self.assertEqual(gt.input_sheet_type(has_node=True, has_dir=True), "교차로별")
 
 
