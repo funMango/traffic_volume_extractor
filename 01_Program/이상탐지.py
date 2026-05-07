@@ -370,6 +370,86 @@ def _parse_api_response_acsr_from_drct(drct_slots: list, node_name: str) -> tupl
     return node_results, target_data, approaches
 
 
+def _normalize_vknd_cd(vknd_cd) -> str:
+    if vknd_cd is None:
+        return ""
+    return str(vknd_cd).strip()
+
+
+def _format_vknd_time(hour: int, minute: int | None, interval: str) -> str:
+    if interval == "15m":
+        return f"{int(hour):02d}:{int(minute or 0):02d}"
+    return f"{int(hour):02d}:00"
+
+
+def _parse_api_response_vknd(vknd_slots: list, node_name: str) -> tuple:
+    """API /corrected-traffic-vknd 응답 파싱.
+
+    Returns:
+      - node_results: A/B/A+B 이상 슬롯 목록
+      - target_data: {(acsr_id, vknd_cd, date, hour, minute): original_volume}
+      - approaches: [(acsr_id, acsr_nm), ...]
+      - approaches_by_vknd: 접근로별 차종 옵션
+    """
+    node_results: list = []
+    target_data: dict = {}
+    approaches_seen: OrderedDict = OrderedDict()
+    approaches_by_vknd: OrderedDict = OrderedDict()
+    vknd_seen: dict = defaultdict(set)
+
+    for slot in vknd_slots:
+        d = date.fromisoformat(slot["date"])
+        h = int(slot["hour"])
+        m = int(slot.get("minute") or 0)
+        interval = slot.get("interval") or ("15m" if m else "1h")
+        acsr_id = slot["approach_id"]
+        acsr_nm = slot.get("approach_name") or str(acsr_id)
+        vknd_cd = _normalize_vknd_cd(slot.get("vknd_cd"))
+        vknd_nm = slot.get("vknd_name") or vknd_cd
+
+        if acsr_id not in approaches_seen:
+            approaches_seen[acsr_id] = acsr_nm
+        if acsr_id not in approaches_by_vknd:
+            approaches_by_vknd[acsr_id] = {
+                "approach_name": acsr_nm,
+                "vknds": [],
+            }
+        if vknd_cd not in vknd_seen[acsr_id]:
+            vknd_seen[acsr_id].add(vknd_cd)
+            approaches_by_vknd[acsr_id]["vknds"].append((vknd_cd, vknd_nm))
+
+        orig_val = slot.get("traffic_volume")
+        if orig_val is not None:
+            target_data[(acsr_id, vknd_cd, d, h, m)] = orig_val
+
+        anomaly_type = slot.get("anomaly_type")
+        if anomaly_type not in ("A형", "B형", "A+B혼합"):
+            continue
+
+        node_results.append({
+            "날짜": d.strftime("%Y.%m.%d"),
+            "시간": _format_vknd_time(h, m, interval),
+            "교차로": node_name,
+            "방향": acsr_nm,
+            "차종": vknd_nm,
+            "교통량": orig_val if orig_val is not None else 0,
+            "판정": anomaly_type,
+            "보정값": slot.get("corrected_value"),
+            "보정방법": slot.get("correction_method"),
+            "신뢰도": slot.get("confidence"),
+            "_acsr_id": acsr_id,
+            "_vknd_cd": vknd_cd,
+            "_vknd_name": vknd_nm,
+            "_date": d,
+            "_hour": h,
+            "_minute": m,
+            "_cell": None,
+        })
+
+    approaches = list(approaches_seen.items())
+    return node_results, target_data, approaches, approaches_by_vknd
+
+
 # ── 상수 ────────────────────────────────────────────────────────────────────
 AVAILABLE_YEARS = [2022, 2024, 2025, 2026]
 DATA_START_YEAR = 2023          # 데이터가 제대로 수집되기 시작한 연도
@@ -2171,6 +2251,169 @@ def export_drct_visualizations(
             progress_callback(generated_tasks, total_tasks, f"{approach_name}/_전체")
 
 
+def export_vknd_visualizations(
+    node_name: str,
+    approaches_by_vknd: dict,
+    target_data: dict,
+    node_results: list,
+    date_start: date,
+    date_end: date,
+    hours: list,
+    interval: str,
+    viz_dir: Path,
+    progress_callback=None,
+    verbose: bool = True,
+) -> None:
+    """VKND 전용 시각화 생성."""
+    period = f"{date_start.strftime('%y%m%d')}~{date_end.strftime('%y%m%d')}"
+    node_dir = viz_dir / _sanitize_path_component(f"{node_name}_{period}")
+    node_dir.mkdir(parents=True, exist_ok=True)
+    hours_sorted = sorted(hours)
+    minutes = [0, 15, 30, 45] if interval == "15m" else [0]
+    yaxis_title = "교통량 (대/15분)" if interval == "15m" else "교통량 (대/시)"
+
+    anomaly_map = {
+        (r["_acsr_id"], r["_vknd_cd"], r["_date"], r["_hour"], r["_minute"]): r
+        for r in node_results
+    }
+
+    tasks_by_approach: list[tuple] = []
+    total_tasks = 0
+    for acsr_id, info in approaches_by_vknd.items():
+        vknds = info.get("vknds", [])
+        if not vknds:
+            continue
+        tasks_by_approach.append((acsr_id, info, vknds))
+        total_tasks += len(vknds) + 1
+
+    generated_tasks = 0
+    if progress_callback and total_tasks == 0:
+        progress_callback(1, 1, "생성 대상 없음")
+        return
+    if progress_callback:
+        progress_callback(0, total_tasks, "준비 중")
+
+    for acsr_id, info, vknds in tasks_by_approach:
+        approach_name = info.get("approach_name") or str(acsr_id)
+        approach_dir = node_dir / _sanitize_path_component(approach_name)
+        approach_dir.mkdir(parents=True, exist_ok=True)
+
+        vknd_series: list[dict] = []
+        x_all_common = []
+        for vknd_cd, vknd_name in vknds:
+            x_all, y_orig, y_corr = [], [], []
+            a_x, a_y = [], []
+            b_x, b_y = [], []
+
+            cur_d = date_start
+            while cur_d <= date_end:
+                for hour in hours_sorted:
+                    for minute in minutes:
+                        dt = datetime(cur_d.year, cur_d.month, cur_d.day, hour, minute)
+                        pos = (acsr_id, vknd_cd, cur_d, hour, minute)
+                        anomaly = anomaly_map.get(pos)
+                        orig_val = target_data.get(pos)
+                        corr_val = orig_val
+                        if anomaly:
+                            orig_val = anomaly.get("교통량")
+                            corr_val = anomaly.get("보정값")
+                            if corr_val is None:
+                                corr_val = orig_val
+                            anomaly_type = anomaly["판정"]
+                            if anomaly_type in ("A형", "A+B혼합"):
+                                a_x.append(dt)
+                                a_y.append(orig_val)
+                            if anomaly_type in ("B형", "A+B혼합"):
+                                b_x.append(dt)
+                                b_y.append(orig_val)
+                        x_all.append(dt)
+                        y_orig.append(orig_val)
+                        y_corr.append(corr_val)
+                cur_d += timedelta(days=1)
+
+            x_all_common = x_all
+            vknd_series.append({
+                "name": vknd_name,
+                "x": x_all,
+                "y_orig": y_orig,
+                "y_corr": y_corr,
+            })
+
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=x_all, y=y_orig, mode="lines", name="보정 전",
+                line=dict(color="#4C72B0", width=1.5, dash="dot", shape="spline"),
+                connectgaps=False,
+            ))
+            if a_x:
+                fig.add_trace(go.Scatter(
+                    x=a_x, y=a_y, mode="markers", name="A형(결측)",
+                    marker=dict(color="red", symbol="triangle-up", size=9),
+                ))
+            if b_x:
+                fig.add_trace(go.Scatter(
+                    x=b_x, y=b_y, mode="markers", name="B형(이상저값)",
+                    marker=dict(color="orange", symbol="diamond", size=9),
+                ))
+            fig.add_trace(go.Scatter(
+                x=x_all, y=y_corr, mode="lines", name="보정 후",
+                line=dict(color="#DD4949", width=2, shape="spline"),
+                connectgaps=False,
+            ))
+            fig.update_layout(
+                title=f"{node_name} — {approach_name} — {vknd_name}",
+                xaxis_title="일시",
+                yaxis_title=yaxis_title,
+                hovermode="x unified",
+                width=max(1200, len(x_all) * 6),
+                height=675,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            )
+            out_file = approach_dir / f"{_sanitize_path_component(vknd_name)}.html"
+            _write_plotly_html(fig, out_file, verbose=verbose)
+            generated_tasks += 1
+            if progress_callback:
+                progress_callback(generated_tasks, total_tasks, f"{approach_name}/{vknd_name}")
+
+        y_total_orig = []
+        y_total_corr = []
+        for idx in range(len(x_all_common)):
+            sum_orig = 0
+            sum_corr = 0
+            for series in vknd_series:
+                v_orig = series["y_orig"][idx]
+                v_corr = series["y_corr"][idx]
+                sum_orig += (v_orig if v_orig is not None else 0)
+                sum_corr += (v_corr if v_corr is not None else 0)
+            y_total_orig.append(sum_orig)
+            y_total_corr.append(sum_corr)
+
+        fig_total = go.Figure()
+        fig_total.add_trace(go.Scatter(
+            x=x_all_common, y=y_total_orig, mode="lines", name="보정 전",
+            line=dict(color="#4C72B0", width=1.5, dash="dot", shape="spline"),
+            connectgaps=False,
+        ))
+        fig_total.add_trace(go.Scatter(
+            x=x_all_common, y=y_total_corr, mode="lines", name="보정 후",
+            line=dict(color="#DD4949", width=2, shape="spline"),
+            connectgaps=False,
+        ))
+        fig_total.update_layout(
+            title=f"{node_name} — {approach_name} — 선택 차종 합산 교통량 보정 전/후",
+            xaxis_title="일시",
+            yaxis_title=yaxis_title,
+            hovermode="x unified",
+            width=max(1200, len(x_all_common) * 6),
+            height=675,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        )
+        _write_plotly_html(fig_total, approach_dir / "_전체.html", verbose=verbose)
+        generated_tasks += 1
+        if progress_callback:
+            progress_callback(generated_tasks, total_tasks, f"{approach_name}/_전체")
+
+
 def export_visualization(node_name: str, acsr_id, acsr_nm: str,
                           target_data: dict, corrections_by_pos: dict,
                           date_start: date, date_end: date, hours: list,
@@ -2425,7 +2668,12 @@ def export_total_visualization(node_name: str, approaches: list,
 # 엑셀 출력
 # ════════════════════════════════════════════════════════════════
 
-def _build_excel_sheet_groups(results: list, intersections_count: int, has_drct: bool) -> OrderedDict:
+def _build_excel_sheet_groups(
+    results: list,
+    intersections_count: int,
+    has_drct: bool,
+    has_vknd: bool = False,
+) -> OrderedDict:
     """출력 정책에 맞는 시트 그룹을 구성."""
     grouped: OrderedDict = OrderedDict()
     multi_intersections = intersections_count >= 2
@@ -2438,6 +2686,11 @@ def _build_excel_sheet_groups(results: list, intersections_count: int, has_drct:
                 sheet_key = row["교차로"]
             else:
                 sheet_key = f"{row['교차로']}-{row['방향']}"
+        elif has_vknd:
+            if multi_intersections:
+                sheet_key = row["교차로"]
+            else:
+                sheet_key = row["방향"]
         else:
             if multi_intersections:
                 sheet_key = row["교차로"]
@@ -2465,6 +2718,7 @@ def export_excel(results: list, filepath: Path, intersections_count: int = 1):
     wb = Workbook()
     multi_intersections = intersections_count >= 2
     has_drct = any((r.get("접근로방향") or r.get("_drct_name")) for r in results)
+    has_vknd = any((r.get("차종") or r.get("_vknd_cd")) for r in results)
 
     thin   = Side(style="thin")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
@@ -2474,7 +2728,7 @@ def export_excel(results: list, filepath: Path, intersections_count: int = 1):
     fill_m = PatternFill("solid", fgColor="FFE6CC")  # A+B혼합: 연주황
     fill_n = PatternFill("solid", fgColor="E8E8E8")  # 정상(Stage2): 연회색
 
-    sheets = _build_excel_sheet_groups(results, intersections_count, has_drct)
+    sheets = _build_excel_sheet_groups(results, intersections_count, has_drct, has_vknd)
     used_titles: set = set()
 
     for sheet_key, rows in sheets.items():
@@ -2489,6 +2743,15 @@ def export_excel(results: list, filepath: Path, intersections_count: int = 1):
                 headers = ["날짜", "시간", "접근로 방향", "교통량",
                            "보정값", "보정방법", "신뢰도", "이상 판단"]
                 col_widths = [14, 8, 20, 10, 10, 12, 10, 12]
+        elif has_vknd:
+            if multi_intersections:
+                headers = ["날짜", "시간", "교차로 이름", "교차로 방향", "차종", "교통량",
+                           "보정값", "보정방법", "신뢰도", "이상 판단"]
+                col_widths = [14, 8, 22, 18, 16, 10, 10, 12, 10, 12]
+            else:
+                headers = ["날짜", "시간", "교차로 방향", "차종", "교통량",
+                           "보정값", "보정방법", "신뢰도", "이상 판단"]
+                col_widths = [14, 8, 18, 16, 10, 10, 12, 10, 12]
         else:
             if multi_intersections:
                 headers = ["날짜", "시간", "교차로 이름", "교차로 방향", "교통량",
@@ -2519,6 +2782,18 @@ def export_excel(results: list, filepath: Path, intersections_count: int = 1):
                 else:
                     vals = [
                         row["날짜"], row["시간"], drct_name, row["교통량"],
+                        row.get("보정값"), row.get("보정방법"), row.get("신뢰도"), row["판정"],
+                    ]
+            elif has_vknd:
+                vknd_name = row.get("차종") or row.get("_vknd_name") or row.get("_vknd_cd") or ""
+                if multi_intersections:
+                    vals = [
+                        row["날짜"], row["시간"], row["교차로"], row["방향"], vknd_name, row["교통량"],
+                        row.get("보정값"), row.get("보정방법"), row.get("신뢰도"), row["판정"],
+                    ]
+                else:
+                    vals = [
+                        row["날짜"], row["시간"], row["방향"], vknd_name, row["교통량"],
                         row.get("보정값"), row.get("보정방법"), row.get("신뢰도"), row["판정"],
                     ]
             else:
@@ -2679,13 +2954,72 @@ def input_view_mode() -> str:
     print("\n출력 기준을 선택하세요:")
     print("  1. 방향별 교통량(ACSR)")
     print("  2. 접근로 방향별 교통량(DRCT)")
+    print("  3. 차종별 교통량(VKND)")
     while True:
-        choice = input("  선택 (1/2): ").strip()
+        choice = input("  선택 (1/2/3): ").strip()
         if choice == "1":
             return "ACSR"
         if choice == "2":
             return "DRCT"
+        if choice == "3":
+            return "VKND"
+        print("  1, 2, 3 중 선택하세요.")
+
+
+def input_vknd_interval() -> str:
+    print("\nVKND 시간 단위를 선택하세요:")
+    print("  1. 1시간")
+    print("  2. 15분")
+    while True:
+        choice = input("  선택 (1/2): ").strip()
+        if choice == "1":
+            return "1h"
+        if choice == "2":
+            return "15m"
         print("  1 또는 2를 입력하세요.")
+
+
+def input_vknd_codes(vehicle_kind_items: list[dict]) -> list[str]:
+    print("\nVKND 차종을 선택하세요 (번호/코드 콤마 입력, Enter=전체 선택):")
+    idx_to_code = {}
+    code_to_name = {}
+    for idx, item in enumerate(vehicle_kind_items, 1):
+        code = _normalize_vknd_cd(item.get("code"))
+        name = item.get("name") or code
+        idx_to_code[str(idx)] = code
+        code_to_name[code] = name
+        print(f"  {idx}. {code} - {name}")
+
+    all_codes = set(code_to_name.keys())
+    while True:
+        raw = input("  선택: ").strip()
+        if not raw:
+            selected = sorted(all_codes)
+            print(f"  → 전체 선택 ({len(selected)}개)")
+            return selected
+
+        tokens = [t.strip() for t in raw.split(",") if t.strip()]
+        picked: set = set()
+        invalid: list = []
+        for token in tokens:
+            norm_token = _normalize_vknd_cd(token)
+            if token in idx_to_code:
+                picked.add(idx_to_code[token])
+            elif norm_token in all_codes:
+                picked.add(norm_token)
+            else:
+                invalid.append(token)
+
+        if invalid:
+            print(f"  [오류] 유효하지 않은 선택: {', '.join(invalid)}")
+            continue
+        if not picked:
+            print("  [오류] 최소 1개 이상 선택하세요.")
+            continue
+        selected = sorted(picked)
+        names = [code_to_name.get(code, code) for code in selected]
+        print(f"  → {', '.join(names)}")
+        return selected
 
 
 def input_approach_names(approaches: list, node_name: str) -> list:
@@ -2773,6 +3107,26 @@ def apply_approach_name_overrides(
     return node_results, drct_options_by_acsr
 
 
+def apply_vknd_approach_name_overrides(
+    node_results: list,
+    approaches: list,
+    approaches_by_vknd: dict,
+) -> tuple[list, dict]:
+    """사용자 입력 접근로명(ACSR)을 VKND 결과/옵션에 반영."""
+    acsr_name_map = {acsr_id: acsr_nm for acsr_id, acsr_nm in approaches}
+
+    for r in node_results:
+        acsr_id = r.get("_acsr_id")
+        if acsr_id in acsr_name_map:
+            r["방향"] = acsr_name_map[acsr_id]
+
+    for acsr_id, info in approaches_by_vknd.items():
+        if acsr_id in acsr_name_map:
+            info["approach_name"] = acsr_name_map[acsr_id]
+
+    return node_results, approaches_by_vknd
+
+
 def filter_by_drct_selection(
     node_results: list,
     target_data: dict,
@@ -2831,6 +3185,12 @@ def main():
 
     # Step 4: 기준 선택
     view_mode = input_view_mode()
+    vknd_interval = None
+    selected_vknd_codes = None
+    if view_mode == "VKND":
+        vknd_interval = input_vknd_interval()
+        vehicle_kind_resp = _api_get("/vehicle-kinds")
+        selected_vknd_codes = input_vknd_codes(vehicle_kind_resp.get("items", []))
 
     all_results = []
     viz_dir     = RESULT_DIR / "보정_시각화"
@@ -2840,7 +3200,7 @@ def main():
         print(f"\n{'─'*50}")
         print(f"[{node_name}] 처리 중...")
 
-        api_label_suffix = "API-DRCT"
+        api_label_suffix = "API-VKND" if view_mode == "VKND" else "API-DRCT"
         api_progress = _SpinnerProgress(
             label=f"[{node_name}] 데이터 조회 및 이상탐지 ({api_label_suffix})",
             start_percent=5,
@@ -2848,19 +3208,37 @@ def main():
         )
         api_progress.start()
         try:
-            api_path = "/corrected-traffic-drct"
-            resp = _api_post(api_path, {
-                "node_ids":   [node_id],
-                "date_start": date_start.isoformat(),
-                "date_end":   date_end.isoformat(),
-                "hours":      hours,
-            })
+            if view_mode == "VKND":
+                api_path = "/corrected-traffic-vknd"
+                payload = {
+                    "node_ids":   [node_id],
+                    "date_start": date_start.isoformat(),
+                    "date_end":   date_end.isoformat(),
+                    "hours":      hours,
+                    "interval":   vknd_interval,
+                    "vknd_codes": selected_vknd_codes,
+                }
+            else:
+                api_path = "/corrected-traffic-drct"
+                payload = {
+                    "node_ids":   [node_id],
+                    "date_start": date_start.isoformat(),
+                    "date_end":   date_end.isoformat(),
+                    "hours":      hours,
+                }
+            resp = _api_post(api_path, payload)
         finally:
             api_progress.stop(final_percent=40)
 
         drct_options_by_acsr = None
         drct_selection_by_acsr = None
-        if view_mode == "ACSR":
+        approaches_by_vknd = None
+        if view_mode == "VKND":
+            node_results, target_data, approaches, approaches_by_vknd = _parse_api_response_vknd(
+                resp.get("vknd_slots", []), node_name
+            )
+            _print_inline_progress(f"  [{node_name}] VKND 응답 파싱... 완료 50%")
+        elif view_mode == "ACSR":
             node_results, target_data, approaches = _parse_api_response_acsr_from_drct(
                 resp.get("drct_slots", []), node_name
             )
@@ -2882,6 +3260,10 @@ def main():
             for r in node_results:
                 if r.get("_acsr_id") in acsr_name_map:
                     r["방향"] = acsr_name_map[r["_acsr_id"]]
+        elif view_mode == "VKND":
+            node_results, approaches_by_vknd = apply_vknd_approach_name_overrides(
+                node_results, approaches, approaches_by_vknd
+            )
         else:
             node_results, drct_options_by_acsr = apply_approach_name_overrides(
                 node_results, approaches, drct_options_by_acsr
@@ -2918,6 +3300,32 @@ def main():
                 date_start=date_start,
                 date_end=date_end,
                 hours=hours,
+                viz_dir=viz_dir,
+                progress_callback=viz_progress,
+                verbose=False,
+            )
+        elif view_mode == "VKND":
+            filtered_slots = resp.get("vknd_slots", [])
+            print(f"  수신 VKND 슬롯: {len(filtered_slots):,}건")
+            print(
+                f"  이상 탐지(A/B/혼합): {len(node_results)}건  "
+                f"(A형: {cnt_a}, B형: {cnt_b}, A+B혼합: {cnt_m})"
+            )
+
+            viz_progress = _make_step_progress_callback(
+                label=f"[{node_name}] VKND 시각화 생성",
+                start_percent=60,
+                end_percent=95,
+            )
+            export_vknd_visualizations(
+                node_name=node_name,
+                approaches_by_vknd=approaches_by_vknd,
+                target_data=target_data,
+                node_results=node_results,
+                date_start=date_start,
+                date_end=date_end,
+                hours=hours,
+                interval=vknd_interval,
                 viz_dir=viz_dir,
                 progress_callback=viz_progress,
                 verbose=False,
@@ -2962,7 +3370,7 @@ def main():
         print("이상 슬롯이 발견되지 않았습니다.")
         return
 
-    # 정렬: 날짜 → 시간 → 교차로 → 교차로방향 → 접근로방향
+    # 정렬: 날짜 → 시간 → 교차로 → 교차로방향 → 접근로방향/차종
     all_results.sort(
         key=lambda r: (
             r["날짜"],
@@ -2970,6 +3378,7 @@ def main():
             r["교차로"],
             r["방향"],
             r.get("접근로방향") or r.get("_drct_name") or "",
+            r.get("차종") or r.get("_vknd_name") or r.get("_vknd_cd") or "",
         )
     )
 
