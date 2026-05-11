@@ -7,7 +7,7 @@ import sys
 import types
 import unittest
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 
 
@@ -17,7 +17,8 @@ def _make_module(name: str) -> types.ModuleType:
     return m
 
 
-sys.path.insert(0, os.path.dirname(__file__))
+PROGRAM_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "01_Program"))
+sys.path.insert(0, PROGRAM_DIR)
 
 if "oracledb" not in sys.modules:
     _make_module("oracledb")
@@ -422,6 +423,140 @@ class TestRawTrafficEndpoint(unittest.TestCase):
                     "node_ids": [260322],
                     "date_start": "2026-03-22",
                     "date_end": "2026-03-22",
+                },
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json(), payload)
+        self.assertEqual(mock_fetch.call_count, 1)
+
+
+class _FakeCursor:
+    def __init__(self):
+        self.sql = None
+        self.params = None
+        self.arraysize = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def execute(self, sql, **params):
+        self.sql = sql
+        self.params = params
+
+    def fetchall(self):
+        return []
+
+
+class _FakeConn:
+    def __init__(self):
+        self.cursor_obj = _FakeCursor()
+
+    def cursor(self):
+        return self.cursor_obj
+
+
+class TestRawTrafficDrct(unittest.TestCase):
+    def _make_request(self, interval="1h", drct_codes=None):
+        return api_server.RawTrafficDrctRequest(
+            node_ids=[260322],
+            date_start="2026-03-22",
+            date_end="2026-03-22",
+            hours=[8],
+            interval=interval,
+            approach_ids=[2001],
+            drct_codes=drct_codes,
+        )
+
+    def test_interval_tables_and_filters_are_selected(self):
+        cases = {
+            "5m": "S_CRSRD_DRCT_TRF_5MI",
+            "15m": "S_CRSRD_DRCT_TRF_15MI",
+            "1h": "S_CRSRD_DRCT_TRF_1HH",
+            "1d": "S_CRSRD_DRCT_TRF_1DD",
+        }
+        for interval, table_name in cases.items():
+            conn = _FakeConn()
+            api_server._load_raw_drct_target_rows(
+                conn,
+                260322,
+                date(2026, 3, 22),
+                date(2026, 3, 22),
+                [8],
+                interval,
+                [2001],
+                ["01"],
+            )
+
+            self.assertIn(table_name, conn.cursor_obj.sql)
+            self.assertEqual(conn.cursor_obj.params["acsr0"], 2001)
+            self.assertEqual(conn.cursor_obj.params["drct0"], "01")
+            if interval == "1d":
+                self.assertNotIn("TO_CHAR(TOT_DT, 'HH24')) IN", conn.cursor_obj.sql)
+            else:
+                self.assertEqual(conn.cursor_obj.params["h0"], 8)
+
+    def test_fetch_uses_cache_for_missing_existing_and_non_existing_directions(self):
+        mock_conn = MagicMock()
+        cache = {
+            "basis": api_server.DRCT_DIRECTION_PRESENCE_BASIS,
+            "nodes": {
+                "260322": {
+                    "approaches": {
+                        "2001": {
+                            "directions": {
+                                "01": {"exists": True, "last_checked_date": "2026-05-11", "basis": api_server.DRCT_DIRECTION_PRESENCE_BASIS},
+                                "02": {"exists": True, "last_checked_date": "2026-05-11", "basis": api_server.DRCT_DIRECTION_PRESENCE_BASIS},
+                                "03": {"exists": False, "last_checked_date": "2026-05-11", "basis": api_server.DRCT_DIRECTION_PRESENCE_BASIS},
+                            }
+                        }
+                    }
+                }
+            },
+        }
+        rows = [(2001, "01", datetime(2026, 3, 22, 8, 0), 120)]
+        drct_meta = {
+            (2001, "01"): {"approach_name": "North", "drct_name": "Left"},
+            (2001, "02"): {"approach_name": "North", "drct_name": "Through"},
+            (2001, "03"): {"approach_name": "North", "drct_name": "Right"},
+        }
+
+        with patch.object(api_server.ad, "connect_db", return_value=mock_conn), \
+             patch.object(api_server, "_get_id_to_name_map", return_value={260322: "Node"}), \
+             patch.object(api_server.ad, "load_drct_code_map", return_value={"01": "Left", "02": "Through", "03": "Right"}), \
+             patch.object(api_server.ad, "load_drct_approaches", return_value=([], drct_meta)), \
+             patch.object(api_server, "_load_raw_drct_target_rows", return_value=rows), \
+             patch.object(api_server, "_ensure_drct_direction_presence_entries", return_value=cache), \
+             patch.object(api_server, "_save_drct_direction_presence_cache"):
+            result = api_server._fetch_raw_traffic_drct(self._make_request(drct_codes=[1, 2, 3]))
+
+        by_code = {slot["drct_cd"]: slot for slot in result["drct_slots"]}
+        self.assertEqual(by_code["01"]["traffic_volume"], 120)
+        self.assertTrue(by_code["01"]["is_collected"])
+        self.assertEqual(by_code["02"]["traffic_volume"], 0)
+        self.assertFalse(by_code["02"]["is_collected"])
+        self.assertIsNone(by_code["03"]["traffic_volume"])
+        self.assertFalse(by_code["03"]["is_collected"])
+        self.assertEqual(result["slots"][0]["traffic_volume"], 120)
+        mock_conn.close.assert_called_once()
+
+
+class TestRawTrafficDrctEndpoint(unittest.TestCase):
+    def test_endpoint_returns_raw_drct_payload(self):
+        payload = {"drct_slots": [], "slots": [], "node_slots": []}
+        with patch.object(api_server, "_fetch_raw_traffic_drct", return_value=payload) as mock_fetch:
+            resp = _client.post(
+                "/raw-traffic-drct",
+                json={
+                    "node_ids": [260322],
+                    "date_start": "2026-03-22",
+                    "date_end": "2026-03-22",
+                    "interval": "15m",
+                    "approach_ids": [2001],
+                    "drct_codes": ["01"],
                 },
             )
 

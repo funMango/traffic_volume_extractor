@@ -16,6 +16,7 @@
 """
 
 import asyncio
+import json
 import sys
 import uuid
 from collections import defaultdict
@@ -43,6 +44,13 @@ job_store_lock = Lock()
 
 _intersections_cache: list[dict] | None = None
 _holiday_dates: set | None = None
+_drct_direction_presence_cache: dict | None = None
+_drct_direction_presence_lock = Lock()
+
+DRCT_DIRECTION_PRESENCE_PATH = (
+    Path(__file__).parent / "traffic_api" / "cache" / "drct_direction_presence.json"
+)
+DRCT_DIRECTION_PRESENCE_BASIS = "last_1_year_1h_positive"
 
 
 # ── 라이프사이클 ──────────────────────────────────────────────────────────────
@@ -51,6 +59,7 @@ _holiday_dates: set | None = None
 async def lifespan(app: FastAPI):
     global _holiday_dates
     _holiday_dates = ad.load_holidays()
+    _ensure_drct_direction_presence_cache()
     yield
 
 
@@ -108,6 +117,12 @@ class JobRequest(BaseModel):
 class RawTrafficVkndRequest(JobRequest):
     interval: Literal["15m", "1h"] = "1h"
     vknd_codes: Optional[list[str | int]] = None
+
+
+class RawTrafficDrctRequest(JobRequest):
+    interval: Literal["5m", "15m", "1h", "1d"] = "1h"
+    approach_ids: Optional[list[str | int]] = None
+    drct_codes: Optional[list[str | int]] = None
 
 
 def _job_request_payload(req: JobRequest) -> dict:
@@ -206,6 +221,206 @@ def _normalize_drct_cd(drct_cd) -> str:
     return str(drct_cd).strip().zfill(2)
 
 
+def _normalize_acsr_id(acsr_id):
+    if isinstance(acsr_id, int):
+        return acsr_id
+    if isinstance(acsr_id, str) and acsr_id.strip().isdigit():
+        return int(acsr_id.strip())
+    return acsr_id
+
+
+def _new_drct_direction_presence_cache() -> dict:
+    return {
+        "basis": DRCT_DIRECTION_PRESENCE_BASIS,
+        "generated_at": None,
+        "nodes": {},
+    }
+
+
+def _load_drct_direction_presence_cache() -> dict:
+    global _drct_direction_presence_cache
+    with _drct_direction_presence_lock:
+        if _drct_direction_presence_cache is not None:
+            return _drct_direction_presence_cache
+        if DRCT_DIRECTION_PRESENCE_PATH.exists():
+            with DRCT_DIRECTION_PRESENCE_PATH.open("r", encoding="utf-8") as f:
+                _drct_direction_presence_cache = json.load(f)
+        else:
+            _drct_direction_presence_cache = _new_drct_direction_presence_cache()
+        _drct_direction_presence_cache.setdefault("basis", DRCT_DIRECTION_PRESENCE_BASIS)
+        _drct_direction_presence_cache.setdefault("nodes", {})
+        return _drct_direction_presence_cache
+
+
+def _save_drct_direction_presence_cache(cache: dict) -> None:
+    DRCT_DIRECTION_PRESENCE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = DRCT_DIRECTION_PRESENCE_PATH.with_suffix(".json.tmp")
+    with tmp_path.open("w", encoding="utf-8") as f:
+        json.dump(cache, f, ensure_ascii=False, indent=2, sort_keys=True)
+        f.write("\n")
+    tmp_path.replace(DRCT_DIRECTION_PRESENCE_PATH)
+
+
+def _set_drct_direction_presence(
+    cache: dict,
+    node_id,
+    approach_id,
+    drct_cd,
+    exists: bool,
+    checked_date: str | None = None,
+) -> None:
+    node_key = str(node_id)
+    approach_key = str(approach_id)
+    drct_key = _normalize_drct_cd(drct_cd)
+    checked_date = checked_date or date.today().isoformat()
+    node = cache.setdefault("nodes", {}).setdefault(node_key, {"approaches": {}})
+    approach = node.setdefault("approaches", {}).setdefault(approach_key, {"directions": {}})
+    approach.setdefault("directions", {})[drct_key] = {
+        "exists": bool(exists),
+        "last_checked_date": checked_date,
+        "basis": DRCT_DIRECTION_PRESENCE_BASIS,
+    }
+
+
+def _get_drct_direction_presence(cache: dict, node_id, approach_id, drct_cd) -> dict | None:
+    return (
+        cache.get("nodes", {})
+        .get(str(node_id), {})
+        .get("approaches", {})
+        .get(str(approach_id), {})
+        .get("directions", {})
+        .get(_normalize_drct_cd(drct_cd))
+    )
+
+
+def _build_drct_direction_presence_cache(conn) -> dict:
+    cutoff = datetime.combine(date.today() - timedelta(days=365), datetime.min.time())
+    checked_date = date.today().isoformat()
+    cache = _new_drct_direction_presence_cache()
+    cache["generated_at"] = datetime.now().isoformat(timespec="seconds")
+    sql = """
+        SELECT NODE_ID, ACSR_ID, TRIM(TO_CHAR(DRCT_CD)) AS DRCT_CD
+        FROM S_CRSRD_DRCT_TRF_1HH
+        WHERE TOT_DT >= :cutoff
+          AND NVL(TRF_QNTY, 0) > 0
+          AND TRIM(TO_CHAR(DRCT_CD)) <> '00'
+        GROUP BY NODE_ID, ACSR_ID, TRIM(TO_CHAR(DRCT_CD))
+    """
+    with conn.cursor() as cur:
+        cur.arraysize = 10000
+        cur.execute(sql, cutoff=cutoff)
+        for node_id, approach_id, drct_cd in cur.fetchall():
+            _set_drct_direction_presence(
+                cache,
+                node_id,
+                approach_id,
+                drct_cd,
+                True,
+                checked_date,
+            )
+    return cache
+
+
+def _ensure_drct_direction_presence_cache(conn=None) -> dict:
+    cache = _load_drct_direction_presence_cache()
+    if DRCT_DIRECTION_PRESENCE_PATH.exists():
+        return cache
+
+    owns_conn = conn is None
+    if owns_conn:
+        conn = ad.connect_db()
+    try:
+        cache = _build_drct_direction_presence_cache(conn)
+        with _drct_direction_presence_lock:
+            global _drct_direction_presence_cache
+            _drct_direction_presence_cache = cache
+            _save_drct_direction_presence_cache(cache)
+        return cache
+    finally:
+        if owns_conn:
+            conn.close()
+
+
+def _refresh_drct_direction_presence(
+    conn,
+    node_id,
+    approach_ids: list,
+    drct_codes: list[str],
+) -> dict:
+    cache = _load_drct_direction_presence_cache()
+    if not approach_ids or not drct_codes:
+        return cache
+
+    cutoff = datetime.combine(date.today() - timedelta(days=365), datetime.min.time())
+    checked_date = date.today().isoformat()
+    bind_params = {"nid": node_id, "cutoff": cutoff}
+    acsr_names = []
+    for idx, approach_id in enumerate(approach_ids):
+        name = f"acsr{idx}"
+        bind_params[name] = approach_id
+        acsr_names.append(f":{name}")
+    drct_names = []
+    for idx, drct_cd in enumerate(drct_codes):
+        name = f"drct{idx}"
+        bind_params[name] = drct_cd
+        drct_names.append(f":{name}")
+
+    sql = f"""
+        SELECT ACSR_ID, TRIM(TO_CHAR(DRCT_CD)) AS DRCT_CD
+        FROM S_CRSRD_DRCT_TRF_1HH
+        WHERE NODE_ID = :nid
+          AND TOT_DT >= :cutoff
+          AND NVL(TRF_QNTY, 0) > 0
+          AND ACSR_ID IN ({','.join(acsr_names)})
+          AND TRIM(TO_CHAR(DRCT_CD)) IN ({','.join(drct_names)})
+          AND TRIM(TO_CHAR(DRCT_CD)) <> '00'
+        GROUP BY ACSR_ID, TRIM(TO_CHAR(DRCT_CD))
+    """
+    positive = set()
+    with conn.cursor() as cur:
+        cur.arraysize = 10000
+        cur.execute(sql, **bind_params)
+        for approach_id, drct_cd in cur.fetchall():
+            positive.add((_normalize_acsr_id(approach_id), _normalize_drct_cd(drct_cd)))
+
+    with _drct_direction_presence_lock:
+        for approach_id in approach_ids:
+            for drct_cd in drct_codes:
+                _set_drct_direction_presence(
+                    cache,
+                    node_id,
+                    approach_id,
+                    drct_cd,
+                    (_normalize_acsr_id(approach_id), _normalize_drct_cd(drct_cd)) in positive,
+                    checked_date,
+                )
+        cache["generated_at"] = cache.get("generated_at") or datetime.now().isoformat(timespec="seconds")
+        _save_drct_direction_presence_cache(cache)
+    return cache
+
+
+def _ensure_drct_direction_presence_entries(
+    conn,
+    node_id,
+    approach_ids: list,
+    drct_codes: list[str],
+) -> dict:
+    cache = _ensure_drct_direction_presence_cache(conn)
+    today = date.today().isoformat()
+    needs_refresh = False
+    for approach_id in approach_ids:
+        for drct_cd in drct_codes:
+            entry = _get_drct_direction_presence(cache, node_id, approach_id, drct_cd)
+            if entry is None or entry.get("last_checked_date") != today:
+                needs_refresh = True
+                break
+        if needs_refresh:
+            break
+    if needs_refresh:
+        cache = _refresh_drct_direction_presence(conn, node_id, approach_ids, drct_codes)
+    return cache
+
+
 def _aggregate_acsr_slots_from_drct(drct_slots: list[dict]) -> list[dict]:
     """DRCT 슬롯 목록을 ACSR+시각 단위로 집계(전/후 합계 + A/B/혼합 판정)."""
     agg: dict[tuple, dict] = {}
@@ -299,8 +514,11 @@ def _aggregate_raw_slots_from_drct(drct_slots: list[dict]) -> list[dict]:
         if _normalize_drct_cd(slot.get("drct_cd")) == "00":
             continue
         key = (
+            slot.get("interval"),
+            slot.get("timestamp"),
             slot["date"],
             slot["hour"],
+            slot.get("minute"),
             slot["node_id"],
             slot["node_name"],
             slot["approach_id"],
@@ -308,8 +526,11 @@ def _aggregate_raw_slots_from_drct(drct_slots: list[dict]) -> list[dict]:
         )
         if key not in agg:
             agg[key] = {
+                **({"interval": slot.get("interval")} if "interval" in slot else {}),
+                **({"timestamp": slot.get("timestamp")} if "timestamp" in slot else {}),
                 "date": slot["date"],
                 "hour": slot["hour"],
+                **({"minute": slot.get("minute")} if "minute" in slot else {}),
                 "node_id": slot["node_id"],
                 "node_name": slot["node_name"],
                 "approach_id": slot["approach_id"],
@@ -322,7 +543,7 @@ def _aggregate_raw_slots_from_drct(drct_slots: list[dict]) -> list[dict]:
         )
 
     rows = list(agg.values())
-    rows.sort(key=lambda r: (r["date"], r["node_id"], r["hour"], r["approach_id"]))
+    rows.sort(key=lambda r: (r.get("timestamp", r["date"]), r["node_id"], r["hour"], r["approach_id"]))
     return rows
 
 
@@ -331,15 +552,21 @@ def _aggregate_raw_node_slots(slots: list[dict]) -> list[dict]:
     agg: dict[tuple, dict] = {}
     for slot in slots:
         key = (
+            slot.get("interval"),
+            slot.get("timestamp"),
             slot["date"],
             slot["hour"],
+            slot.get("minute"),
             slot["node_id"],
             slot["node_name"],
         )
         if key not in agg:
             agg[key] = {
+                **({"interval": slot.get("interval")} if "interval" in slot else {}),
+                **({"timestamp": slot.get("timestamp")} if "timestamp" in slot else {}),
                 "date": slot["date"],
                 "hour": slot["hour"],
+                **({"minute": slot.get("minute")} if "minute" in slot else {}),
                 "node_id": slot["node_id"],
                 "node_name": slot["node_name"],
                 "traffic_volume": None,
@@ -350,7 +577,7 @@ def _aggregate_raw_node_slots(slots: list[dict]) -> list[dict]:
         )
 
     rows = list(agg.values())
-    rows.sort(key=lambda r: (r["date"], r["node_id"], r["hour"]))
+    rows.sort(key=lambda r: (r.get("timestamp", r["date"]), r["node_id"], r["hour"]))
     return rows
 
 
@@ -1040,6 +1267,133 @@ def _load_raw_vknd_target_rows(
         cur.arraysize = 10000
         cur.execute(sql, **bind_params)
         return cur.fetchall()
+
+
+def _load_raw_drct_target_rows(
+    conn,
+    node_id,
+    date_start: date,
+    date_end: date,
+    hours: list[int],
+    interval: str,
+    approach_ids: list | None = None,
+    drct_codes: list[str] | None = None,
+) -> list[tuple]:
+    """Return raw direction rows from the selected interval table."""
+    if not hours and interval != "1d":
+        return []
+    table_name = {
+        "5m": "S_CRSRD_DRCT_TRF_5MI",
+        "15m": "S_CRSRD_DRCT_TRF_15MI",
+        "1h": "S_CRSRD_DRCT_TRF_1HH",
+        "1d": "S_CRSRD_DRCT_TRF_1DD",
+    }[interval]
+    ds_dt = datetime(date_start.year, date_start.month, date_start.day)
+    de_next = datetime(date_end.year, date_end.month, date_end.day) + timedelta(days=1)
+
+    bind_params = {"nid": node_id, "ds": ds_dt, "de_next": de_next}
+    hour_clause = ""
+    if interval != "1d" and set(hours) != set(range(24)):
+        hour_names = []
+        for idx, hour in enumerate(sorted(set(hours))):
+            name = f"h{idx}"
+            bind_params[name] = hour
+            hour_names.append(f":{name}")
+        hour_clause = f"AND TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')) IN ({','.join(hour_names)})"
+
+    acsr_clause = ""
+    if approach_ids:
+        acsr_names = []
+        for idx, approach_id in enumerate(approach_ids):
+            name = f"acsr{idx}"
+            bind_params[name] = approach_id
+            acsr_names.append(f":{name}")
+        acsr_clause = f"AND ACSR_ID IN ({','.join(acsr_names)})"
+
+    drct_clause = ""
+    if drct_codes:
+        drct_names = []
+        for idx, drct_cd in enumerate(drct_codes):
+            name = f"drct{idx}"
+            bind_params[name] = drct_cd
+            drct_names.append(f":{name}")
+        drct_clause = f"AND TRIM(TO_CHAR(DRCT_CD)) IN ({','.join(drct_names)})"
+
+    sql = f"""
+        SELECT ACSR_ID, TRIM(TO_CHAR(DRCT_CD)) AS DRCT_CD, TOT_DT, TRF_QNTY
+        FROM {table_name}
+        WHERE NODE_ID = :nid
+          AND TOT_DT >= :ds
+          AND TOT_DT < :de_next
+          AND TRIM(TO_CHAR(DRCT_CD)) <> '00'
+          {hour_clause}
+          {acsr_clause}
+          {drct_clause}
+        ORDER BY TOT_DT, ACSR_ID, DRCT_CD
+    """
+    with conn.cursor() as cur:
+        cur.arraysize = 10000
+        cur.execute(sql, **bind_params)
+        return cur.fetchall()
+
+
+def _timestamp_parts(tot_dt, interval: str) -> tuple[str, str, int, int]:
+    if isinstance(tot_dt, datetime):
+        return tot_dt.isoformat(), tot_dt.date().isoformat(), tot_dt.hour, tot_dt.minute
+    timestamp = datetime.combine(tot_dt, datetime.min.time()).isoformat()
+    return timestamp, tot_dt.isoformat(), 0, 0
+
+
+def _iter_raw_drct_requested_times(
+    date_start: date,
+    date_end: date,
+    hours: list[int],
+    interval: str,
+) -> list[datetime]:
+    current = datetime(date_start.year, date_start.month, date_start.day)
+    end_next = datetime(date_end.year, date_end.month, date_end.day) + timedelta(days=1)
+    if interval == "1d":
+        rows = []
+        while current < end_next:
+            rows.append(current)
+            current += timedelta(days=1)
+        return rows
+
+    step = {
+        "5m": timedelta(minutes=5),
+        "15m": timedelta(minutes=15),
+        "1h": timedelta(hours=1),
+    }[interval]
+    hour_set = set(hours)
+    rows = []
+    while current < end_next:
+        if current.hour in hour_set:
+            rows.append(current)
+        current += step
+    return rows
+
+
+def _positive_actual_drct_presence(
+    cache: dict,
+    node_id,
+    rows: list[tuple],
+) -> bool:
+    changed = False
+    checked_date = date.today().isoformat()
+    for approach_id, drct_cd, _tot_dt, trf_qnty in rows:
+        if trf_qnty is not None and trf_qnty > 0:
+            entry = _get_drct_direction_presence(cache, node_id, approach_id, drct_cd)
+            if not entry or entry.get("exists") is not True:
+                _set_drct_direction_presence(
+                    cache,
+                    node_id,
+                    approach_id,
+                    drct_cd,
+                    True,
+                    checked_date,
+                )
+                changed = True
+    return changed
 
 
 def _load_vknd_15m_rows(
@@ -1911,6 +2265,178 @@ def _fetch_raw_traffic_vknd(req: RawTrafficVkndRequest) -> dict:
         conn.close()
 
 
+def _fetch_raw_traffic_drct(req: RawTrafficDrctRequest) -> dict:
+    """Return raw direction traffic, including cached missing-direction rows."""
+    conn = ad.connect_db()
+    try:
+        date_start = date.fromisoformat(req.date_start)
+        date_end = date.fromisoformat(req.date_end)
+        hours = req.resolve_hours()
+        interval = req.interval
+        requested_approaches = (
+            sorted({_normalize_acsr_id(v) for v in req.approach_ids})
+            if req.approach_ids
+            else None
+        )
+        requested_drcts = (
+            sorted({
+                _normalize_drct_cd(code)
+                for code in req.drct_codes
+                if _normalize_drct_cd(code) and _normalize_drct_cd(code) != "00"
+            })
+            if req.drct_codes
+            else None
+        )
+
+        id_to_name = _get_id_to_name_map(conn)
+        drct_code_map = ad.load_drct_code_map(conn)
+        all_drct_codes = sorted(
+            code for code in (_normalize_drct_cd(c) for c in drct_code_map.keys())
+            if code and code != "00"
+        )
+
+        requested_times = _iter_raw_drct_requested_times(date_start, date_end, hours, interval)
+        drct_slots: list[dict] = []
+
+        for node_id in req.node_ids:
+            norm_node_id = _normalize_node_id(node_id)
+            node_name = id_to_name.get(norm_node_id, str(node_id))
+            _, drct_meta = ad.load_drct_approaches(
+                conn,
+                norm_node_id,
+                drct_code_map=drct_code_map,
+            )
+            approach_names = {
+                approach_id: meta.get("approach_name", str(approach_id))
+                for (approach_id, _drct_cd), meta in drct_meta.items()
+            }
+            if not approach_names:
+                approach_names = {
+                    approach_id: approach_name
+                    for approach_id, approach_name in ad.load_approaches(conn, norm_node_id)
+                }
+
+            approach_ids = requested_approaches or sorted(approach_names.keys())
+            rows = _load_raw_drct_target_rows(
+                conn,
+                norm_node_id,
+                date_start,
+                date_end,
+                hours,
+                interval,
+                requested_approaches,
+                requested_drcts,
+            )
+            actual_map = {}
+            actual_drcts_by_approach: dict = defaultdict(set)
+            for approach_id, drct_cd, tot_dt, trf_qnty in rows:
+                norm_approach_id = _normalize_acsr_id(approach_id)
+                norm_drct_cd = _normalize_drct_cd(drct_cd)
+                if norm_drct_cd == "00":
+                    continue
+                timestamp, slot_date, hour, minute = _timestamp_parts(tot_dt, interval)
+                actual_map[(timestamp, norm_approach_id, norm_drct_cd)] = (
+                    slot_date,
+                    hour,
+                    minute,
+                    trf_qnty,
+                )
+                actual_drcts_by_approach[norm_approach_id].add(norm_drct_cd)
+                if norm_approach_id not in approach_names:
+                    approach_names[norm_approach_id] = str(norm_approach_id)
+
+            if not approach_ids:
+                approach_ids = sorted(approach_names.keys())
+            drct_codes_for_refresh = requested_drcts or sorted(
+                set(all_drct_codes)
+                | {drct_cd for codes in actual_drcts_by_approach.values() for drct_cd in codes}
+            )
+            cache = _ensure_drct_direction_presence_entries(
+                conn,
+                norm_node_id,
+                approach_ids,
+                drct_codes_for_refresh,
+            )
+            if _positive_actual_drct_presence(cache, norm_node_id, rows):
+                with _drct_direction_presence_lock:
+                    _save_drct_direction_presence_cache(cache)
+
+            for ts in requested_times:
+                timestamp = ts.isoformat()
+                slot_date = ts.date().isoformat()
+                hour = ts.hour
+                minute = ts.minute
+                for approach_id in approach_ids:
+                    if requested_drcts:
+                        candidate_drcts = requested_drcts
+                    else:
+                        cached_dirs = (
+                            cache.get("nodes", {})
+                            .get(str(norm_node_id), {})
+                            .get("approaches", {})
+                            .get(str(approach_id), {})
+                            .get("directions", {})
+                        )
+                        candidate_drcts = sorted(
+                            set(actual_drcts_by_approach.get(approach_id, set()))
+                            | {
+                                code for code, entry in cached_dirs.items()
+                                if entry.get("exists") and _normalize_drct_cd(code) != "00"
+                            }
+                        )
+                    for drct_cd in candidate_drcts:
+                        actual = actual_map.get((timestamp, approach_id, drct_cd))
+                        if actual:
+                            row_date, row_hour, row_minute, volume = actual
+                            traffic_volume = volume
+                            is_collected = True
+                        else:
+                            row_date, row_hour, row_minute = slot_date, hour, minute
+                            entry = _get_drct_direction_presence(cache, norm_node_id, approach_id, drct_cd)
+                            traffic_volume = 0 if entry and entry.get("exists") else None
+                            is_collected = False
+                        meta = drct_meta.get((approach_id, drct_cd), {})
+                        drct_slots.append({
+                            "interval": interval,
+                            "timestamp": timestamp,
+                            "date": row_date,
+                            "hour": row_hour,
+                            "minute": row_minute,
+                            "node_id": norm_node_id,
+                            "node_name": node_name,
+                            "approach_id": approach_id,
+                            "approach_name": meta.get(
+                                "approach_name",
+                                approach_names.get(approach_id, str(approach_id)),
+                            ),
+                            "drct_cd": drct_cd,
+                            "drct_name": meta.get(
+                                "drct_name",
+                                drct_code_map.get(drct_cd, drct_cd),
+                            ),
+                            "traffic_volume": traffic_volume,
+                            "is_collected": is_collected,
+                        })
+
+        drct_slots.sort(
+            key=lambda r: (
+                r["timestamp"],
+                r["node_id"],
+                r["approach_id"],
+                r["drct_cd"],
+            )
+        )
+        slots = _aggregate_raw_slots_from_drct(drct_slots)
+        node_slots = _aggregate_raw_node_slots(slots)
+        return {
+            "drct_slots": drct_slots,
+            "slots": slots,
+            "node_slots": node_slots,
+        }
+    finally:
+        conn.close()
+
+
 def _fetch_corrected_traffic_vknd(req: RawTrafficVkndRequest) -> dict:
     """Return VKND corrected traffic using 15-minute correction as the source of truth."""
     if _holiday_dates is None:
@@ -2221,6 +2747,14 @@ async def raw_traffic_vknd(req: RawTrafficVkndRequest):
     """Return raw vehicle-kind traffic plus approach and node aggregates."""
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(executor, _fetch_raw_traffic_vknd, req)
+    return result
+
+
+@app.post("/raw-traffic-drct")
+async def raw_traffic_drct(req: RawTrafficDrctRequest):
+    """Return raw direction traffic plus approach and node aggregates."""
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(executor, _fetch_raw_traffic_drct, req)
     return result
 
 

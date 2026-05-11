@@ -4,7 +4,7 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException, Request
 
-from .schemas import JobRequest, RawTrafficVkndRequest
+from .schemas import JobRequest, RawTrafficDrctRequest, RawTrafficVkndRequest
 
 
 router = APIRouter()
@@ -57,6 +57,16 @@ async def raw_traffic(req: JobRequest, request: Request):
     )
 
 
+@router.post("/raw-traffic-drct")
+async def raw_traffic_drct(req: RawTrafficDrctRequest, request: Request):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None,
+        _services(request)["traffic"].raw_traffic_drct,
+        req,
+    )
+
+
 @router.post("/raw-traffic-vknd")
 async def raw_traffic_vknd(req: RawTrafficVkndRequest, request: Request):
     loop = asyncio.get_running_loop()
@@ -104,4 +114,3 @@ async def get_intersections(request: Request, refresh: bool = False):
         _services(request)["reference"].intersections,
         refresh,
     )
-

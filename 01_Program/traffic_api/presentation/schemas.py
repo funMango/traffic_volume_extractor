@@ -47,3 +47,8 @@ class RawTrafficVkndRequest(JobRequest):
     interval: Literal["15m", "1h"] = "1h"
     vknd_codes: Optional[list[str | int]] = None
 
+
+class RawTrafficDrctRequest(JobRequest):
+    interval: Literal["5m", "15m", "1h", "1d"] = "1h"
+    approach_ids: Optional[list[str | int]] = None
+    drct_codes: Optional[list[str | int]] = None

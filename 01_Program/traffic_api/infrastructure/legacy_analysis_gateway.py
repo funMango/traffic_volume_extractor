@@ -10,6 +10,7 @@ class LegacyTrafficAnalysisGateway:
 
     def initialize(self) -> None:
         legacy._holiday_dates = legacy.ad.load_holidays()
+        legacy._ensure_drct_direction_presence_cache()
 
     def corrected_traffic(self, request: dict) -> dict:
         return legacy._fetch_corrected_traffic(request)
@@ -19,6 +20,9 @@ class LegacyTrafficAnalysisGateway:
 
     def raw_traffic(self, request) -> dict:
         return legacy._fetch_raw_traffic(request)
+
+    def raw_traffic_drct(self, request) -> dict:
+        return legacy._fetch_raw_traffic_drct(request)
 
     def raw_traffic_vknd(self, request) -> dict:
         return legacy._fetch_raw_traffic_vknd(request)
@@ -91,4 +95,3 @@ class LegacyReferenceDataGateway:
 
     def vehicle_kinds(self) -> list[dict]:
         return legacy._fetch_vehicle_kinds()
-

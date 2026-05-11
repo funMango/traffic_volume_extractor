@@ -73,7 +73,7 @@ from traffic_api.domain.aggregation import aggregate_acsr_slots_from_drct  # noq
 from traffic_api.infrastructure.legacy_analysis_gateway import LegacyTrafficAnalysisGateway  # noqa: E402
 from traffic_api.infrastructure.memory_job_store import InMemoryJobStore  # noqa: E402
 from traffic_api.main import create_app  # noqa: E402
-from traffic_api.presentation.schemas import JobRequest, RawTrafficVkndRequest  # noqa: E402
+from traffic_api.presentation.schemas import JobRequest, RawTrafficDrctRequest, RawTrafficVkndRequest  # noqa: E402
 
 
 class _ImmediateRunner:
@@ -121,6 +121,19 @@ class TestRequestModels(unittest.TestCase):
             date_end="2026-03-01",
         )
         self.assertEqual(req.interval, "1h")
+
+    def test_raw_drct_request_supports_filters_and_daily_interval(self):
+        req = RawTrafficDrctRequest(
+            node_ids=[1],
+            date_start="2026-03-01",
+            date_end="2026-03-01",
+            interval="1d",
+            approach_ids=[10],
+            drct_codes=["01"],
+        )
+        self.assertEqual(req.interval, "1d")
+        self.assertEqual(req.approach_ids, [10])
+        self.assertEqual(req.drct_codes, ["01"])
 
 
 class TestDomainAggregation(unittest.TestCase):
@@ -197,6 +210,7 @@ class TestFastApiEntryPoint(unittest.TestCase):
             "/corrected-traffic",
             "/corrected-traffic-drct",
             "/raw-traffic",
+            "/raw-traffic-drct",
             "/raw-traffic-vknd",
             "/corrected-traffic-vknd",
             "/vehicle-kinds",
@@ -261,4 +275,3 @@ class TestLegacyGateway(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
-

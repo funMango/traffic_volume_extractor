@@ -22,6 +22,9 @@ class TrafficQueryUseCase:
     def raw_traffic(self, request) -> dict:
         return self._gateway.raw_traffic(request)
 
+    def raw_traffic_drct(self, request) -> dict:
+        return self._gateway.raw_traffic_drct(request)
+
     def raw_traffic_vknd(self, request) -> dict:
         return self._gateway.raw_traffic_vknd(request)
 
