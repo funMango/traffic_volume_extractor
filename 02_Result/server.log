@@ -11700,3 +11700,8 @@
 2026-04-16 14:57:19 INFO     uvicorn.access  127.0.0.1:63732 - "GET /jobs/0bbcd14d-69a8-4d7d-b302-f3824bd74380 HTTP/1.1" 200
 2026-04-16 14:57:22 INFO     uvicorn.access  127.0.0.1:63732 - "GET /jobs/0bbcd14d-69a8-4d7d-b302-f3824bd74380 HTTP/1.1" 200
 2026-04-16 14:57:26 INFO     uvicorn.access  127.0.0.1:63732 - "GET /jobs/0bbcd14d-69a8-4d7d-b302-f3824bd74380 HTTP/1.1" 200
+INFO:     Started server process [35536]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:60744 - "GET /openapi.json HTTP/1.1" 200 OK
