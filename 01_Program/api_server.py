@@ -30,6 +30,9 @@ import re
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, model_validator
+from traffic_api.domain.aggregation import (
+    aggregate_crsrd_slots_from_acsr as _domain_aggregate_crsrd_slots_from_acsr,
+)
 
 # 이상탐지 모듈 import (경로는 이상탐지.py의 __file__ 기준으로 동작)
 sys.path.insert(0, str(Path(__file__).parent))
@@ -498,6 +501,10 @@ def _aggregate_acsr_slots_from_drct(drct_slots: list[dict]) -> list[dict]:
 
 
 # ── 헬퍼: job 직렬화 ─────────────────────────────────────────────────────────
+
+def _aggregate_crsrd_slots_from_acsr(acsr_slots: list[dict]) -> list[dict]:
+    return _domain_aggregate_crsrd_slots_from_acsr(acsr_slots)
+
 
 def _sum_optional(current, value):
     if value is None:
@@ -1105,6 +1112,17 @@ def _fetch_corrected_traffic_drct(req: JobRequest) -> dict:
         return {"slots": slots, "drct_slots": filtered_drct_slots}
     finally:
         conn.close()
+
+
+def _fetch_corrected_traffic_acsr(req: JobRequest) -> dict:
+    drct_result = _fetch_corrected_traffic_drct(req)
+    return {"slots": drct_result["slots"]}
+
+
+def _fetch_corrected_traffic_crsrd(req: JobRequest) -> dict:
+    acsr_result = _fetch_corrected_traffic_acsr(req)
+    slots = _aggregate_crsrd_slots_from_acsr(acsr_result["slots"])
+    return {"slots": slots}
 
 
 def _fetch_raw_traffic(req: JobRequest) -> dict:
@@ -2721,6 +2739,22 @@ async def corrected_traffic(req: JobRequest):
     return result
 
 
+@app.post("/corrected-traffic-acsr")
+async def corrected_traffic_acsr(req: JobRequest):
+    """Return DRCT-based corrected traffic aggregated to ACSR slots."""
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(executor, _fetch_corrected_traffic_acsr, req)
+    return result
+
+
+@app.post("/corrected-traffic-crsrd")
+async def corrected_traffic_crsrd(req: JobRequest):
+    """Return DRCT-based corrected traffic aggregated to CRSRD slots."""
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(executor, _fetch_corrected_traffic_crsrd, req)
+    return result
+
+
 @app.post("/corrected-traffic-drct")
 async def corrected_traffic_drct(req: JobRequest):
     """DRCT 단위 결과와 ACSR 집계 결과를 동기적으로 반환합니다.
@@ -2731,30 +2765,6 @@ async def corrected_traffic_drct(req: JobRequest):
     """
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(executor, _fetch_corrected_traffic_drct, req)
-    return result
-
-
-@app.post("/raw-traffic")
-async def raw_traffic(req: JobRequest):
-    """Return raw DRCT traffic plus approach and node aggregates."""
-    loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(executor, _fetch_raw_traffic, req)
-    return result
-
-
-@app.post("/raw-traffic-vknd")
-async def raw_traffic_vknd(req: RawTrafficVkndRequest):
-    """Return raw vehicle-kind traffic plus approach and node aggregates."""
-    loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(executor, _fetch_raw_traffic_vknd, req)
-    return result
-
-
-@app.post("/raw-traffic-drct")
-async def raw_traffic_drct(req: RawTrafficDrctRequest):
-    """Return raw direction traffic plus approach and node aggregates."""
-    loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(executor, _fetch_raw_traffic_drct, req)
     return result
 
 

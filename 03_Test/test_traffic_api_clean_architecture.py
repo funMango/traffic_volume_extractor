@@ -69,7 +69,10 @@ if "openpyxl.utils" not in sys.modules:
 from fastapi.testclient import TestClient  # noqa: E402
 
 from traffic_api.application.job_use_cases import JobUseCase  # noqa: E402
-from traffic_api.domain.aggregation import aggregate_acsr_slots_from_drct  # noqa: E402
+from traffic_api.domain.aggregation import (  # noqa: E402
+    aggregate_acsr_slots_from_drct,
+    aggregate_crsrd_slots_from_acsr,
+)
 from traffic_api.infrastructure.legacy_analysis_gateway import LegacyTrafficAnalysisGateway  # noqa: E402
 from traffic_api.infrastructure.memory_job_store import InMemoryJobStore  # noqa: E402
 from traffic_api.main import create_app  # noqa: E402
@@ -137,6 +140,63 @@ class TestRequestModels(unittest.TestCase):
 
 
 class TestDomainAggregation(unittest.TestCase):
+    def test_drct_directions_roll_up_to_one_acsr_slot(self):
+        rows = aggregate_acsr_slots_from_drct([
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 1,
+                "node_name": "N",
+                "approach_id": 10,
+                "approach_name": "East",
+                "drct_cd": "01",
+                "traffic_volume": 10,
+                "anomaly_type": None,
+                "corrected_value": None,
+            },
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 1,
+                "node_name": "N",
+                "approach_id": 10,
+                "approach_name": "East",
+                "drct_cd": "02",
+                "traffic_volume": 20,
+                "anomaly_type": "A형",
+                "corrected_value": 30,
+            },
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 1,
+                "node_name": "N",
+                "approach_id": 10,
+                "approach_name": "East",
+                "drct_cd": "03",
+                "traffic_volume": 40,
+                "anomaly_type": None,
+                "corrected_value": None,
+            },
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 1,
+                "node_name": "N",
+                "approach_id": 10,
+                "approach_name": "East",
+                "drct_cd": "04",
+                "traffic_volume": 50,
+                "anomaly_type": "B형",
+                "corrected_value": 60,
+            },
+        ])
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["traffic_volume"], 120)
+        self.assertEqual(rows[0]["corrected_value"], 140)
+        self.assertEqual(rows[0]["anomaly_type"], "A+B혼합")
+
     def test_drct_aggregation_is_pure_and_ignores_00(self):
         rows = aggregate_acsr_slots_from_drct([
             {
@@ -181,6 +241,60 @@ class TestDomainAggregation(unittest.TestCase):
         self.assertEqual(rows[0]["corrected_value"], 130)
         self.assertEqual(rows[0]["anomaly_type"], "A+B혼합")
 
+    def test_acsr_approaches_roll_up_to_one_crsrd_slot(self):
+        rows = aggregate_crsrd_slots_from_acsr([
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 1,
+                "node_name": "N",
+                "approach_id": 10,
+                "approach_name": "East",
+                "traffic_volume": 100,
+                "anomaly_type": None,
+                "corrected_value": None,
+            },
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 1,
+                "node_name": "N",
+                "approach_id": 20,
+                "approach_name": "West",
+                "traffic_volume": 200,
+                "anomaly_type": "A형",
+                "corrected_value": 250,
+            },
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 1,
+                "node_name": "N",
+                "approach_id": 30,
+                "approach_name": "South",
+                "traffic_volume": 300,
+                "anomaly_type": None,
+                "corrected_value": None,
+            },
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 1,
+                "node_name": "N",
+                "approach_id": 40,
+                "approach_name": "North",
+                "traffic_volume": 400,
+                "anomaly_type": "B형",
+                "corrected_value": 450,
+            },
+        ])
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["traffic_volume"], 1000)
+        self.assertEqual(rows[0]["corrected_value"], 1100)
+        self.assertEqual(rows[0]["anomaly_type"], "A+B혼합")
+        self.assertNotIn("approach_id", rows[0])
+
 
 class TestJobUseCase(unittest.TestCase):
     def test_create_runs_background_job_and_serializes_status(self):
@@ -208,16 +322,21 @@ class TestFastApiEntryPoint(unittest.TestCase):
             "/jobs",
             "/jobs/{job_id}",
             "/corrected-traffic",
+            "/corrected-traffic-acsr",
+            "/corrected-traffic-crsrd",
             "/corrected-traffic-drct",
-            "/raw-traffic",
-            "/raw-traffic-drct",
-            "/raw-traffic-vknd",
             "/corrected-traffic-vknd",
             "/vehicle-kinds",
             "/anomaly-daily-summary",
             "/intersections",
         ):
             self.assertIn(path, paths)
+        for path in (
+            "/raw-traffic",
+            "/raw-traffic-drct",
+            "/raw-traffic-vknd",
+        ):
+            self.assertNotIn(path, paths)
 
     def test_corrected_traffic_response_shape_comes_from_use_case(self):
         app = create_app()
@@ -240,6 +359,32 @@ class TestFastApiEntryPoint(unittest.TestCase):
         self.assertEqual(resp.json(), {"slots": [{"hour": 8}]})
         call_req = app.state.services["traffic"].corrected_traffic.call_args.args[0]
         self.assertEqual(call_req.resolve_hours(), [7, 8, 12, 13, 17, 18])
+
+    def test_corrected_acsr_and_crsrd_response_shapes_come_from_use_case(self):
+        app = create_app()
+        app.state.services["traffic"].corrected_traffic_acsr = MagicMock(
+            return_value={"slots": [{"approach_id": 10}]}
+        )
+        app.state.services["traffic"].corrected_traffic_crsrd = MagicMock(
+            return_value={"slots": [{"node_id": 1}]}
+        )
+        client = TestClient(app)
+        payload = {
+            "node_ids": [1],
+            "date_start": "2026-05-04",
+            "date_end": "2026-05-04",
+            "hours": [17],
+        }
+
+        acsr_resp = client.post("/corrected-traffic-acsr", json=payload)
+        crsrd_resp = client.post("/corrected-traffic-crsrd", json=payload)
+
+        self.assertEqual(acsr_resp.status_code, 200)
+        self.assertEqual(acsr_resp.json(), {"slots": [{"approach_id": 10}]})
+        self.assertEqual(crsrd_resp.status_code, 200)
+        self.assertEqual(crsrd_resp.json(), {"slots": [{"node_id": 1}]})
+        app.state.services["traffic"].corrected_traffic_acsr.assert_called_once()
+        app.state.services["traffic"].corrected_traffic_crsrd.assert_called_once()
 
 
 class TestLegacyGateway(unittest.TestCase):

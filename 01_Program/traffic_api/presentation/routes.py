@@ -4,7 +4,7 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException, Request
 
-from .schemas import JobRequest, RawTrafficDrctRequest, RawTrafficVkndRequest
+from .schemas import JobRequest, RawTrafficVkndRequest
 
 
 router = APIRouter()
@@ -37,42 +37,32 @@ async def corrected_traffic(req: JobRequest, request: Request):
     )
 
 
+@router.post("/corrected-traffic-acsr")
+async def corrected_traffic_acsr(req: JobRequest, request: Request):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None,
+        _services(request)["traffic"].corrected_traffic_acsr,
+        req,
+    )
+
+
+@router.post("/corrected-traffic-crsrd")
+async def corrected_traffic_crsrd(req: JobRequest, request: Request):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None,
+        _services(request)["traffic"].corrected_traffic_crsrd,
+        req,
+    )
+
+
 @router.post("/corrected-traffic-drct")
 async def corrected_traffic_drct(req: JobRequest, request: Request):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
         None,
         _services(request)["traffic"].corrected_traffic_drct,
-        req,
-    )
-
-
-@router.post("/raw-traffic")
-async def raw_traffic(req: JobRequest, request: Request):
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(
-        None,
-        _services(request)["traffic"].raw_traffic,
-        req,
-    )
-
-
-@router.post("/raw-traffic-drct")
-async def raw_traffic_drct(req: RawTrafficDrctRequest, request: Request):
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(
-        None,
-        _services(request)["traffic"].raw_traffic_drct,
-        req,
-    )
-
-
-@router.post("/raw-traffic-vknd")
-async def raw_traffic_vknd(req: RawTrafficVkndRequest, request: Request):
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(
-        None,
-        _services(request)["traffic"].raw_traffic_vknd,
         req,
     )
 

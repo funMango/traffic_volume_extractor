@@ -16,17 +16,14 @@ class TrafficQueryUseCase:
         }
         return self._gateway.corrected_traffic(payload)
 
+    def corrected_traffic_acsr(self, request) -> dict:
+        return self._gateway.corrected_traffic_acsr(request)
+
+    def corrected_traffic_crsrd(self, request) -> dict:
+        return self._gateway.corrected_traffic_crsrd(request)
+
     def corrected_traffic_drct(self, request) -> dict:
         return self._gateway.corrected_traffic_drct(request)
-
-    def raw_traffic(self, request) -> dict:
-        return self._gateway.raw_traffic(request)
-
-    def raw_traffic_drct(self, request) -> dict:
-        return self._gateway.raw_traffic_drct(request)
-
-    def raw_traffic_vknd(self, request) -> dict:
-        return self._gateway.raw_traffic_vknd(request)
 
     def corrected_traffic_vknd(self, request) -> dict:
         return self._gateway.corrected_traffic_vknd(request)

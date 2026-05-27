@@ -10591,17 +10591,27 @@
             "01": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
             },
             "02": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
             },
             "03": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
+            },
+            "04": {
+              "basis": "last_1_year_1h_positive",
+              "exists": false,
+              "last_checked_date": "2026-05-13"
+            },
+            "05": {
+              "basis": "last_1_year_1h_positive",
+              "exists": false,
+              "last_checked_date": "2026-05-13"
             }
           }
         },
@@ -10610,22 +10620,27 @@
             "01": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
             },
             "02": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
             },
             "03": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
             },
             "04": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
+            },
+            "05": {
+              "basis": "last_1_year_1h_positive",
+              "exists": false,
+              "last_checked_date": "2026-05-13"
             }
           }
         },
@@ -10634,17 +10649,27 @@
             "01": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
             },
             "02": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
             },
             "03": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
+            },
+            "04": {
+              "basis": "last_1_year_1h_positive",
+              "exists": false,
+              "last_checked_date": "2026-05-13"
+            },
+            "05": {
+              "basis": "last_1_year_1h_positive",
+              "exists": false,
+              "last_checked_date": "2026-05-13"
             }
           }
         },
@@ -10653,17 +10678,27 @@
             "01": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
             },
             "02": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
             },
             "03": {
               "basis": "last_1_year_1h_positive",
               "exists": true,
-              "last_checked_date": "2026-05-11"
+              "last_checked_date": "2026-05-13"
+            },
+            "04": {
+              "basis": "last_1_year_1h_positive",
+              "exists": false,
+              "last_checked_date": "2026-05-13"
+            },
+            "05": {
+              "basis": "last_1_year_1h_positive",
+              "exists": false,
+              "last_checked_date": "2026-05-13"
             }
           }
         }

@@ -242,9 +242,8 @@ class TestFetchRawTrafficVknd(unittest.TestCase):
 
 
 class TestRawTrafficVkndEndpoint(unittest.TestCase):
-    def test_endpoint_returns_vknd_payload(self):
-        payload = {"vknd_slots": [], "slots": [], "node_slots": []}
-        with patch.object(api_server, "_fetch_raw_traffic_vknd", return_value=payload) as mock_fetch:
+    def test_endpoint_is_removed(self):
+        with patch.object(api_server, "_fetch_raw_traffic_vknd") as mock_fetch:
             resp = _client.post(
                 "/raw-traffic-vknd",
                 json={
@@ -255,11 +254,10 @@ class TestRawTrafficVkndEndpoint(unittest.TestCase):
                 },
             )
 
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json(), payload)
-        self.assertEqual(mock_fetch.call_count, 1)
+        self.assertEqual(resp.status_code, 404)
+        mock_fetch.assert_not_called()
 
-    def test_invalid_interval_returns_422(self):
+    def test_removed_endpoint_returns_404_before_validation(self):
         resp = _client.post(
             "/raw-traffic-vknd",
             json={
@@ -270,7 +268,7 @@ class TestRawTrafficVkndEndpoint(unittest.TestCase):
             },
         )
 
-        self.assertEqual(resp.status_code, 422)
+        self.assertEqual(resp.status_code, 404)
 
 
 class TestVehicleKindsEndpoint(unittest.TestCase):
@@ -428,7 +426,9 @@ class TestCorrectedTrafficVkndEndpoint(unittest.TestCase):
         resp = _client.get("/openapi.json")
 
         self.assertEqual(resp.status_code, 200)
-        self.assertIn("/corrected-traffic-vknd", resp.json()["paths"])
+        paths = resp.json()["paths"]
+        self.assertIn("/corrected-traffic-vknd", paths)
+        self.assertNotIn("/raw-traffic-vknd", paths)
 
     def test_endpoint_returns_corrected_vknd_payload(self):
         payload = {"vknd_slots": [], "slots": [], "node_slots": []}

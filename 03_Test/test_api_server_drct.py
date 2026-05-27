@@ -207,6 +207,88 @@ class TestFetchCorrectedTrafficDrct(unittest.TestCase):
         self.assertEqual(row["corrected_value"], 215)
         self.assertEqual(row["anomaly_type"], "A+B혼합")
 
+    def test_crsrd_aggregate_uses_corrected_or_raw_acsr_values(self):
+        rows = api_server._aggregate_crsrd_slots_from_acsr([
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 260322,
+                "node_name": "송내사거리",
+                "approach_id": 2001,
+                "approach_name": "동",
+                "traffic_volume": 100,
+                "anomaly_type": None,
+                "corrected_value": None,
+            },
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 260322,
+                "node_name": "송내사거리",
+                "approach_id": 2002,
+                "approach_name": "서",
+                "traffic_volume": 200,
+                "anomaly_type": "A형",
+                "corrected_value": 250,
+            },
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 260322,
+                "node_name": "송내사거리",
+                "approach_id": 2003,
+                "approach_name": "남",
+                "traffic_volume": 300,
+                "anomaly_type": "B형",
+                "corrected_value": 350,
+            },
+        ])
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["traffic_volume"], 600)
+        self.assertEqual(rows[0]["corrected_value"], 700)
+        self.assertEqual(rows[0]["anomaly_type"], "A+B혼합")
+        self.assertNotIn("approach_id", rows[0])
+
+    def test_acsr_and_crsrd_fetch_return_only_requested_levels(self):
+        acsr_slots = [
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 260322,
+                "node_name": "송내사거리",
+                "approach_id": 2001,
+                "approach_name": "동",
+                "traffic_volume": 100,
+                "anomaly_type": None,
+                "corrected_value": None,
+            },
+            {
+                "date": "2026-05-04",
+                "hour": 17,
+                "node_id": 260322,
+                "node_name": "송내사거리",
+                "approach_id": 2002,
+                "approach_name": "서",
+                "traffic_volume": 200,
+                "anomaly_type": "A형",
+                "corrected_value": 250,
+            },
+        ]
+
+        with patch.object(
+            api_server,
+            "_fetch_corrected_traffic_drct",
+            return_value={"slots": acsr_slots, "drct_slots": [{"drct_cd": "01"}]},
+        ):
+            acsr_result = api_server._fetch_corrected_traffic_acsr(self._make_request())
+            crsrd_result = api_server._fetch_corrected_traffic_crsrd(self._make_request())
+
+        self.assertEqual(acsr_result, {"slots": acsr_slots})
+        self.assertEqual(crsrd_result["slots"][0]["traffic_volume"], 300)
+        self.assertEqual(crsrd_result["slots"][0]["corrected_value"], 350)
+        self.assertNotIn("drct_slots", crsrd_result)
+
     def test_fetch_drct_excludes_drct_00_from_outputs(self):
         d = date(2026, 3, 22)
         node_results = [
@@ -264,6 +346,44 @@ class TestFetchCorrectedTrafficDrct(unittest.TestCase):
 class TestCorrectedTrafficDrctEndpoint(unittest.TestCase):
     def setUp(self):
         api_server._holiday_dates = set()
+
+    def test_acsr_endpoint_returns_slots_only(self):
+        with patch.object(
+            api_server,
+            "_fetch_corrected_traffic_acsr",
+            return_value={"slots": [{"approach_id": 2001}]},
+        ) as mock_fetch:
+            resp = _client.post(
+                "/corrected-traffic-acsr",
+                json={
+                    "node_ids": [260322],
+                    "date_start": "2026-03-22",
+                    "date_end": "2026-03-22",
+                },
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json(), {"slots": [{"approach_id": 2001}]})
+        self.assertEqual(mock_fetch.call_count, 1)
+
+    def test_crsrd_endpoint_returns_slots_only(self):
+        with patch.object(
+            api_server,
+            "_fetch_corrected_traffic_crsrd",
+            return_value={"slots": [{"node_id": 260322}]},
+        ) as mock_fetch:
+            resp = _client.post(
+                "/corrected-traffic-crsrd",
+                json={
+                    "node_ids": [260322],
+                    "date_start": "2026-03-22",
+                    "date_end": "2026-03-22",
+                },
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json(), {"slots": [{"node_id": 260322}]})
+        self.assertEqual(mock_fetch.call_count, 1)
 
     def test_endpoint_returns_slots_and_drct_slots(self):
         with patch.object(
@@ -414,9 +534,8 @@ class TestRawTraffic(unittest.TestCase):
 
 
 class TestRawTrafficEndpoint(unittest.TestCase):
-    def test_endpoint_returns_raw_payload(self):
-        payload = {"drct_slots": [], "slots": [], "node_slots": []}
-        with patch.object(api_server, "_fetch_raw_traffic", return_value=payload) as mock_fetch:
+    def test_endpoint_is_removed(self):
+        with patch.object(api_server, "_fetch_raw_traffic") as mock_fetch:
             resp = _client.post(
                 "/raw-traffic",
                 json={
@@ -426,9 +545,8 @@ class TestRawTrafficEndpoint(unittest.TestCase):
                 },
             )
 
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json(), payload)
-        self.assertEqual(mock_fetch.call_count, 1)
+        self.assertEqual(resp.status_code, 404)
+        mock_fetch.assert_not_called()
 
 
 class _FakeCursor:
@@ -545,9 +663,8 @@ class TestRawTrafficDrct(unittest.TestCase):
 
 
 class TestRawTrafficDrctEndpoint(unittest.TestCase):
-    def test_endpoint_returns_raw_drct_payload(self):
-        payload = {"drct_slots": [], "slots": [], "node_slots": []}
-        with patch.object(api_server, "_fetch_raw_traffic_drct", return_value=payload) as mock_fetch:
+    def test_endpoint_is_removed(self):
+        with patch.object(api_server, "_fetch_raw_traffic_drct") as mock_fetch:
             resp = _client.post(
                 "/raw-traffic-drct",
                 json={
@@ -560,9 +677,8 @@ class TestRawTrafficDrctEndpoint(unittest.TestCase):
                 },
             )
 
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json(), payload)
-        self.assertEqual(mock_fetch.call_count, 1)
+        self.assertEqual(resp.status_code, 404)
+        mock_fetch.assert_not_called()
 
 
 if __name__ == "__main__":

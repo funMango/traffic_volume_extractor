@@ -11705,3 +11705,1269 @@ INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 INFO:     127.0.0.1:60744 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62664 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62664 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [35536]
+INFO:     Started server process [4688]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:52674 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52674 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     192.168.141.197:34008 - "GET /nmaplowercheck1778546032 HTTP/1.1" 404 Not Found
+INFO:     192.168.141.197:34012 - "GET /HNAP1 HTTP/1.1" 404 Not Found
+INFO:     192.168.141.197:48230 - "GET / HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:64586 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64591 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61812 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61823 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61822 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61847 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52146 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52149 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52155 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63719 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65184 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61374 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51847 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57846 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53767 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53794 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63300 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63311 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62933 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62918 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63002 - "POST /raw-traffic HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:62962 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52855 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52862 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63006 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52886 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52872 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65520 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61615 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61603 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49835 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49858 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49850 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53054 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53078 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53065 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50112 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63605 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50119 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63663 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63667 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63693 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49794 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61183 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63738 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61183 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61187 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61246 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61247 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61247 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61246 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61284 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61226 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61284 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61298 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61337 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54113 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54156 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56809 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58453 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62672 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60333 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60367 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56587 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56591 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60454 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] (구)소사경찰서입구삼거리 | DB쿼리=2.442s | baselines=0.996s | target_data=0.410s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] (구)소사경찰서입구삼거리 | baseline_core=1.929s/13,198rows | adj=0.513s/2,978rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.410s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=1)
+INFO:     127.0.0.1:56630 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 24시콩나물국밥집앞 | DB쿼리=1.093s | baselines=0.841s | target_data=0.237s | cells=216 stage1=72 stage2=72
+[PROFILE_DB] 24시콩나물국밥집앞 | baseline_core=0.669s/8,789rows | adj=0.317s/3,036rows | stage2=0.107s/2,863rows(filtered:2,863) | fallback=0.000s/0rows(filtered:0) | target=0.237s/2,143rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=72 fallback_keys=0 cache(hits=0, misses=2, size=3)
+INFO:     127.0.0.1:56646 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] E1충전소앞 | DB쿼리=0.722s | baselines=0.895s | target_data=0.139s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] E1충전소앞 | baseline_core=0.538s/13,138rows | adj=0.184s/3,017rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.139s/2,136rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=4)
+INFO:     127.0.0.1:56653 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] MJ컨벤션앞삼거리 | DB쿼리=0.709s | baselines=0.920s | target_data=0.146s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] MJ컨벤션앞삼거리 | baseline_core=0.532s/12,829rows | adj=0.177s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.146s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=5)
+INFO:     127.0.0.1:56657 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 간대미사거리 | DB쿼리=1.054s | baselines=1.191s | target_data=0.111s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 간대미사거리 | baseline_core=0.939s/15,428rows | adj=0.115s/4,069rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.111s/2,876rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=6)
+INFO:     127.0.0.1:56664 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 건강사거리 | DB쿼리=1.044s | baselines=1.076s | target_data=0.137s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 건강사거리 | baseline_core=0.859s/17,363rows | adj=0.184s/4,070rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.137s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=7)
+INFO:     127.0.0.1:56670 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 경인가로공원앞삼거리 | DB쿼리=0.070s | baselines=0.862s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 경인가로공원앞삼거리 | baseline_core=0.053s/13,198rows | adj=0.017s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=8)
+INFO:     127.0.0.1:56674 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 계남고가사거리 | DB쿼리=0.842s | baselines=1.329s | target_data=0.097s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 계남고가사거리 | baseline_core=0.717s/17,531rows | adj=0.125s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.097s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=9)
+INFO:     127.0.0.1:56679 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 계남고삼거리 | DB쿼리=1.324s | baselines=0.881s | target_data=0.204s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 계남고삼거리 | baseline_core=1.040s/12,674rows | adj=0.284s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.204s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=10)
+INFO:     127.0.0.1:56683 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 계수교교차로 | DB쿼리=0.476s | baselines=1.043s | target_data=0.050s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 계수교교차로 | baseline_core=0.421s/16,748rows | adj=0.055s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.050s/2,879rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=11)
+INFO:     127.0.0.1:56689 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 고강동국민은행 | DB쿼리=0.228s | baselines=0.883s | target_data=0.035s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 고강동국민은행 | baseline_core=0.182s/12,882rows | adj=0.047s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.035s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=12)
+INFO:     127.0.0.1:56697 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 고강동서울시계 | DB쿼리=0.107s | baselines=1.226s | target_data=0.018s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 고강동서울시계 | baseline_core=0.089s/16,058rows | adj=0.018s/4,070rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.018s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=13)
+INFO:     127.0.0.1:56701 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 고강사거리 | DB쿼리=0.141s | baselines=1.213s | target_data=0.018s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 고강사거리 | baseline_core=0.120s/17,419rows | adj=0.021s/4,058rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.018s/2,875rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=14)
+INFO:     127.0.0.1:56709 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 고강지하차도사거리 | DB쿼리=2.352s | baselines=1.207s | target_data=0.409s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 고강지하차도사거리 | baseline_core=1.855s/17,015rows | adj=0.497s/4,059rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.409s/2,819rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=15)
+INFO:     127.0.0.1:56713 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 고리울사거리 | DB쿼리=0.108s | baselines=1.119s | target_data=0.022s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 고리울사거리 | baseline_core=0.086s/17,175rows | adj=0.021s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.022s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=16)
+INFO:     127.0.0.1:56720 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 고리울삼거리 | DB쿼리=0.070s | baselines=0.851s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 고리울삼거리 | baseline_core=0.054s/12,884rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=17)
+INFO:     127.0.0.1:56728 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 괴안사거리 | DB쿼리=0.698s | baselines=1.299s | target_data=0.096s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 괴안사거리 | baseline_core=0.570s/17,569rows | adj=0.127s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.096s/2,877rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=18)
+INFO:     127.0.0.1:56734 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56621 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 교육지원청사거리 | DB쿼리=0.327s | baselines=1.133s | target_data=0.045s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 교육지원청사거리 | baseline_core=0.273s/17,601rows | adj=0.054s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.045s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=19)
+INFO:     127.0.0.1:56742 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 구지사거리 | DB쿼리=0.697s | baselines=1.134s | target_data=0.109s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 구지사거리 | baseline_core=0.553s/17,571rows | adj=0.144s/4,065rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.109s/2,873rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=20)
+INFO:     127.0.0.1:56758 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 국민은행삼거리 | DB쿼리=0.399s | baselines=1.058s | target_data=0.069s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 국민은행삼거리 | baseline_core=0.304s/12,441rows | adj=0.095s/3,053rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.069s/2,135rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=21)
+INFO:     127.0.0.1:56763 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 굴포로사거리 | DB쿼리=1.815s | baselines=1.101s | target_data=0.269s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 굴포로사거리 | baseline_core=1.448s/17,566rows | adj=0.367s/4,069rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.269s/2,878rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=22)
+INFO:     127.0.0.1:56771 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 극동아파트사거리 | DB쿼리=0.402s | baselines=1.206s | target_data=0.156s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 극동아파트사거리 | baseline_core=0.302s/17,157rows | adj=0.100s/3,794rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.156s/2,722rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=23)
+INFO:     127.0.0.1:56778 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 근로자종합복지관사거리 | DB쿼리=0.574s | baselines=1.225s | target_data=0.068s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 근로자종합복지관사거리 | baseline_core=0.485s/17,519rows | adj=0.090s/4,067rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.068s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=24)
+INFO:     127.0.0.1:56785 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 금강마을419동앞사거리 | DB쿼리=0.865s | baselines=1.147s | target_data=0.114s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 금강마을419동앞사거리 | baseline_core=0.699s/17,528rows | adj=0.165s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.114s/2,877rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=25)
+INFO:     127.0.0.1:56793 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 길주사거리 | DB쿼리=0.098s | baselines=1.187s | target_data=0.024s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 길주사거리 | baseline_core=0.072s/17,460rows | adj=0.026s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.024s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=26)
+INFO:     127.0.0.1:56799 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 길주삼거리 | DB쿼리=0.090s | baselines=1.114s | target_data=0.017s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 길주삼거리 | baseline_core=0.067s/17,531rows | adj=0.023s/3,987rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,829rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=27)
+INFO:     127.0.0.1:56803 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 까치울사거리 | DB쿼리=0.611s | baselines=1.159s | target_data=0.097s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 까치울사거리 | baseline_core=0.492s/15,799rows | adj=0.119s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.097s/2,879rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=28)
+INFO:     127.0.0.1:56807 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 꿈마을사거리 | DB쿼리=0.143s | baselines=1.136s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 꿈마을사거리 | baseline_core=0.126s/17,546rows | adj=0.017s/3,995rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=29)
+INFO:     127.0.0.1:56813 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 꿈빛도서관사거리 | DB쿼리=0.085s | baselines=1.166s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 꿈빛도서관사거리 | baseline_core=0.070s/17,587rows | adj=0.015s/3,995rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,824rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=30)
+INFO:     127.0.0.1:56817 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 나들이4R | DB쿼리=0.212s | baselines=1.251s | target_data=0.021s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 나들이4R | baseline_core=0.182s/17,544rows | adj=0.029s/4,019rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.021s/2,878rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=31)
+INFO:     127.0.0.1:56824 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 남부천신협앞 | DB쿼리=0.076s | baselines=0.626s | target_data=0.014s | cells=216 stage1=72 stage2=72
+[PROFILE_DB] 남부천신협앞 | baseline_core=0.044s/8,782rows | adj=0.018s/2,036rows | stage2=0.011s/0rows(filtered:0) | fallback=0.003s/0rows(filtered:0) | target=0.014s/1,440rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=72 fallback_keys=72 cache(hits=0, misses=3, size=34)
+INFO:     127.0.0.1:56840 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 내동사거리 | DB쿼리=0.672s | baselines=1.126s | target_data=0.084s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 내동사거리 | baseline_core=0.577s/17,565rows | adj=0.095s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.084s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=35)
+INFO:     127.0.0.1:56844 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 내촌고가삼거리 | DB쿼리=0.075s | baselines=0.896s | target_data=0.216s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 내촌고가삼거리 | baseline_core=0.059s/13,198rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.216s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=36)
+INFO:     127.0.0.1:56848 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 내촌사거리 | DB쿼리=0.087s | baselines=1.127s | target_data=0.112s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 내촌사거리 | baseline_core=0.070s/17,597rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.112s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=37)
+INFO:     127.0.0.1:56853 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 넘말사거리 | DB쿼리=0.119s | baselines=1.165s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 넘말사거리 | baseline_core=0.102s/17,539rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=38)
+INFO:     127.0.0.1:56858 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 뉴서울아파트삼거리 | DB쿼리=0.058s | baselines=0.802s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 뉴서울아파트삼거리 | baseline_core=0.044s/13,199rows | adj=0.014s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=39)
+INFO:     127.0.0.1:56864 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 다니엘병원삼거리 | DB쿼리=0.079s | baselines=0.852s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 다니엘병원삼거리 | baseline_core=0.056s/12,863rows | adj=0.023s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,156rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=40)
+INFO:     127.0.0.1:56869 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 단독택지사거리 | DB쿼리=0.100s | baselines=1.184s | target_data=0.012s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 단독택지사거리 | baseline_core=0.086s/17,279rows | adj=0.015s/4,011rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.012s/2,833rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=41)
+INFO:     127.0.0.1:56873 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 대명초교앞 | DB쿼리=0.069s | baselines=0.852s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 대명초교앞 | baseline_core=0.052s/13,114rows | adj=0.017s/3,009rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,143rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=42)
+INFO:     127.0.0.1:56879 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 대장동공영차고지사거리 | DB쿼리=0.172s | baselines=0.840s | target_data=0.040s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 대장동공영차고지사거리 | baseline_core=0.131s/13,049rows | adj=0.041s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.040s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=43)
+INFO:     127.0.0.1:56888 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 대장동입구삼거리 | DB쿼리=0.130s | baselines=0.684s | target_data=0.026s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 대장동입구삼거리 | baseline_core=0.098s/10,866rows | adj=0.031s/3,027rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.026s/2,154rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=44)
+INFO:     127.0.0.1:56894 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 대학길삼거리 | DB쿼리=0.076s | baselines=0.729s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 대학길삼거리 | baseline_core=0.061s/13,198rows | adj=0.015s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,103rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=45)
+INFO:     127.0.0.1:56903 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56751 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 덕산고교사거리 | DB쿼리=0.075s | baselines=0.658s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 덕산고교사거리 | baseline_core=0.059s/17,599rows | adj=0.015s/3,979rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=46)
+INFO:     127.0.0.1:56910 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 도당공구상가사거리 | DB쿼리=0.066s | baselines=0.713s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 도당공구상가사거리 | baseline_core=0.049s/13,185rows | adj=0.017s/2,995rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,158rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=47)
+INFO:     127.0.0.1:57975 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 도당교사거리 | DB쿼리=13.602s | baselines=1.088s | target_data=0.096s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 도당교사거리 | baseline_core=13.477s/17,533rows | adj=0.125s/4,053rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.096s/2,876rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=48)
+INFO:     127.0.0.1:57979 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 도당사거리 | DB쿼리=1.579s | baselines=1.162s | target_data=0.019s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 도당사거리 | baseline_core=1.563s/17,583rows | adj=0.016s/3,982rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.019s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=49)
+INFO:     127.0.0.1:64533 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 도당소공원4R | DB쿼리=0.538s | baselines=1.236s | target_data=0.071s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 도당소공원4R | baseline_core=0.442s/17,556rows | adj=0.096s/4,012rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.071s/2,839rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=50)
+INFO:     127.0.0.1:64537 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 도약로삼거리 | DB쿼리=0.059s | baselines=0.849s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 도약로삼거리 | baseline_core=0.042s/13,157rows | adj=0.017s/3,043rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,147rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=51)
+INFO:     127.0.0.1:64544 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 도약삼거리 | DB쿼리=0.544s | baselines=0.835s | target_data=0.015s | cells=216 stage1=3 stage2=1
+[PROFILE_DB] 도약삼거리 | baseline_core=0.062s/12,598rows | adj=0.017s/2,658rows | stage2=0.394s/69rows(filtered:12,896) | fallback=0.071s/62rows(filtered:6,228) | target=0.015s/1,916rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=3 fallback_keys=5 cache(hits=0, misses=3, size=54)
+INFO:     127.0.0.1:64550 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 동곡초교사거리 | DB쿼리=0.112s | baselines=1.050s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 동곡초교사거리 | baseline_core=0.096s/17,519rows | adj=0.016s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,871rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=55)
+INFO:     127.0.0.1:64560 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 동곡초교앞 | DB쿼리=0.110s | baselines=0.898s | target_data=0.017s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 동곡초교앞 | baseline_core=0.090s/13,179rows | adj=0.021s/2,980rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,157rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=56)
+INFO:     127.0.0.1:64569 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 동남사거리 | DB쿼리=0.076s | baselines=0.970s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 동남사거리 | baseline_core=0.060s/16,906rows | adj=0.016s/4,070rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,855rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=57)
+INFO:     127.0.0.1:64575 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 동남삼거리 | DB쿼리=0.060s | baselines=0.976s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 동남삼거리 | baseline_core=0.044s/12,921rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,154rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=58)
+INFO:     127.0.0.1:64581 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 로데오입구삼거리 | DB쿼리=0.064s | baselines=0.914s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 로데오입구삼거리 | baseline_core=0.049s/13,177rows | adj=0.015s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=59)
+INFO:     127.0.0.1:51653 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 먹거리삼거리 | DB쿼리=0.064s | baselines=0.743s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 먹거리삼거리 | baseline_core=0.051s/13,198rows | adj=0.014s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=60)
+INFO:     127.0.0.1:51658 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 멀뫼사거리 | DB쿼리=0.104s | baselines=1.132s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 멀뫼사거리 | baseline_core=0.088s/14,611rows | adj=0.017s/3,391rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,867rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=61)
+INFO:     127.0.0.1:51666 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 무릉도원사거리 | DB쿼리=0.114s | baselines=1.123s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 무릉도원사거리 | baseline_core=0.090s/17,088rows | adj=0.024s/3,935rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,766rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=62)
+INFO:     127.0.0.1:49205 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 문예사거리 | DB쿼리=0.078s | baselines=1.147s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 문예사거리 | baseline_core=0.062s/17,580rows | adj=0.016s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=63)
+INFO:     127.0.0.1:49214 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 미리내마을은하수타운앞 | DB쿼리=0.115s | baselines=0.690s | target_data=0.011s | cells=216 stage1=72 stage2=72
+[PROFILE_DB] 미리내마을은하수타운앞 | baseline_core=0.034s/8,785rows | adj=0.013s/3,054rows | stage2=0.068s/2,810rows(filtered:2,810) | fallback=0.000s/0rows(filtered:0) | target=0.011s/2,159rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=72 fallback_keys=0 cache(hits=0, misses=2, size=64)
+INFO:     127.0.0.1:49223 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 민방위교육장입구 | DB쿼리=0.068s | baselines=0.738s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 민방위교육장입구 | baseline_core=0.051s/13,187rows | adj=0.017s/2,997rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:49229 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 박촌교삼거리 | DB쿼리=0.060s | baselines=0.788s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 박촌교삼거리 | baseline_core=0.045s/13,139rows | adj=0.015s/3,012rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,159rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:49239 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 밤골입구사거리 | DB쿼리=0.374s | baselines=0.908s | target_data=0.016s | cells=288 stage1=3 stage2=2
+[PROFILE_DB] 밤골입구사거리 | baseline_core=0.075s/16,490rows | adj=0.024s/3,058rows | stage2=0.224s/53rows(filtered:10,472) | fallback=0.050s/192rows(filtered:5,511) | target=0.016s/2,134rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=3 fallback_keys=11 cache(hits=0, misses=3, size=64)
+INFO:     127.0.0.1:49249 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 버들공원앞삼거리 | DB쿼리=0.111s | baselines=0.712s | target_data=0.018s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 버들공원앞삼거리 | baseline_core=0.088s/13,170rows | adj=0.023s/3,051rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.018s/2,154rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:49254 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 번영사거리 | DB쿼리=13.304s | baselines=1.170s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 번영사거리 | baseline_core=0.061s/17,460rows | adj=13.243s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:49261 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 범박고교앞사거리 | DB쿼리=0.080s | baselines=1.114s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 범박고교앞사거리 | baseline_core=0.065s/17,072rows | adj=0.016s/3,916rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,763rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56026 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 범박사거리 | DB쿼리=0.096s | baselines=1.112s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 범박사거리 | baseline_core=0.078s/17,023rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56030 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56914 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 범박지구대사거리 | DB쿼리=0.084s | baselines=1.095s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 범박지구대사거리 | baseline_core=0.067s/17,021rows | adj=0.017s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,878rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56036 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 범박파밀리에포레스트앞사거리 | DB쿼리=0.456s | baselines=1.193s | target_data=0.014s | cells=288 stage1=1 stage2=0
+[PROFILE_DB] 범박파밀리에포레스트앞사거리 | baseline_core=0.066s/16,727rows | adj=0.014s/3,682rows | stage2=0.299s/36rows(filtered:12,722) | fallback=0.077s/209rows(filtered:6,775) | target=0.014s/2,634rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=1 fallback_keys=8 cache(hits=0, misses=3, size=64)
+INFO:     127.0.0.1:56043 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 범박휴먼시아1단지115동앞삼거리 | DB쿼리=0.061s | baselines=0.862s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 범박휴먼시아1단지115동앞삼거리 | baseline_core=0.046s/12,364rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56047 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 범박휴먼시아1단지삼거리 | DB쿼리=0.072s | baselines=0.875s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 범박휴먼시아1단지삼거리 | baseline_core=0.056s/13,179rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,157rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56052 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 범박휴먼시아1단지입구사거리 | DB쿼리=0.082s | baselines=1.109s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 범박휴먼시아1단지입구사거리 | baseline_core=0.064s/17,580rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,877rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56064 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 법원사거리 | DB쿼리=0.073s | baselines=1.228s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 법원사거리 | baseline_core=0.058s/17,463rows | adj=0.015s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56068 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 법원앞삼거리 | DB쿼리=0.064s | baselines=0.922s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 법원앞삼거리 | baseline_core=0.048s/13,178rows | adj=0.016s/3,052rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56074 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 법원후문사거리 | DB쿼리=0.078s | baselines=1.107s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 법원후문사거리 | baseline_core=0.062s/17,548rows | adj=0.016s/4,069rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,877rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56083 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 베리내사거리 | DB쿼리=0.080s | baselines=1.196s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 베리내사거리 | baseline_core=0.063s/17,507rows | adj=0.017s/4,059rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,879rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56087 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 벤츠전시장앞 | DB쿼리=0.067s | baselines=0.902s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 벤츠전시장앞 | baseline_core=0.050s/12,998rows | adj=0.017s/3,028rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,148rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56092 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 복사골문화센터사거리 | DB쿼리=0.070s | baselines=1.190s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 복사골문화센터사거리 | baseline_core=0.056s/17,439rows | adj=0.014s/4,070rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56096 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 복사골아파트사거리 | DB쿼리=0.079s | baselines=1.202s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 복사골아파트사거리 | baseline_core=0.062s/16,910rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,877rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56100 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 복사초교앞삼거리 | DB쿼리=0.064s | baselines=0.921s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 복사초교앞삼거리 | baseline_core=0.049s/13,169rows | adj=0.016s/3,053rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56107 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 복지삼거리 | DB쿼리=0.064s | baselines=0.837s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 복지삼거리 | baseline_core=0.047s/13,177rows | adj=0.017s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,159rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56111 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 봉오고가교사거리 | DB쿼리=0.065s | baselines=1.127s | target_data=0.012s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 봉오고가교사거리 | baseline_core=0.052s/17,586rows | adj=0.013s/4,005rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.012s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56122 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 봉오대로사거리 | DB쿼리=0.087s | baselines=1.142s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 봉오대로사거리 | baseline_core=0.070s/17,565rows | adj=0.017s/4,068rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,870rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56127 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부명사거리 | DB쿼리=0.086s | baselines=1.194s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부명사거리 | baseline_core=0.062s/17,002rows | adj=0.024s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56132 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부인중사거리 | DB쿼리=0.080s | baselines=1.156s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부인중사거리 | baseline_core=0.063s/17,565rows | adj=0.017s/4,067rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,876rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56136 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부일삼거리 | DB쿼리=0.058s | baselines=0.845s | target_data=0.012s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 부일삼거리 | baseline_core=0.044s/13,094rows | adj=0.014s/3,008rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.012s/2,155rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56141 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천IC삼거리 | DB쿼리=0.095s | baselines=1.205s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부천IC삼거리 | baseline_core=0.080s/17,596rows | adj=0.016s/3,750rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,651rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:52496 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천IC입구 | DB쿼리=0.062s | baselines=0.870s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 부천IC입구 | baseline_core=0.046s/12,856rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,159rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59063 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천공고입구사거리 | DB쿼리=0.098s | baselines=1.128s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부천공고입구사거리 | baseline_core=0.082s/16,952rows | adj=0.016s/3,995rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59068 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천남부역삼거리 | DB쿼리=0.136s | baselines=0.789s | target_data=0.021s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 부천남부역삼거리 | baseline_core=0.108s/13,034rows | adj=0.028s/3,005rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.021s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59074 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천대학사거리 | DB쿼리=0.088s | baselines=1.205s | target_data=0.017s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부천대학사거리 | baseline_core=0.070s/17,599rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,839rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59081 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56039 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천북부역사거리 | DB쿼리=0.090s | baselines=1.178s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부천북부역사거리 | baseline_core=0.071s/17,280rows | adj=0.019s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,879rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59092 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천북초교사거리 | DB쿼리=0.350s | baselines=1.179s | target_data=0.032s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부천북초교사거리 | baseline_core=0.304s/17,264rows | adj=0.047s/4,051rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.032s/2,875rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59101 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천시립노인병원사거리 | DB쿼리=0.079s | baselines=1.142s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부천시립노인병원사거리 | baseline_core=0.062s/17,273rows | adj=0.016s/4,032rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,845rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59107 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천여중사거리 | DB쿼리=0.073s | baselines=0.813s | target_data=0.012s | cells=288 stage1=72 stage2=72
+[PROFILE_DB] 부천여중사거리 | baseline_core=0.049s/13,091rows | adj=0.013s/3,020rows | stage2=0.002s/0rows(filtered:0) | fallback=0.008s/0rows(filtered:0) | target=0.012s/2,136rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=72 fallback_keys=72 cache(hits=0, misses=3, size=64)
+INFO:     127.0.0.1:59112 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천우체국앞사거리 | DB쿼리=0.083s | baselines=1.101s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부천우체국앞사거리 | baseline_core=0.066s/17,405rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59116 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천정보고4R | DB쿼리=0.078s | baselines=1.077s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부천정보고4R | baseline_core=0.061s/17,519rows | adj=0.017s/4,064rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,873rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59122 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천중사거리 | DB쿼리=0.084s | baselines=1.010s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부천중사거리 | baseline_core=0.068s/17,575rows | adj=0.016s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,878rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59127 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천체육관사거리 | DB쿼리=0.086s | baselines=1.165s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부천체육관사거리 | baseline_core=0.069s/17,593rows | adj=0.017s/4,058rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,862rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:62899 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천체육관주차장삼거리 | DB쿼리=0.061s | baselines=0.841s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 부천체육관주차장삼거리 | baseline_core=0.045s/12,407rows | adj=0.017s/3,052rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:62903 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천초교사거리 | DB쿼리=0.085s | baselines=0.967s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부천초교사거리 | baseline_core=0.069s/17,526rows | adj=0.017s/4,065rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,865rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:62908 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천테크노파크사거리 | DB쿼리=0.076s | baselines=1.207s | target_data=0.017s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 부천테크노파크사거리 | baseline_core=0.061s/17,381rows | adj=0.015s/4,021rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,871rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:57000 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 부천테크노파크삼거리 | DB쿼리=0.066s | baselines=0.854s | target_data=0.021s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 부천테크노파크삼거리 | baseline_core=0.051s/13,123rows | adj=0.015s/3,052rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.021s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:57005 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 사단사거리 | DB쿼리=0.112s | baselines=1.087s | target_data=0.018s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 사단사거리 | baseline_core=0.092s/17,298rows | adj=0.021s/3,868rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.018s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:57010 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 산들초교앞사거리 | DB쿼리=0.445s | baselines=1.052s | target_data=0.014s | cells=288 stage1=2 stage2=0
+[PROFILE_DB] 산들초교앞사거리 | baseline_core=0.085s/16,242rows | adj=0.018s/3,389rows | stage2=0.267s/54rows(filtered:11,734) | fallback=0.075s/352rows(filtered:6,705) | target=0.014s/2,455rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=2 fallback_keys=12 cache(hits=0, misses=3, size=64)
+INFO:     127.0.0.1:63261 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 산림욕장삼거리 | DB쿼리=0.061s | baselines=0.655s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 산림욕장삼거리 | baseline_core=0.045s/10,958rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63265 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 산업길사거리 | DB쿼리=0.077s | baselines=0.964s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 산업길사거리 | baseline_core=0.060s/15,408rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63270 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 산우물사거리 | DB쿼리=0.081s | baselines=1.169s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 산우물사거리 | baseline_core=0.065s/17,513rows | adj=0.016s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,798rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63275 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 삼정4R | DB쿼리=0.085s | baselines=1.148s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 삼정4R | baseline_core=0.067s/17,512rows | adj=0.018s/4,026rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,855rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63285 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 삼정고가교삼거리 | DB쿼리=0.055s | baselines=0.840s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 삼정고가교삼거리 | baseline_core=0.042s/13,041rows | adj=0.013s/3,050rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63292 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 삼정교사거리 | DB쿼리=0.067s | baselines=1.120s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 삼정교사거리 | baseline_core=0.053s/17,512rows | adj=0.014s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63296 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 삼정교삼거리 | DB쿼리=0.095s | baselines=0.893s | target_data=0.017s | cells=216 stage1=72 stage2=72
+[PROFILE_DB] 삼정교삼거리 | baseline_core=0.034s/8,781rows | adj=0.017s/3,054rows | stage2=0.044s/2,664rows(filtered:2,664) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,158rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=72 fallback_keys=0 cache(hits=0, misses=2, size=64)
+INFO:     127.0.0.1:63304 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 삼정주유소앞사거리 | DB쿼리=0.083s | baselines=1.080s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 삼정주유소앞사거리 | baseline_core=0.066s/17,100rows | adj=0.017s/3,902rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,778rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63308 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 상도중사거리 | DB쿼리=0.081s | baselines=1.184s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 상도중사거리 | baseline_core=0.064s/17,437rows | adj=0.017s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,878rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:55112 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 상도초교앞삼거리 | DB쿼리=0.060s | baselines=0.810s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 상도초교앞삼거리 | baseline_core=0.044s/13,185rows | adj=0.015s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:55117 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 상동역사거리 | DB쿼리=0.085s | baselines=1.174s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 상동역사거리 | baseline_core=0.068s/17,572rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:55121 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59096 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 상동우체국삼거리 | DB쿼리=0.221s | baselines=0.794s | target_data=0.029s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 상동우체국삼거리 | baseline_core=0.179s/13,116rows | adj=0.042s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.029s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:55127 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 상동홈플러스삼거리 | DB쿼리=0.064s | baselines=0.873s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 상동홈플러스삼거리 | baseline_core=0.048s/13,188rows | adj=0.017s/3,053rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54159 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 상오정삼거리 | DB쿼리=0.083s | baselines=0.844s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 상오정삼거리 | baseline_core=0.066s/13,174rows | adj=0.017s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54163 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 상원초교삼거리 | DB쿼리=0.084s | baselines=0.811s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 상원초교삼거리 | baseline_core=0.068s/13,177rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54168 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 상일사거리 | DB쿼리=0.078s | baselines=1.072s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 상일사거리 | baseline_core=0.061s/17,521rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54173 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 서촌사거리 | DB쿼리=0.072s | baselines=0.873s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 서촌사거리 | baseline_core=0.056s/12,750rows | adj=0.015s/2,308rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/1,924rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54177 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 서해그랑블정문4R | DB쿼리=0.063s | baselines=0.858s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 서해그랑블정문4R | baseline_core=0.047s/13,198rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54184 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 서해그랑블후문3R | DB쿼리=0.075s | baselines=0.889s | target_data=0.012s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 서해그랑블후문3R | baseline_core=0.059s/12,708rows | adj=0.016s/2,864rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.012s/1,779rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54188 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 석천로입구사거리 | DB쿼리=0.077s | baselines=1.139s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 석천로입구사거리 | baseline_core=0.062s/17,394rows | adj=0.015s/3,963rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,844rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54192 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 석천사거리 | DB쿼리=0.096s | baselines=0.960s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 석천사거리 | baseline_core=0.079s/17,580rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,870rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63957 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 석천초교사거리 | DB쿼리=0.087s | baselines=1.096s | target_data=0.020s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 석천초교사거리 | baseline_core=0.069s/17,574rows | adj=0.018s/4,070rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.020s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63965 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 설악마을후문사거리 | DB쿼리=0.079s | baselines=1.165s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 설악마을후문사거리 | baseline_core=0.063s/17,580rows | adj=0.016s/4,064rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,863rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63975 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 성곡동행정복지센터 | DB쿼리=0.083s | baselines=1.215s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 성곡동행정복지센터 | baseline_core=0.065s/17,587rows | adj=0.018s/4,065rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,874rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63981 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 성곡사거리 | DB쿼리=0.083s | baselines=1.182s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 성곡사거리 | baseline_core=0.065s/16,952rows | adj=0.017s/4,000rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63985 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 성곡삼거리 | DB쿼리=0.090s | baselines=0.866s | target_data=0.016s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 성곡삼거리 | baseline_core=0.071s/12,874rows | adj=0.018s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,155rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63990 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 성곡초교사거리 | DB쿼리=0.197s | baselines=1.187s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 성곡초교사거리 | baseline_core=0.179s/17,535rows | adj=0.018s/4,068rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,863rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63998 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 성곡초교앞 | DB쿼리=0.094s | baselines=1.201s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 성곡초교앞 | baseline_core=0.076s/17,533rows | adj=0.017s/4,070rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,873rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:64002 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 성모병원입구삼거리 | DB쿼리=0.068s | baselines=0.817s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 성모병원입구삼거리 | baseline_core=0.051s/13,123rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:64006 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 성심고가사거리 | DB쿼리=0.099s | baselines=1.268s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 성심고가사거리 | baseline_core=0.074s/17,197rows | adj=0.025s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54958 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 세종병원앞삼거리 | DB쿼리=0.069s | baselines=0.861s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 세종병원앞삼거리 | baseline_core=0.054s/13,094rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54962 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소명사거리 | DB쿼리=0.093s | baselines=1.035s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소명사거리 | baseline_core=0.075s/17,289rows | adj=0.018s/4,056rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54966 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소명삼거리 | DB쿼리=0.072s | baselines=0.871s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 소명삼거리 | baseline_core=0.057s/12,926rows | adj=0.015s/3,053rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:64950 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소명여고사거리 | DB쿼리=1.594s | baselines=1.139s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소명여고사거리 | baseline_core=1.576s/17,312rows | adj=0.018s/4,068rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,874rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:64954 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소방서사거리 | DB쿼리=0.085s | baselines=1.140s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소방서사거리 | baseline_core=0.067s/17,566rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,879rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:64961 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사경찰서입구사거리 | DB쿼리=0.082s | baselines=0.947s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소사경찰서입구사거리 | baseline_core=0.066s/17,370rows | adj=0.016s/3,992rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,818rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50779 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사고교앞사거리 | DB쿼리=0.071s | baselines=0.829s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 소사고교앞사거리 | baseline_core=0.055s/13,169rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50784 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사동행정복지센터삼거리 | DB쿼리=0.064s | baselines=0.862s | target_data=0.017s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 소사동행정복지센터삼거리 | baseline_core=0.049s/13,183rows | adj=0.015s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50795 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55130 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사동행정복지센터정문앞 | DB쿼리=0.074s | baselines=0.974s | target_data=0.011s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 소사동행정복지센터정문앞 | baseline_core=0.058s/13,177rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.011s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50800 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사사거리 | DB쿼리=0.082s | baselines=1.027s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소사사거리 | baseline_core=0.065s/16,408rows | adj=0.017s/3,840rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50811 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사삼거리 | DB쿼리=0.058s | baselines=0.823s | target_data=0.019s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 소사삼거리 | baseline_core=0.043s/10,907rows | adj=0.015s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.019s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50816 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사주공사거리 | DB쿼리=0.080s | baselines=1.064s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소사주공사거리 | baseline_core=0.063s/17,577rows | adj=0.017s/4,069rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,868rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50821 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사주공삼거리 | DB쿼리=0.062s | baselines=0.821s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 소사주공삼거리 | baseline_core=0.047s/13,184rows | adj=0.015s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,156rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50827 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사초교사거리 | DB쿼리=0.103s | baselines=1.122s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소사초교사거리 | baseline_core=0.086s/17,563rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50831 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사회주로사거리 | DB쿼리=0.097s | baselines=1.154s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소사회주로사거리 | baseline_core=0.078s/17,598rows | adj=0.019s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50837 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소새울역중흥S클래스정문 | DB쿼리=0.080s | baselines=1.110s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소새울역중흥S클래스정문 | baseline_core=0.060s/17,400rows | adj=0.020s/3,974rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,832rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50842 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소중3길사거리 | DB쿼리=0.087s | baselines=1.029s | target_data=0.133s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소중3길사거리 | baseline_core=0.069s/17,562rows | adj=0.018s/4,069rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.133s/2,878rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50846 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 솔안공원사거리 | DB쿼리=0.075s | baselines=1.185s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 솔안공원사거리 | baseline_core=0.058s/17,468rows | adj=0.016s/4,024rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,879rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50879 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 송내남부역앞 | DB쿼리=0.061s | baselines=0.924s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 송내남부역앞 | baseline_core=0.045s/12,364rows | adj=0.016s/3,003rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,149rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50893 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 송내대로사거리 | DB쿼리=0.064s | baselines=1.149s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 송내대로사거리 | baseline_core=0.050s/17,563rows | adj=0.014s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50897 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 송내복사골뜨란채앞삼거리 | DB쿼리=0.065s | baselines=0.820s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 송내복사골뜨란채앞삼거리 | baseline_core=0.050s/12,710rows | adj=0.014s/2,258rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,127rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63687 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 송내북부역삼거리 | DB쿼리=0.058s | baselines=0.875s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 송내북부역삼거리 | baseline_core=0.043s/13,155rows | adj=0.015s/3,053rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63695 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 송내사거리 | DB쿼리=0.078s | baselines=1.137s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 송내사거리 | baseline_core=0.062s/16,952rows | adj=0.016s/3,993rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:63699 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 송내초교사거리 | DB쿼리=0.099s | baselines=1.029s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 송내초교사거리 | baseline_core=0.080s/17,480rows | adj=0.018s/4,069rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,878rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:53574 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 수돗길사거리 | DB쿼리=0.094s | baselines=1.073s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 수돗길사거리 | baseline_core=0.070s/17,128rows | adj=0.023s/4,068rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,875rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:53583 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 수주삼거리 | DB쿼리=0.064s | baselines=0.831s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 수주삼거리 | baseline_core=0.048s/12,871rows | adj=0.016s/3,029rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,155rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54407 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 순환삼거리 | DB쿼리=0.062s | baselines=0.903s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 순환삼거리 | baseline_core=0.047s/13,180rows | adj=0.015s/3,049rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,156rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54414 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 시루뫼사거리 | DB쿼리=0.085s | baselines=1.077s | target_data=0.017s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 시루뫼사거리 | baseline_core=0.067s/17,500rows | adj=0.017s/3,906rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,705rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54422 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 시민원실입구사거리 | DB쿼리=0.086s | baselines=1.283s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 시민원실입구사거리 | baseline_core=0.071s/16,951rows | adj=0.015s/3,973rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,859rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54429 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 시민회관삼거리 | DB쿼리=0.090s | baselines=1.085s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 시민회관삼거리 | baseline_core=0.073s/17,586rows | adj=0.017s/4,043rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,818rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54434 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 시온사거리 | DB쿼리=0.110s | baselines=1.006s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 시온사거리 | baseline_core=0.088s/17,571rows | adj=0.022s/4,069rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,875rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54445 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 시온삼거리 | DB쿼리=0.056s | baselines=0.824s | target_data=0.011s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 시온삼거리 | baseline_core=0.042s/13,176rows | adj=0.014s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.011s/2,156rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54449 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 시청의회앞사거리 | DB쿼리=0.071s | baselines=1.148s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 시청의회앞사거리 | baseline_core=0.057s/17,377rows | adj=0.014s/4,016rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54453 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 신작동사거리 | DB쿼리=0.085s | baselines=1.067s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 신작동사거리 | baseline_core=0.064s/16,978rows | adj=0.020s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,875rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54458 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 신한일전기사거리 | DB쿼리=0.068s | baselines=1.050s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 신한일전기사거리 | baseline_core=0.053s/17,576rows | adj=0.015s/4,070rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,879rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54462 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50807 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 신흥고가사거리 | DB쿼리=0.086s | baselines=1.157s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 신흥고가사거리 | baseline_core=0.069s/17,600rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54467 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 신흥시장사거리 | DB쿼리=0.082s | baselines=1.113s | target_data=0.017s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 신흥시장사거리 | baseline_core=0.065s/17,488rows | adj=0.017s/4,005rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,776rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54477 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 심곡고가사거리 | DB쿼리=0.083s | baselines=1.080s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 심곡고가사거리 | baseline_core=0.064s/17,567rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54482 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 심곡천사거리 | DB쿼리=0.080s | baselines=1.223s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 심곡천사거리 | baseline_core=0.062s/17,057rows | adj=0.018s/4,062rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,864rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54491 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 심원고사거리 | DB쿼리=0.101s | baselines=0.996s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 심원고사거리 | baseline_core=0.078s/16,776rows | adj=0.023s/4,058rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,877rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54507 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 심원초교4R | DB쿼리=0.084s | baselines=1.072s | target_data=0.018s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 심원초교4R | baseline_core=0.063s/17,349rows | adj=0.021s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.018s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54524 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 쌍용테크노파크3차사거리 | DB쿼리=0.086s | baselines=1.036s | target_data=0.115s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 쌍용테크노파크3차사거리 | baseline_core=0.062s/17,482rows | adj=0.024s/4,068rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.115s/2,877rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54538 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 아시아나입구삼거리 | DB쿼리=0.068s | baselines=0.789s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 아시아나입구삼거리 | baseline_core=0.051s/12,572rows | adj=0.017s/2,875rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54547 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 아트벙커사거리 | DB쿼리=0.104s | baselines=1.132s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 아트벙커사거리 | baseline_core=0.085s/17,455rows | adj=0.019s/4,064rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,872rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54551 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 아파트형공장삼거리 | DB쿼리=0.057s | baselines=0.765s | target_data=0.010s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 아파트형공장삼거리 | baseline_core=0.044s/12,586rows | adj=0.013s/3,053rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.010s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54556 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 안남사거리 | DB쿼리=0.090s | baselines=1.154s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 안남사거리 | baseline_core=0.072s/17,583rows | adj=0.017s/3,991rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54561 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 약대공원앞삼거리 | DB쿼리=0.064s | baselines=0.872s | target_data=0.017s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 약대공원앞삼거리 | baseline_core=0.049s/13,145rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54567 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 약대교회사거리 | DB쿼리=0.084s | baselines=1.188s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 약대교회사거리 | baseline_core=0.066s/17,557rows | adj=0.018s/4,059rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54573 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 약대두산위브2단지정문앞 | DB쿼리=0.083s | baselines=1.054s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 약대두산위브2단지정문앞 | baseline_core=0.066s/17,472rows | adj=0.017s/4,042rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,870rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54578 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 약대삼거리 | DB쿼리=0.069s | baselines=0.828s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 약대삼거리 | baseline_core=0.049s/12,597rows | adj=0.020s/3,046rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54582 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 약대아이파크106동앞 | DB쿼리=0.063s | baselines=0.795s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 약대아이파크106동앞 | baseline_core=0.047s/13,044rows | adj=0.015s/3,043rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,155rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:54589 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 약대아이파크1단지입구삼거리 | DB쿼리=0.062s | baselines=0.863s | target_data=0.017s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 약대아이파크1단지입구삼거리 | baseline_core=0.046s/13,016rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:62749 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 약대오거리 | DB쿼리=0.083s | baselines=1.066s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 약대오거리 | baseline_core=0.062s/15,425rows | adj=0.020s/4,043rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:62754 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 양지사거리 | DB쿼리=0.074s | baselines=1.094s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 양지사거리 | baseline_core=0.059s/17,573rows | adj=0.015s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,878rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:62758 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 양지초교사거리 | DB쿼리=0.081s | baselines=1.078s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 양지초교사거리 | baseline_core=0.065s/17,558rows | adj=0.016s/4,066rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,879rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:62762 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 양지초교후문사거리 | DB쿼리=0.079s | baselines=1.105s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 양지초교후문사거리 | baseline_core=0.062s/17,568rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,877rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:62767 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 여월삼거리 | DB쿼리=0.067s | baselines=0.910s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 여월삼거리 | baseline_core=0.050s/12,931rows | adj=0.017s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:62772 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 여월휴먼시아1단지입구삼거리 | DB쿼리=0.064s | baselines=0.795s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 여월휴먼시아1단지입구삼거리 | baseline_core=0.047s/12,305rows | adj=0.017s/2,880rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:62776 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 역곡고가사거리 | DB쿼리=0.080s | baselines=1.263s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 역곡고가사거리 | baseline_core=0.063s/17,563rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,869rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:62782 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 역곡남부역삼거리 | DB쿼리=0.108s | baselines=1.006s | target_data=0.018s | cells=288 stage1=72 stage2=72
+[PROFILE_DB] 역곡남부역삼거리 | baseline_core=0.076s/13,199rows | adj=0.020s/3,053rows | stage2=0.003s/0rows(filtered:0) | fallback=0.009s/0rows(filtered:0) | target=0.018s/2,142rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=72 fallback_keys=72 cache(hits=0, misses=3, size=64)
+INFO:     127.0.0.1:51677 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 역곡농협사거리 | DB쿼리=0.078s | baselines=1.124s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 역곡농협사거리 | baseline_core=0.061s/16,487rows | adj=0.016s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51681 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 역곡동부시장사거리 | DB쿼리=0.080s | baselines=1.172s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 역곡동부시장사거리 | baseline_core=0.063s/17,547rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,801rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51691 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54470 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 역곡상상시장앞 | DB쿼리=0.060s | baselines=0.919s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 역곡상상시장앞 | baseline_core=0.045s/12,765rows | adj=0.015s/2,967rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,157rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51696 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 역곡역북부사거리 | DB쿼리=0.079s | baselines=1.125s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 역곡역북부사거리 | baseline_core=0.062s/16,984rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51704 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 역곡제7교앞삼거리 | DB쿼리=0.127s | baselines=0.858s | target_data=0.012s | cells=216 stage1=72 stage2=72
+[PROFILE_DB] 역곡제7교앞삼거리 | baseline_core=0.069s/8,620rows | adj=0.016s/3,054rows | stage2=0.042s/2,932rows(filtered:2,932) | fallback=0.000s/0rows(filtered:0) | target=0.012s/2,154rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=72 fallback_keys=0 cache(hits=0, misses=2, size=64)
+INFO:     127.0.0.1:51711 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 역곡초교사거리 | DB쿼리=0.083s | baselines=1.064s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 역곡초교사거리 | baseline_core=0.066s/16,969rows | adj=0.017s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,804rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51715 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 역곡초교입구사거리 | DB쿼리=0.077s | baselines=0.893s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 역곡초교입구사거리 | baseline_core=0.058s/12,312rows | adj=0.019s/3,001rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,126rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51720 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 역곡초교후문삼거리 | DB쿼리=0.060s | baselines=0.849s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 역곡초교후문삼거리 | baseline_core=0.044s/12,216rows | adj=0.015s/3,013rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,141rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51725 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 연화마을1024동앞사거리 | DB쿼리=0.087s | baselines=1.180s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 연화마을1024동앞사거리 | baseline_core=0.069s/17,558rows | adj=0.018s/4,066rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,879rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51729 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 연화마을삼거리 | DB쿼리=0.064s | baselines=0.883s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 연화마을삼거리 | baseline_core=0.048s/13,164rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51733 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 열병합발전소사거리 | DB쿼리=0.381s | baselines=1.140s | target_data=0.015s | cells=288 stage1=6 stage2=4
+[PROFILE_DB] 열병합발전소사거리 | baseline_core=0.064s/16,617rows | adj=0.016s/3,506rows | stage2=0.233s/140rows(filtered:12,034) | fallback=0.068s/227rows(filtered:5,890) | target=0.015s/2,496rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=6 fallback_keys=16 cache(hits=0, misses=3, size=64)
+INFO:     127.0.0.1:51738 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 영광사거리 | DB쿼리=0.089s | baselines=1.281s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 영광사거리 | baseline_core=0.071s/17,577rows | adj=0.018s/3,665rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,773rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51742 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 영안아파트사거리 | DB쿼리=0.102s | baselines=1.212s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 영안아파트사거리 | baseline_core=0.082s/17,596rows | adj=0.020s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51746 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 예일유치원사거리 | DB쿼리=0.087s | baselines=1.232s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 예일유치원사거리 | baseline_core=0.068s/17,585rows | adj=0.020s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,876rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51751 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 오건아파트앞 | DB쿼리=0.084s | baselines=1.223s | target_data=0.020s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 오건아파트앞 | baseline_core=0.066s/17,087rows | adj=0.017s/4,060rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.020s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51755 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 오쇠삼거리 | DB쿼리=0.065s | baselines=0.791s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 오쇠삼거리 | baseline_core=0.048s/12,293rows | adj=0.017s/2,880rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,157rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51762 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 오정경찰서입구삼거리 | DB쿼리=0.072s | baselines=0.844s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 오정경찰서입구삼거리 | baseline_core=0.055s/12,929rows | adj=0.017s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51772 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 오정군부대입구사거리 | DB쿼리=0.061s | baselines=0.824s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 오정군부대입구사거리 | baseline_core=0.046s/13,150rows | adj=0.015s/3,020rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51777 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 오정농협사거리 | DB쿼리=0.082s | baselines=0.953s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 오정농협사거리 | baseline_core=0.065s/17,450rows | adj=0.017s/4,068rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,876rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51781 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 오정대공원앞삼거리 | DB쿼리=0.060s | baselines=0.717s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 오정대공원앞삼거리 | baseline_core=0.045s/10,898rows | adj=0.015s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51786 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 오정물류단지상류1 | DB쿼리=1.590s | baselines=0.805s | target_data=0.013s | cells=216 stage1=73 stage2=72
+[PROFILE_DB] 오정물류단지상류1 | baseline_core=0.027s/5,696rows | adj=0.012s/2,982rows | stage2=1.514s/2,845rows(filtered:16,714) | fallback=0.036s/32rows(filtered:2,773) | target=0.013s/2,111rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=73 fallback_keys=2 cache(hits=0, misses=3, size=64)
+INFO:     127.0.0.1:51792 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 오정물류단지상류2 | DB쿼리=0.084s | baselines=0.853s | target_data=0.010s | cells=216 stage1=72 stage2=72
+[PROFILE_DB] 오정물류단지상류2 | baseline_core=0.034s/8,341rows | adj=0.013s/3,034rows | stage2=0.036s/2,346rows(filtered:2,346) | fallback=0.000s/0rows(filtered:0) | target=0.010s/2,130rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=72 fallback_keys=0 cache(hits=0, misses=2, size=64)
+INFO:     127.0.0.1:51797 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 오정산업단지사거리 | DB쿼리=0.080s | baselines=0.972s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 오정산업단지사거리 | baseline_core=0.064s/17,594rows | adj=0.017s/3,466rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,839rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51803 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 오정아트홀사거리 | DB쿼리=0.080s | baselines=1.219s | target_data=0.020s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 오정아트홀사거리 | baseline_core=0.063s/17,536rows | adj=0.017s/4,068rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.020s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51807 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51699 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 오정휴먼시아3단지입구삼거리 | DB쿼리=0.066s | baselines=0.877s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 오정휴먼시아3단지입구삼거리 | baseline_core=0.050s/13,196rows | adj=0.016s/2,983rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,155rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51812 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 옥길LH8단지앞사거리 | DB쿼리=0.074s | baselines=1.051s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 옥길LH8단지앞사거리 | baseline_core=0.058s/17,439rows | adj=0.015s/3,980rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,814rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51820 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 옥길센트리뷰사거리 | DB쿼리=0.079s | baselines=1.189s | target_data=0.024s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 옥길센트리뷰사거리 | baseline_core=0.062s/17,120rows | adj=0.017s/4,060rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.024s/2,855rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50612 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 옥길스타필드사거리 | DB쿼리=0.077s | baselines=1.161s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 옥길스타필드사거리 | baseline_core=0.061s/16,740rows | adj=0.016s/4,007rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,848rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50616 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 옥길자이106동앞 | DB쿼리=0.073s | baselines=1.063s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 옥길자이106동앞 | baseline_core=0.058s/17,367rows | adj=0.015s/4,001rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,835rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50621 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 옥길중옆삼거리 | DB쿼리=0.057s | baselines=0.860s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 옥길중옆삼거리 | baseline_core=0.043s/13,171rows | adj=0.014s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,148rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50625 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 옥길호반베르디움입구사거리 | DB쿼리=0.063s | baselines=0.897s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 옥길호반베르디움입구사거리 | baseline_core=0.047s/13,200rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50629 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 온수E편한세상아파트삼거리 | DB쿼리=0.052s | baselines=0.787s | target_data=0.012s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 온수E편한세상아파트삼거리 | baseline_core=0.039s/10,982rows | adj=0.013s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.012s/2,158rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50634 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 온수산업단지입구삼거리 | DB쿼리=0.058s | baselines=0.845s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 온수산업단지입구삼거리 | baseline_core=0.044s/13,129rows | adj=0.014s/3,036rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,146rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50639 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 용못내공원사거리 | DB쿼리=0.085s | baselines=1.241s | target_data=0.017s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 용못내공원사거리 | baseline_core=0.067s/17,163rows | adj=0.018s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,871rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50644 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 우성빌라앞삼거리 | DB쿼리=0.068s | baselines=0.810s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 우성빌라앞삼거리 | baseline_core=0.053s/13,021rows | adj=0.015s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,158rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:50653 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 우정테크앞삼거리 | DB쿼리=0.113s | baselines=0.858s | target_data=0.012s | cells=216 stage1=72 stage2=72
+[PROFILE_DB] 우정테크앞삼거리 | baseline_core=0.038s/7,113rows | adj=0.013s/3,002rows | stage2=0.061s/2,813rows(filtered:2,813) | fallback=0.000s/0rows(filtered:0) | target=0.012s/2,142rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=72 fallback_keys=0 cache(hits=0, misses=2, size=64)
+INFO:     127.0.0.1:50659 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 원담사거리 | DB쿼리=0.087s | baselines=1.183s | target_data=0.222s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 원담사거리 | baseline_core=0.067s/17,200rows | adj=0.020s/4,049rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.222s/2,867rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65078 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 원미경찰서삼거리 | DB쿼리=0.069s | baselines=0.863s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 원미경찰서삼거리 | baseline_core=0.053s/13,199rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65084 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 원미사거리 | DB쿼리=0.086s | baselines=1.139s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 원미사거리 | baseline_core=0.068s/17,497rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,879rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65089 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 원미어울마당삼거리 | DB쿼리=0.072s | baselines=0.886s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 원미어울마당삼거리 | baseline_core=0.056s/13,032rows | adj=0.016s/3,039rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,157rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65093 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 원미초교삼거리 | DB쿼리=0.073s | baselines=0.962s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 원미초교삼거리 | baseline_core=0.056s/13,018rows | adj=0.017s/3,038rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,159rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65097 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 원종IC사거리 | DB쿼리=0.081s | baselines=1.066s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 원종IC사거리 | baseline_core=0.064s/16,397rows | adj=0.017s/3,840rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,878rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65102 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 원종교사거리 | DB쿼리=0.090s | baselines=1.153s | target_data=0.017s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 원종교사거리 | baseline_core=0.069s/17,460rows | adj=0.022s/4,067rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,877rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65106 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 은성식자재마트삼거리 | DB쿼리=0.070s | baselines=0.816s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 은성식자재마트삼거리 | baseline_core=0.055s/13,092rows | adj=0.015s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65110 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 일루미스테이트3,4단지입구사거리 | DB쿼리=0.062s | baselines=0.610s | target_data=0.011s | cells=144 stage1=0 stage2=0
+[PROFILE_DB] 일루미스테이트3,4단지입구사거리 | baseline_core=0.050s/6,585rows | adj=0.012s/2,036rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.011s/1,440rows | period=2026-04-01~2026-04-30 hours=24 approaches=2 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65115 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 작동사거리 | DB쿼리=0.086s | baselines=1.132s | target_data=0.017s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 작동사거리 | baseline_core=0.068s/17,550rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,879rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65119 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 작동전원2단지입구삼거리 | DB쿼리=0.069s | baselines=0.763s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 작동전원2단지입구삼거리 | baseline_core=0.053s/10,725rows | adj=0.016s/3,011rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,132rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65124 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51815 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 장말문예사거리 | DB쿼리=0.199s | baselines=1.251s | target_data=0.016s | cells=288 stage1=72 stage2=72
+[PROFILE_DB] 장말문예사거리 | baseline_core=0.062s/12,369rows | adj=0.018s/4,072rows | stage2=0.120s/4,000rows(filtered:4,000) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=72 fallback_keys=0 cache(hits=0, misses=2, size=64)
+INFO:     127.0.0.1:65131 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 장말사거리 | DB쿼리=0.082s | baselines=1.144s | target_data=0.019s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 장말사거리 | baseline_core=0.065s/17,548rows | adj=0.017s/4,055rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.019s/2,867rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65139 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 장말삼거리 | DB쿼리=0.066s | baselines=0.913s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 장말삼거리 | baseline_core=0.051s/11,650rows | adj=0.016s/3,042rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65143 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 장어타운앞4R | DB쿼리=0.076s | baselines=1.115s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 장어타운앞4R | baseline_core=0.061s/17,318rows | adj=0.015s/3,958rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,792rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65150 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 전원4R | DB쿼리=0.076s | baselines=1.071s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 전원4R | baseline_core=0.061s/17,354rows | adj=0.015s/4,053rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,870rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65161 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 전화국사거리 | DB쿼리=0.120s | baselines=1.371s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 전화국사거리 | baseline_core=0.102s/17,357rows | adj=0.018s/4,043rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,821rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:65165 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 제이드카운티1,2단지앞사거리 | DB쿼리=0.076s | baselines=0.969s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 제이드카운티1,2단지앞사거리 | baseline_core=0.059s/17,573rows | adj=0.016s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,874rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59448 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 조마루사거리 | DB쿼리=0.082s | baselines=1.122s | target_data=0.124s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 조마루사거리 | baseline_core=0.066s/17,599rows | adj=0.017s/4,066rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.124s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59454 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 조마루삼거리 | DB쿼리=0.081s | baselines=1.229s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 조마루삼거리 | baseline_core=0.064s/17,250rows | adj=0.017s/4,033rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,856rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59458 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 종합운동장사거리 | DB쿼리=0.087s | baselines=1.199s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 종합운동장사거리 | baseline_core=0.069s/17,279rows | adj=0.017s/3,996rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59463 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 주사랑교회 | DB쿼리=0.068s | baselines=0.900s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 주사랑교회 | baseline_core=0.052s/11,582rows | adj=0.016s/2,827rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,137rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59467 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 중2동성당사거리 | DB쿼리=0.085s | baselines=1.134s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 중2동성당사거리 | baseline_core=0.068s/17,579rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59471 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 중동IC사거리 | DB쿼리=0.114s | baselines=1.252s | target_data=0.019s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 중동IC사거리 | baseline_core=0.090s/16,721rows | adj=0.024s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.019s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59476 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 중동사거리 | DB쿼리=0.084s | baselines=1.088s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 중동사거리 | baseline_core=0.066s/17,300rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59485 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 중동센트럴푸르지오사거리 | DB쿼리=0.080s | baselines=1.226s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 중동센트럴푸르지오사거리 | baseline_core=0.063s/16,912rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:59489 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 중동전화국사거리 | DB쿼리=0.094s | baselines=1.224s | target_data=0.017s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 중동전화국사거리 | baseline_core=0.077s/17,539rows | adj=0.017s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51625 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 중앙공원사거리 | DB쿼리=0.086s | baselines=0.999s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 중앙공원사거리 | baseline_core=0.067s/16,888rows | adj=0.019s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51629 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 중앙교차로사거리 | DB쿼리=0.079s | baselines=1.042s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 중앙교차로사거리 | baseline_core=0.063s/17,515rows | adj=0.017s/4,069rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,876rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51636 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 중앙사거리 | DB쿼리=0.104s | baselines=1.302s | target_data=0.017s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 중앙사거리 | baseline_core=0.086s/17,600rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.017s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51641 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 중원고사거리 | DB쿼리=0.070s | baselines=1.217s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 중원고사거리 | baseline_core=0.055s/16,760rows | adj=0.014s/4,053rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,822rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51648 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 중원초교사거리 | DB쿼리=0.087s | baselines=1.168s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 중원초교사거리 | baseline_core=0.068s/17,526rows | adj=0.019s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51656 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65135 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 중흥고사거리 | DB쿼리=0.099s | baselines=1.128s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 중흥고사거리 | baseline_core=0.074s/17,575rows | adj=0.024s/4,050rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51662 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 지역난방공사삼거리 | DB쿼리=0.057s | baselines=0.828s | target_data=0.012s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 지역난방공사삼거리 | baseline_core=0.043s/12,166rows | adj=0.013s/3,053rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.012s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51673 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 창보아파트삼거리 | DB쿼리=0.065s | baselines=0.894s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 창보아파트삼거리 | baseline_core=0.049s/12,527rows | adj=0.016s/2,978rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,151rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51678 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 창영초교앞사거리 | DB쿼리=0.069s | baselines=1.033s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 창영초교앞사거리 | baseline_core=0.055s/15,311rows | adj=0.014s/3,930rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,740rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51684 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 청소년수련관앞 | DB쿼리=0.071s | baselines=0.897s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 청소년수련관앞 | baseline_core=0.055s/12,536rows | adj=0.015s/2,784rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,040rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:51689 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61204 - "GET /intersections?refresh=true HTTP/1.1" 200 OK
+[PROFILE] 춘의사거리 | DB쿼리=0.088s | baselines=1.233s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 춘의사거리 | baseline_core=0.070s/17,427rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:55182 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 춘의테크노파크사거리 | DB쿼리=0.087s | baselines=1.149s | target_data=0.022s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 춘의테크노파크사거리 | baseline_core=0.069s/17,598rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.022s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:55188 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 카페65도씨앞 | DB쿼리=0.068s | baselines=0.830s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 카페65도씨앞 | baseline_core=0.052s/12,768rows | adj=0.016s/2,956rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,087rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:55194 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 쿠팡물류단지삼거리 | DB쿼리=0.087s | baselines=0.888s | target_data=0.013s | cells=216 stage1=72 stage2=72
+[PROFILE_DB] 쿠팡물류단지삼거리 | baseline_core=0.035s/8,776rows | adj=0.013s/3,054rows | stage2=0.039s/2,756rows(filtered:2,756) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=72 fallback_keys=0 cache(hits=0, misses=2, size=64)
+INFO:     127.0.0.1:55198 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 퀸즈파크사거리 | DB쿼리=0.082s | baselines=1.136s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 퀸즈파크사거리 | baseline_core=0.064s/17,164rows | adj=0.018s/4,071rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,872rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:55204 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55181 - "POST /anomaly-daily-summary HTTP/1.1" 422 Unprocessable Entity
+[PROFILE] 태양공구4R | DB쿼리=0.082s | baselines=1.135s | target_data=0.015s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 태양공구4R | baseline_core=0.065s/17,442rows | adj=0.017s/4,044rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,879rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56195 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 포도마을사거리 | DB쿼리=0.113s | baselines=1.354s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 포도마을사거리 | baseline_core=0.095s/17,292rows | adj=0.018s/4,072rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56199 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 풍년3길앞사거리 | DB쿼리=0.064s | baselines=0.903s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 풍년3길앞사거리 | baseline_core=0.049s/13,171rows | adj=0.016s/2,777rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,158rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56209 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 프라임마트앞 | DB쿼리=0.104s | baselines=1.197s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 프라임마트앞 | baseline_core=0.082s/17,410rows | adj=0.022s/3,968rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,819rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56213 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 프라임요양병원 | DB쿼리=0.063s | baselines=0.926s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 프라임요양병원 | baseline_core=0.047s/13,084rows | adj=0.016s/2,984rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,122rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56217 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 하우고개입구삼거리 | DB쿼리=0.105s | baselines=0.913s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 하우고개입구삼거리 | baseline_core=0.081s/13,199rows | adj=0.024s/2,985rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56224 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 한아름사거리 | DB쿼리=0.078s | baselines=1.081s | target_data=0.014s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 한아름사거리 | baseline_core=0.062s/17,520rows | adj=0.016s/4,050rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,866rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56232 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 항동중학교입구삼거리 | DB쿼리=0.047s | baselines=0.776s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 항동중학교입구삼거리 | baseline_core=0.036s/8,755rows | adj=0.011s/1,712rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,154rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56236 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 해주아파트앞 | DB쿼리=0.060s | baselines=0.791s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 해주아파트앞 | baseline_core=0.044s/10,277rows | adj=0.017s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56241 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 현대자동차 | DB쿼리=0.071s | baselines=0.861s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 현대자동차 | baseline_core=0.055s/13,195rows | adj=0.016s/3,053rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,160rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56245 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 호수로삼거리 | DB쿼리=0.064s | baselines=0.825s | target_data=0.013s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 호수로삼거리 | baseline_core=0.048s/13,181rows | adj=0.016s/3,054rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,159rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56250 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 화목사거리 | DB쿼리=0.079s | baselines=1.242s | target_data=0.013s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 화목사거리 | baseline_core=0.060s/17,358rows | adj=0.018s/4,058rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.013s/2,875rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56256 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51665 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 흥천3R | DB쿼리=0.073s | baselines=1.081s | target_data=0.015s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 흥천3R | baseline_core=0.056s/13,144rows | adj=0.017s/3,053rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.015s/2,159rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56261 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 흥천4R | DB쿼리=0.084s | baselines=1.251s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 흥천4R | baseline_core=0.066s/17,518rows | adj=0.018s/4,045rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,867rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:56269 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56266 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49672 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49735 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49837 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52659 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54050 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63417 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63498 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63563 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64236 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50373 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     192.168.141.197:57046 - "GET /nmaplowercheck1778629940 HTTP/1.1" 404 Not Found
+INFO:     192.168.141.197:57060 - "GET /HNAP1 HTTP/1.1" 404 Not Found
+INFO:     192.168.141.197:39156 - "GET / HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:57924 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57924 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54327 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54335 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54336 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54347 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54348 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58863 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58878 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58877 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58891 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58892 - "GET /vehicle-kinds HTTP/1.1" 200 OK
+[PROFILE] 소사사거리 | DB쿼리=2.471s | baselines=1.267s | target_data=0.232s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소사사거리 | baseline_core=2.080s/15,816rows | adj=0.391s/5,369rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.232s/2,744rows | period=2026-03-01~2026-03-31 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+[PROFILE] 흥천3R | DB쿼리=0.807s | baselines=0.938s | target_data=0.078s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 흥천3R | baseline_core=0.671s/12,712rows | adj=0.136s/4,068rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.078s/2,231rows | period=2026-03-01~2026-03-31 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+INFO:     127.0.0.1:58919 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사사거리 | DB쿼리=0.902s | baselines=1.086s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소사사거리 | baseline_core=0.798s/16,408rows | adj=0.104s/3,932rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=0, misses=1, size=64)
+[PROFILE] 흥천3R | DB쿼리=0.044s | baselines=0.902s | target_data=0.019s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 흥천3R | baseline_core=0.001s/13,144rows | adj=0.044s/3,122rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.019s/2,159rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=1, misses=0, size=64)
+INFO:     127.0.0.1:58927 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사사거리 | DB쿼리=0.024s | baselines=1.168s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소사사거리 | baseline_core=0.000s/15,816rows | adj=0.024s/5,369rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,744rows | period=2026-03-01~2026-03-31 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=1, misses=0, size=64)
+[PROFILE] 흥천3R | DB쿼리=0.021s | baselines=0.907s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 흥천3R | baseline_core=0.000s/12,712rows | adj=0.021s/4,068rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,231rows | period=2026-03-01~2026-03-31 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=1, misses=0, size=64)
+INFO:     127.0.0.1:58939 - "POST /corrected-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사사거리 | DB쿼리=0.019s | baselines=1.048s | target_data=0.016s | cells=288 stage1=0 stage2=0
+[PROFILE_DB] 소사사거리 | baseline_core=0.000s/16,408rows | adj=0.019s/3,932rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.016s/2,880rows | period=2026-04-01~2026-04-30 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=1, misses=0, size=64)
+[PROFILE] 흥천3R | DB쿼리=0.020s | baselines=0.870s | target_data=0.014s | cells=216 stage1=0 stage2=0
+[PROFILE_DB] 흥천3R | baseline_core=0.000s/13,144rows | adj=0.020s/3,122rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.014s/2,159rows | period=2026-04-01~2026-04-30 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=1, misses=0, size=64)
+INFO:     127.0.0.1:58944 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58957 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사사거리 | DB쿼리=0.024s | baselines=0.681s | target_data=0.004s | cells=96 stage1=0 stage2=0
+[PROFILE_DB] 소사사거리 | baseline_core=0.000s/15,816rows | adj=0.024s/5,369rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.004s/96rows | period=2026-03-11~2026-03-11 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=1, misses=0, size=64)
+[PROFILE] 흥천3R | DB쿼리=0.021s | baselines=0.609s | target_data=0.002s | cells=72 stage1=0 stage2=0
+[PROFILE_DB] 흥천3R | baseline_core=0.000s/12,712rows | adj=0.021s/4,068rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.002s/72rows | period=2026-03-11~2026-03-11 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=1, misses=0, size=64)
+INFO:     127.0.0.1:58966 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58970 - "POST /raw-traffic-vknd HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59015 - "POST /raw-traffic HTTP/1.1" 200 OK
+[PROFILE] 소사사거리 | DB쿼리=0.026s | baselines=0.689s | target_data=0.003s | cells=96 stage1=0 stage2=0
+[PROFILE_DB] 소사사거리 | baseline_core=0.000s/15,816rows | adj=0.026s/5,369rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.003s/96rows | period=2026-03-11~2026-03-11 hours=24 approaches=4 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=1, misses=0, size=64)
+[PROFILE] 흥천3R | DB쿼리=0.021s | baselines=0.589s | target_data=0.002s | cells=72 stage1=0 stage2=0
+[PROFILE_DB] 흥천3R | baseline_core=0.000s/12,712rows | adj=0.021s/4,068rows | stage2=0.000s/0rows(filtered:0) | fallback=0.000s/0rows(filtered:0) | target=0.002s/72rows | period=2026-03-11~2026-03-11 hours=24 approaches=3 baseline_years=[2024, 2025] fallback_year=2025 adj_months=2 stage2_keys=0 fallback_keys=0 cache(hits=1, misses=0, size=64)
+INFO:     127.0.0.1:59022 - "POST /corrected-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59027 - "POST /raw-traffic-vknd HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59048 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49738 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54018 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54043 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60241 - "GET /vehicle-kinds HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60239 - "GET /vehicle-kinds HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62741 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53586 - "GET /vehicle-kinds HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62005 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62008 - "GET /vehicle-kinds HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49678 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49683 - "GET /vehicle-kinds HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57442 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57443 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54737 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54748 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54763 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49683 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49690 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49695 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62820 - "POST /raw-traffic-vknd HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57638 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53611 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49209 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60930 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60948 - "POST /raw-traffic-vknd HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60947 - "POST /raw-traffic-drct HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60012 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [4688]
+INFO:     Started server process [9688]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [9688]
+INFO:     Started server process [8816]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [8816]
+INFO:     Started server process [8356]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started server process [9188]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:64566 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64668 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59127 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59129 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62401 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62403 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62405 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62427 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52472 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52475 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52480 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61831 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61840 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63353 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63360 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63369 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63381 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63388 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50149 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50177 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60693 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63518 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63520 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50138 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50152 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52166 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61338 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56796 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51979 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51986 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62488 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62498 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60894 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60903 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60909 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53715 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53718 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53720 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53728 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51639 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58767 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58770 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58772 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58778 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52409 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53412 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53416 - "GET /intersections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53418 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53426 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53433 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58841 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58847 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58857 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56662 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57220 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57233 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57241 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63080 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63091 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63104 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54192 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54198 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56063 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56069 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60239 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60250 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60257 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54397 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54406 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54413 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54419 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56442 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56449 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56460 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56467 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53534 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53541 - "POST /raw-traffic HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53880 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53880 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     Started server process [14852]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:65406 - "POST /raw-traffic HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:65407 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65408 - "POST /raw-traffic-vknd HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:65409 - "POST /raw-traffic-drct HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54020 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54020 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52776 - "GET /intersections?refresh=true HTTP/1.1" 200 OK
+INFO:     Started server process [27832]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [27832]
+INFO:     Started server process [968]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [968]
+INFO:     Started server process [7124]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:59074 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60855 - "POST /corrected-traffic-drct HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:60861 - "POST /corrected-traffic-drct HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 420, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\fastapi\routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\fastapi\routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\fastapi\routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\fastapi\routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\01_Project\09_교통량 추출 시스템\01_Program\traffic_api\presentation\routes.py", line 43, in corrected_traffic_drct
+    return await loop.run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\01_Project\09_교통량 추출 시스템\01_Program\traffic_api\application\traffic_use_cases.py", line 20, in corrected_traffic_drct
+    return self._gateway.corrected_traffic_acsr(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\01_Project\09_교통량 추출 시스템\01_Program\traffic_api\infrastructure\legacy_analysis_gateway.py", line 19, in corrected_traffic_drct
+    return legacy._fetch_corrected_traffic_acsr(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\01_Project\09_교통량 추출 시스템\01_Program\api_server.py", line 1044, in _fetch_corrected_traffic_drct
+  File "C:\01_Project\09_교통량 추출 시스템\01_Program\이상탐지.py", line 1774, in analyse_node_drct
+    approaches, drct_meta = load_drct_approaches(conn, node_id, drct_code_map=drct_code_map)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\01_Project\09_교통량 추출 시스템\01_Program\이상탐지.py", line 641, in load_drct_approaches
+    acsr_name_map = {aid: anm for aid, anm in load_approaches(conn, node_id)}
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\01_Project\09_교통량 추출 시스템\01_Program\이상탐지.py", line 592, in load_approaches
+    cur.execute(
+  File "C:\Users\An JaeYeol\AppData\Local\Programs\Python\Python312\Lib\site-packages\oracledb\cursor.py", line 844, in execute
+    impl.execute(self)
+  File "src/oracledb/impl/thin/cursor.pyx", line 277, in oracledb.thin_impl.ThinCursorImpl.execute
+  File "src/oracledb/impl/thin/protocol.pyx", line 501, in oracledb.thin_impl.Protocol._process_single_message
+  File "src/oracledb/impl/thin/protocol.pyx", line 502, in oracledb.thin_impl.Protocol._process_single_message
+  File "src/oracledb/impl/thin/protocol.pyx", line 494, in oracledb.thin_impl.Protocol._process_message
+  File "src/oracledb/impl/thin/messages/base.pyx", line 102, in oracledb.thin_impl.Message._check_and_raise_exception
+oracledb.exceptions.DatabaseError: ORA-01722: invalid number
+Help: https://docs.oracle.com/error-help/db/ora-01722/
+INFO:     127.0.0.1:60869 - "POST /corrected-traffic-drct HTTP/1.1" 422 Unprocessable Entity
+INFO:     Started server process [29448]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started server process [8776]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)

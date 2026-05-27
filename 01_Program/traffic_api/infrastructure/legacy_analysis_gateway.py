@@ -15,17 +15,14 @@ class LegacyTrafficAnalysisGateway:
     def corrected_traffic(self, request: dict) -> dict:
         return legacy._fetch_corrected_traffic(request)
 
+    def corrected_traffic_acsr(self, request) -> dict:
+        return legacy._fetch_corrected_traffic_acsr(request)
+
+    def corrected_traffic_crsrd(self, request) -> dict:
+        return legacy._fetch_corrected_traffic_crsrd(request)
+
     def corrected_traffic_drct(self, request) -> dict:
         return legacy._fetch_corrected_traffic_drct(request)
-
-    def raw_traffic(self, request) -> dict:
-        return legacy._fetch_raw_traffic(request)
-
-    def raw_traffic_drct(self, request) -> dict:
-        return legacy._fetch_raw_traffic_drct(request)
-
-    def raw_traffic_vknd(self, request) -> dict:
-        return legacy._fetch_raw_traffic_vknd(request)
 
     def corrected_traffic_vknd(self, request) -> dict:
         return legacy._fetch_corrected_traffic_vknd(request)
