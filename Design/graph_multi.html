@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>교통량 다중 그래프</title>
+  <style>
+    :root {
+      --asphalt: #151817;
+      --panel: #202522;
+      --panel-deep: #171c1a;
+      --rule: #3a4640;
+      --rule-soft: #2b342f;
+      --text: #e9f2ed;
+      --muted: #9eafa7;
+      --green: #39d98a;
+      --amber: #f4b449;
+      --cyan: #56c6f2;
+      --coral: #ff6f61;
+      --violet: #a98bff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--text);
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px) 0 0 / 56px 56px,
+        linear-gradient(180deg, #111413 0%, var(--asphalt) 48%, #0f1211 100%);
+      font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    }
+
+    .page {
+      width: 210mm;
+      max-width: calc(100vw - 32px);
+      margin: 32px auto;
+      border: 1px solid rgba(129, 154, 142, 0.38);
+      border-radius: 8px;
+      overflow: hidden;
+      background: linear-gradient(180deg, #242b27 0%, var(--panel) 100%);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+    }
+
+    .header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 26px 30px 18px;
+      border-bottom: 1px solid rgba(129, 154, 142, 0.26);
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(20px, 2.4vw, 32px);
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .caption {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px 16px;
+      max-width: 360px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend li {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+    }
+
+    .swatch {
+      width: 22px;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--line-color);
+      box-shadow: 0 0 14px color-mix(in srgb, var(--line-color) 45%, transparent);
+    }
+
+    .chart-area {
+      position: relative;
+      padding: 22px 24px 26px;
+      background:
+        linear-gradient(180deg, rgba(244, 180, 73, 0.055) 0%, transparent 42%),
+        var(--panel-deep);
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+    }
+
+    .axis-label {
+      fill: var(--text);
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .tick {
+      fill: var(--muted);
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 18px;
+    }
+
+    .grid {
+      stroke: var(--rule-soft);
+      stroke-width: 1;
+    }
+
+    .axis {
+      stroke: var(--rule);
+      stroke-width: 2;
+    }
+
+    .series {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 3;
+    }
+
+    .hover-capture {
+      fill: transparent;
+      cursor: crosshair;
+      pointer-events: all;
+    }
+
+    .hover-guide {
+      opacity: 0;
+      pointer-events: none;
+      stroke: rgba(244, 180, 73, 0.72);
+      stroke-dasharray: 7 8;
+      stroke-width: 2;
+      transition: opacity 120ms ease;
+    }
+
+    .hover-guide.is-visible {
+      opacity: 1;
+    }
+
+    .chart-tooltip {
+      position: absolute;
+      z-index: 3;
+      display: none;
+      width: min(230px, calc(100% - 24px));
+      padding: 11px 12px 10px;
+      border: 1px solid rgba(158, 175, 167, 0.38);
+      border-radius: 6px;
+      color: var(--text);
+      background: rgba(17, 22, 20, 0.94);
+      box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+      font-size: 13px;
+      line-height: 1.35;
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+    }
+
+    .chart-tooltip.is-visible {
+      display: block;
+    }
+
+    .tooltip-time {
+      margin-bottom: 7px;
+      color: var(--amber);
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tooltip-row {
+      display: grid;
+      grid-template-columns: 10px 1fr auto;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      padding: 3px 0;
+    }
+
+    .tooltip-swatch {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--item-color);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--item-color) 55%, transparent);
+    }
+
+    .tooltip-label {
+      min-width: 0;
+      overflow: hidden;
+      color: var(--muted);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tooltip-count {
+      color: #ffffff;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 680px) {
+      .page {
+        margin: 16px auto;
+      }
+
+      .header {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 20px 18px 16px;
+      }
+
+      .legend {
+        justify-content: flex-start;
+      }
+
+      .chart-area {
+        padding: 18px 12px 20px;
+      }
+
+      .tick {
+        font-size: 17px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page" aria-label="교통량 다중 그래프 시안">
+    <header class="header">
+      <div>
+        <h1 class="title">접근로별 시간대 교통량</h1>
+        <p class="caption">동일 축에서 비교하는 5개 방향 샘플 흐름</p>
+      </div>
+      <ul class="legend" aria-label="그래프 범례">
+        <li><span class="swatch" style="--line-color: var(--green)"></span>북측</li>
+        <li><span class="swatch" style="--line-color: var(--amber)"></span>동측</li>
+        <li><span class="swatch" style="--line-color: var(--cyan)"></span>남측</li>
+        <li><span class="swatch" style="--line-color: var(--coral)"></span>서측</li>
+        <li><span class="swatch" style="--line-color: var(--violet)"></span>순환</li>
+      </ul>
+    </header>
+
+    <section class="chart-area">
+      <svg viewBox="0 0 1160 700" role="img" aria-labelledby="chart-title chart-desc">
+        <title id="chart-title">여러 방향 교통량 꺾은선 그래프</title>
+        <desc id="chart-desc">시간 축과 교통량 축 위에 서로 다른 색상의 얇은 꺾은선 다섯 개가 표시된 그래프</desc>
+
+        <rect x="90" y="46" width="1000" height="548" rx="6" fill="#151b19" stroke="#314139" stroke-width="1.5"></rect>
+        <path d="M90 95 H1090 M90 145 H1090 M90 195 H1090" stroke="#ffffff" stroke-width="1" opacity="0.035"></path>
+
+        <line class="grid" x1="120" y1="570" x2="1070" y2="570"></line>
+        <line class="grid" x1="120" y1="470" x2="1070" y2="470"></line>
+        <line class="grid" x1="120" y1="370" x2="1070" y2="370"></line>
+        <line class="grid" x1="120" y1="270" x2="1070" y2="270"></line>
+        <line class="grid" x1="120" y1="170" x2="1070" y2="170"></line>
+        <line class="grid" x1="120" y1="70" x2="1070" y2="70"></line>
+
+        <line class="grid" x1="120" y1="70" x2="120" y2="570"></line>
+        <line class="grid" x1="278" y1="70" x2="278" y2="570"></line>
+        <line class="grid" x1="436" y1="70" x2="436" y2="570"></line>
+        <line class="grid" x1="594" y1="70" x2="594" y2="570"></line>
+        <line class="grid" x1="752" y1="70" x2="752" y2="570"></line>
+        <line class="grid" x1="910" y1="70" x2="910" y2="570"></line>
+        <line class="grid" x1="1070" y1="70" x2="1070" y2="570"></line>
+
+        <line class="axis" x1="120" y1="570" x2="1070" y2="570"></line>
+        <line class="axis" x1="120" y1="70" x2="120" y2="570"></line>
+
+        <text class="tick" x="102" y="577" text-anchor="end">0</text>
+        <text class="tick" x="102" y="477" text-anchor="end">200</text>
+        <text class="tick" x="102" y="377" text-anchor="end">400</text>
+        <text class="tick" x="102" y="277" text-anchor="end">600</text>
+        <text class="tick" x="102" y="177" text-anchor="end">800</text>
+        <text class="tick" x="102" y="77" text-anchor="end">1000</text>
+
+        <text class="tick" x="120" y="612" text-anchor="middle">00</text>
+        <text class="tick" x="278" y="612" text-anchor="middle">04</text>
+        <text class="tick" x="436" y="612" text-anchor="middle">08</text>
+        <text class="tick" x="594" y="612" text-anchor="middle">12</text>
+        <text class="tick" x="752" y="612" text-anchor="middle">16</text>
+        <text class="tick" x="910" y="612" text-anchor="middle">20</text>
+        <text class="tick" x="1070" y="612" text-anchor="middle">24</text>
+
+        <text class="axis-label" x="595" y="660" text-anchor="middle">시간</text>
+        <text class="axis-label" x="42" y="320" text-anchor="middle" transform="rotate(-90 42 320)">교통량</text>
+
+        <path class="series" d="M120 500 L278 430 L436 410 L594 260 L752 300 L910 220 L1070 260" stroke="#39d98a"></path>
+        <path class="series" d="M120 460 L278 480 L436 360 L594 310 L752 240 L910 260 L1070 210" stroke="#f4b449"></path>
+        <path class="series" d="M120 530 L278 500 L436 450 L594 390 L752 280 L910 300 L1070 330" stroke="#56c6f2"></path>
+        <path class="series" d="M120 420 L278 390 L436 300 L594 350 L752 320 L910 180 L1070 160" stroke="#ff6f61"></path>
+        <path class="series" d="M120 550 L278 510 L436 380 L594 430 L752 360 L910 320 L1070 290" stroke="#a98bff"></path>
+
+        <line class="hover-guide" x1="120" y1="70" x2="120" y2="570"></line>
+        <rect class="hover-capture" x="90" y="46" width="1000" height="548" rx="6"></rect>
+      </svg>
+      <div class="chart-tooltip" role="status" aria-live="polite"></div>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const chartArea = document.querySelector(".chart-area");
+      const svg = chartArea.querySelector("svg");
+      const capture = svg.querySelector(".hover-capture");
+      const guide = svg.querySelector(".hover-guide");
+      const tooltip = chartArea.querySelector(".chart-tooltip");
+      const xPositions = [120, 278, 436, 594, 752, 910, 1070];
+      const traffic = [
+        { time: "00:00", values: [140, 220, 80, 300, 40] },
+        { time: "04:00", values: [280, 180, 140, 360, 120] },
+        { time: "08:00", values: [320, 420, 240, 540, 380] },
+        { time: "12:00", values: [620, 520, 360, 440, 280] },
+        { time: "16:00", values: [540, 660, 580, 500, 420] },
+        { time: "20:00", values: [700, 620, 540, 780, 500] },
+        { time: "24:00", values: [620, 720, 480, 820, 560] },
+      ];
+      const series = [
+        { label: "북측", color: "#39d98a" },
+        { label: "동측", color: "#f4b449" },
+        { label: "남측", color: "#56c6f2" },
+        { label: "서측", color: "#ff6f61" },
+        { label: "순환", color: "#a98bff" },
+      ];
+      const formatter = new Intl.NumberFormat("ko-KR");
+
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const toSvgPoint = (event) => {
+        const point = svg.createSVGPoint();
+        point.x = event.clientX;
+        point.y = event.clientY;
+        return point.matrixTransform(svg.getScreenCTM().inverse());
+      };
+
+      const nearestIndex = (x) => {
+        const boundedX = clamp(x, xPositions[0], xPositions[xPositions.length - 1]);
+        return xPositions.reduce((nearest, current, index) => (
+          Math.abs(current - boundedX) < Math.abs(xPositions[nearest] - boundedX) ? index : nearest
+        ), 0);
+      };
+
+      const positionTooltip = (event) => {
+        const area = chartArea.getBoundingClientRect();
+        const offset = 14;
+        let left = event.clientX - area.left + offset;
+        let top = event.clientY - area.top + offset;
+        const tooltipWidth = tooltip.offsetWidth;
+        const tooltipHeight = tooltip.offsetHeight;
+
+        if (left + tooltipWidth > area.width - 8) {
+          left = event.clientX - area.left - tooltipWidth - offset;
+        }
+
+        if (top + tooltipHeight > area.height - 8) {
+          top = event.clientY - area.top - tooltipHeight - offset;
+        }
+
+        tooltip.style.left = `${clamp(left, 8, area.width - tooltipWidth - 8)}px`;
+        tooltip.style.top = `${clamp(top, 8, area.height - tooltipHeight - 8)}px`;
+      };
+
+      const renderRows = (values) => series.map((item, index) => `
+        <div class="tooltip-row">
+          <span class="tooltip-swatch" style="--item-color: ${item.color}"></span>
+          <span class="tooltip-label">${item.label}</span>
+          <strong class="tooltip-count">${formatter.format(values[index])}</strong>
+        </div>
+      `).join("");
+
+      const showTooltip = (event) => {
+        const point = toSvgPoint(event);
+        const index = nearestIndex(point.x);
+        const item = traffic[index];
+
+        guide.setAttribute("x1", xPositions[index]);
+        guide.setAttribute("x2", xPositions[index]);
+        guide.classList.add("is-visible");
+        tooltip.innerHTML = `
+          <div class="tooltip-time">${item.time}</div>
+          ${renderRows(item.values)}
+        `;
+        tooltip.classList.add("is-visible");
+        positionTooltip(event);
+      };
+
+      const hideTooltip = () => {
+        guide.classList.remove("is-visible");
+        tooltip.classList.remove("is-visible");
+      };
+
+      capture.addEventListener("pointerenter", showTooltip);
+      capture.addEventListener("pointermove", showTooltip);
+      capture.addEventListener("pointerleave", hideTooltip);
+    })();
+  </script>
+</body>
+</html>

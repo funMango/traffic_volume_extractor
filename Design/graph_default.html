@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>교통량 단일 그래프</title>
+  <style>
+    :root {
+      --asphalt: #151817;
+      --panel: #202522;
+      --panel-deep: #171c1a;
+      --rule: #3a4640;
+      --rule-soft: #2b342f;
+      --text: #e9f2ed;
+      --muted: #9eafa7;
+      --signal: #3ee7aa;
+      --signal-deep: #11845f;
+      --amber: #f4b449;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--text);
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px) 0 0 / 56px 56px,
+        linear-gradient(180deg, #111413 0%, var(--asphalt) 48%, #0f1211 100%);
+      font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    }
+
+    .page {
+      width: 210mm;
+      max-width: calc(100vw - 32px);
+      margin: 32px auto;
+      border: 1px solid rgba(129, 154, 142, 0.38);
+      border-radius: 8px;
+      overflow: hidden;
+      background: linear-gradient(180deg, #242b27 0%, var(--panel) 100%);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+    }
+
+    .header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 26px 30px 18px;
+      border-bottom: 1px solid rgba(129, 154, 142, 0.26);
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(20px, 2.4vw, 32px);
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .caption {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .readout {
+      display: grid;
+      gap: 5px;
+      min-width: 132px;
+      padding-left: 18px;
+      border-left: 3px solid var(--amber);
+      font-family: Consolas, "Cascadia Mono", monospace;
+      text-align: right;
+    }
+
+    .readout span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .readout strong {
+      color: #ffffff;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .chart-area {
+      position: relative;
+      padding: 22px 24px 26px;
+      background:
+        linear-gradient(180deg, rgba(62, 231, 170, 0.07) 0%, transparent 38%),
+        var(--panel-deep);
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+    }
+
+    .axis-label {
+      fill: var(--text);
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .tick {
+      fill: var(--muted);
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 18px;
+    }
+
+    .grid {
+      stroke: var(--rule-soft);
+      stroke-width: 1;
+    }
+
+    .axis {
+      stroke: var(--rule);
+      stroke-width: 2;
+    }
+
+    .hover-capture {
+      fill: transparent;
+      cursor: crosshair;
+      pointer-events: all;
+    }
+
+    .hover-guide {
+      opacity: 0;
+      pointer-events: none;
+      stroke: rgba(244, 180, 73, 0.74);
+      stroke-dasharray: 7 8;
+      stroke-width: 2;
+      transition: opacity 120ms ease;
+    }
+
+    .hover-guide.is-visible {
+      opacity: 1;
+    }
+
+    .chart-tooltip {
+      position: absolute;
+      z-index: 3;
+      display: none;
+      min-width: 142px;
+      max-width: min(240px, calc(100% - 24px));
+      padding: 11px 12px 10px;
+      border: 1px solid rgba(158, 175, 167, 0.38);
+      border-radius: 6px;
+      color: var(--text);
+      background: rgba(17, 22, 20, 0.94);
+      box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+      font-size: 13px;
+      line-height: 1.35;
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+    }
+
+    .chart-tooltip.is-visible {
+      display: block;
+    }
+
+    .tooltip-time {
+      color: var(--amber);
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tooltip-value {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 7px;
+    }
+
+    .tooltip-label {
+      color: var(--muted);
+    }
+
+    .tooltip-count {
+      color: #ffffff;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 680px) {
+      .page {
+        margin: 16px auto;
+      }
+
+      .header {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 20px 18px 16px;
+      }
+
+      .readout {
+        width: 100%;
+        padding-left: 14px;
+        text-align: left;
+      }
+
+      .chart-area {
+        padding: 18px 12px 20px;
+      }
+
+      .tick {
+        font-size: 17px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page" aria-label="교통량 단일 그래프 시안">
+    <header class="header">
+      <div>
+        <h1 class="title">주요 교차로 시간대별 교통량</h1>
+        <p class="caption">단일 방향 흐름 · 5분 수집값 기반 시간대 집계</p>
+      </div>
+      <div class="readout" aria-label="최대 교통량">
+        <span>PEAK</span>
+        <strong>824</strong>
+      </div>
+    </header>
+
+    <section class="chart-area">
+      <svg viewBox="0 0 1160 700" role="img" aria-labelledby="chart-title chart-desc">
+        <title id="chart-title">단일 교통량 꺾은선 그래프</title>
+        <desc id="chart-desc">시간 축과 교통량 축 위에 선 아래가 그라데이션으로 채워진 단일 꺾은선 그래프</desc>
+        <defs>
+          <linearGradient id="traffic-fill" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#3ee7aa" stop-opacity="0.38"></stop>
+            <stop offset="58%" stop-color="#3ee7aa" stop-opacity="0.12"></stop>
+            <stop offset="100%" stop-color="#3ee7aa" stop-opacity="0.02"></stop>
+          </linearGradient>
+          <linearGradient id="plot-sheen" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.045"></stop>
+            <stop offset="50%" stop-color="#ffffff" stop-opacity="0"></stop>
+            <stop offset="100%" stop-color="#f4b449" stop-opacity="0.08"></stop>
+          </linearGradient>
+          <filter id="line-shadow" x="-8%" y="-12%" width="116%" height="124%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="10"></feGaussianBlur>
+          </filter>
+        </defs>
+
+        <rect x="90" y="46" width="1000" height="548" rx="6" fill="#151b19" stroke="#314139" stroke-width="1.5"></rect>
+        <rect x="90" y="46" width="1000" height="548" rx="6" fill="url(#plot-sheen)"></rect>
+        <rect x="545" y="46" width="130" height="548" fill="#f4b449" opacity="0.075"></rect>
+
+        <line class="grid" x1="120" y1="570" x2="1070" y2="570"></line>
+        <line class="grid" x1="120" y1="470" x2="1070" y2="470"></line>
+        <line class="grid" x1="120" y1="370" x2="1070" y2="370"></line>
+        <line class="grid" x1="120" y1="270" x2="1070" y2="270"></line>
+        <line class="grid" x1="120" y1="170" x2="1070" y2="170"></line>
+        <line class="grid" x1="120" y1="70" x2="1070" y2="70"></line>
+
+        <line class="grid" x1="120" y1="70" x2="120" y2="570"></line>
+        <line class="grid" x1="278" y1="70" x2="278" y2="570"></line>
+        <line class="grid" x1="436" y1="70" x2="436" y2="570"></line>
+        <line class="grid" x1="594" y1="70" x2="594" y2="570"></line>
+        <line class="grid" x1="752" y1="70" x2="752" y2="570"></line>
+        <line class="grid" x1="910" y1="70" x2="910" y2="570"></line>
+        <line class="grid" x1="1070" y1="70" x2="1070" y2="570"></line>
+
+        <line class="axis" x1="120" y1="570" x2="1070" y2="570"></line>
+        <line class="axis" x1="120" y1="70" x2="120" y2="570"></line>
+
+        <text class="tick" x="102" y="577" text-anchor="end">0</text>
+        <text class="tick" x="102" y="477" text-anchor="end">200</text>
+        <text class="tick" x="102" y="377" text-anchor="end">400</text>
+        <text class="tick" x="102" y="277" text-anchor="end">600</text>
+        <text class="tick" x="102" y="177" text-anchor="end">800</text>
+        <text class="tick" x="102" y="77" text-anchor="end">1000</text>
+
+        <text class="tick" x="120" y="612" text-anchor="middle">00</text>
+        <text class="tick" x="278" y="612" text-anchor="middle">04</text>
+        <text class="tick" x="436" y="612" text-anchor="middle">08</text>
+        <text class="tick" x="594" y="612" text-anchor="middle">12</text>
+        <text class="tick" x="752" y="612" text-anchor="middle">16</text>
+        <text class="tick" x="910" y="612" text-anchor="middle">20</text>
+        <text class="tick" x="1070" y="612" text-anchor="middle">24</text>
+
+        <text class="axis-label" x="595" y="660" text-anchor="middle">시간</text>
+        <text class="axis-label" x="42" y="320" text-anchor="middle" transform="rotate(-90 42 320)">교통량</text>
+
+        <path d="M120 520 L278 450 L436 340 L594 230 L752 270 L910 180 L1070 240 L1070 570 L120 570 Z" fill="url(#traffic-fill)"></path>
+        <path d="M120 520 L278 450 L436 340 L594 230 L752 270 L910 180 L1070 240" fill="none" stroke="#3ee7aa" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" opacity="0.2" filter="url(#line-shadow)"></path>
+        <path d="M120 520 L278 450 L436 340 L594 230 L752 270 L910 180 L1070 240" fill="none" stroke="#3ee7aa" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M120 520 L278 450 L436 340 L594 230 L752 270 L910 180 L1070 240" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.28"></path>
+
+        <g fill="#151b19" stroke="#3ee7aa" stroke-width="4">
+          <circle cx="120" cy="520" r="7"></circle>
+          <circle cx="278" cy="450" r="7"></circle>
+          <circle cx="436" cy="340" r="7"></circle>
+          <circle cx="594" cy="230" r="7"></circle>
+          <circle cx="752" cy="270" r="7"></circle>
+          <circle cx="910" cy="180" r="7"></circle>
+          <circle cx="1070" cy="240" r="7"></circle>
+        </g>
+        <line class="hover-guide" x1="120" y1="70" x2="120" y2="570"></line>
+        <rect class="hover-capture" x="90" y="46" width="1000" height="548" rx="6"></rect>
+      </svg>
+      <div class="chart-tooltip" role="status" aria-live="polite"></div>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const chartArea = document.querySelector(".chart-area");
+      const svg = chartArea.querySelector("svg");
+      const capture = svg.querySelector(".hover-capture");
+      const guide = svg.querySelector(".hover-guide");
+      const tooltip = chartArea.querySelector(".chart-tooltip");
+      const xPositions = [120, 278, 436, 594, 752, 910, 1070];
+      const traffic = [
+        { time: "00:00", value: 100 },
+        { time: "04:00", value: 240 },
+        { time: "08:00", value: 460 },
+        { time: "12:00", value: 680 },
+        { time: "16:00", value: 600 },
+        { time: "20:00", value: 780 },
+        { time: "24:00", value: 660 },
+      ];
+      const formatter = new Intl.NumberFormat("ko-KR");
+
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const toSvgPoint = (event) => {
+        const point = svg.createSVGPoint();
+        point.x = event.clientX;
+        point.y = event.clientY;
+        return point.matrixTransform(svg.getScreenCTM().inverse());
+      };
+
+      const nearestIndex = (x) => {
+        const boundedX = clamp(x, xPositions[0], xPositions[xPositions.length - 1]);
+        return xPositions.reduce((nearest, current, index) => (
+          Math.abs(current - boundedX) < Math.abs(xPositions[nearest] - boundedX) ? index : nearest
+        ), 0);
+      };
+
+      const positionTooltip = (event) => {
+        const area = chartArea.getBoundingClientRect();
+        const offset = 14;
+        let left = event.clientX - area.left + offset;
+        let top = event.clientY - area.top + offset;
+        const tooltipWidth = tooltip.offsetWidth;
+        const tooltipHeight = tooltip.offsetHeight;
+
+        if (left + tooltipWidth > area.width - 8) {
+          left = event.clientX - area.left - tooltipWidth - offset;
+        }
+
+        if (top + tooltipHeight > area.height - 8) {
+          top = event.clientY - area.top - tooltipHeight - offset;
+        }
+
+        tooltip.style.left = `${clamp(left, 8, area.width - tooltipWidth - 8)}px`;
+        tooltip.style.top = `${clamp(top, 8, area.height - tooltipHeight - 8)}px`;
+      };
+
+      const showTooltip = (event) => {
+        const point = toSvgPoint(event);
+        const index = nearestIndex(point.x);
+        const item = traffic[index];
+
+        guide.setAttribute("x1", xPositions[index]);
+        guide.setAttribute("x2", xPositions[index]);
+        guide.classList.add("is-visible");
+        tooltip.innerHTML = `
+          <div class="tooltip-time">${item.time}</div>
+          <div class="tooltip-value">
+            <span class="tooltip-label">교통량</span>
+            <strong class="tooltip-count">${formatter.format(item.value)}</strong>
+          </div>
+        `;
+        tooltip.classList.add("is-visible");
+        positionTooltip(event);
+      };
+
+      const hideTooltip = () => {
+        guide.classList.remove("is-visible");
+        tooltip.classList.remove("is-visible");
+      };
+
+      capture.addEventListener("pointerenter", showTooltip);
+      capture.addEventListener("pointermove", showTooltip);
+      capture.addEventListener("pointerleave", hideTooltip);
+    })();
+  </script>
+</body>
+</html>
