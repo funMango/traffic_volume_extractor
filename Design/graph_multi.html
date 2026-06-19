@@ -6,18 +6,19 @@
   <title>교통량 다중 그래프</title>
   <style>
     :root {
-      --asphalt: #151817;
-      --panel: #202522;
-      --panel-deep: #171c1a;
-      --rule: #3a4640;
-      --rule-soft: #2b342f;
-      --text: #e9f2ed;
-      --muted: #9eafa7;
-      --green: #39d98a;
-      --amber: #f4b449;
-      --cyan: #56c6f2;
-      --coral: #ff6f61;
-      --violet: #a98bff;
+      --surface: #ffffff;
+      --page: #ffffff;
+      --plot: #ffffff;
+      --rule: #94a3b8;
+      --rule-soft: #e5e7eb;
+      --text: #172033;
+      --muted: #667085;
+      --focus: #2563eb;
+      --green: #15803d;
+      --amber: #b45309;
+      --cyan: #0369a1;
+      --coral: #dc2626;
+      --violet: #7c3aed;
     }
 
     * {
@@ -28,9 +29,7 @@
       min-height: 100vh;
       margin: 0;
       color: var(--text);
-      background:
-        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px) 0 0 / 56px 56px,
-        linear-gradient(180deg, #111413 0%, var(--asphalt) 48%, #0f1211 100%);
+      background: var(--surface);
       font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
     }
 
@@ -38,11 +37,11 @@
       width: 210mm;
       max-width: calc(100vw - 32px);
       margin: 32px auto;
-      border: 1px solid rgba(129, 154, 142, 0.38);
+      border: 1px solid #e2e8f0;
       border-radius: 8px;
       overflow: hidden;
-      background: linear-gradient(180deg, #242b27 0%, var(--panel) 100%);
-      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+      background: var(--page);
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
     }
 
     .header {
@@ -51,7 +50,8 @@
       justify-content: space-between;
       gap: 24px;
       padding: 26px 30px 18px;
-      border-bottom: 1px solid rgba(129, 154, 142, 0.26);
+      border-bottom: 1px solid #e5e7eb;
+      background: var(--page);
     }
 
     .title {
@@ -99,9 +99,7 @@
     .chart-area {
       position: relative;
       padding: 22px 24px 26px;
-      background:
-        linear-gradient(180deg, rgba(244, 180, 73, 0.055) 0%, transparent 42%),
-        var(--panel-deep);
+      background: var(--page);
     }
 
     svg {
@@ -149,7 +147,7 @@
     .hover-guide {
       opacity: 0;
       pointer-events: none;
-      stroke: rgba(244, 180, 73, 0.72);
+      stroke: rgba(37, 99, 235, 0.58);
       stroke-dasharray: 7 8;
       stroke-width: 2;
       transition: opacity 120ms ease;
@@ -165,15 +163,14 @@
       display: none;
       width: min(230px, calc(100% - 24px));
       padding: 11px 12px 10px;
-      border: 1px solid rgba(158, 175, 167, 0.38);
+      border: 1px solid #d7dee8;
       border-radius: 6px;
       color: var(--text);
-      background: rgba(17, 22, 20, 0.94);
-      box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
       font-size: 13px;
       line-height: 1.35;
       pointer-events: none;
-      backdrop-filter: blur(8px);
     }
 
     .chart-tooltip.is-visible {
@@ -182,7 +179,7 @@
 
     .tooltip-time {
       margin-bottom: 7px;
-      color: var(--amber);
+      color: var(--focus);
       font-family: Consolas, "Cascadia Mono", monospace;
       font-size: 12px;
       font-weight: 700;
@@ -214,7 +211,7 @@
     }
 
     .tooltip-count {
-      color: #ffffff;
+      color: var(--text);
       font-family: Consolas, "Cascadia Mono", monospace;
       font-size: 15px;
       font-weight: 700;
@@ -266,8 +263,8 @@
         <title id="chart-title">여러 방향 교통량 꺾은선 그래프</title>
         <desc id="chart-desc">시간 축과 교통량 축 위에 서로 다른 색상의 얇은 꺾은선 다섯 개가 표시된 그래프</desc>
 
-        <rect x="90" y="46" width="1000" height="548" rx="6" fill="#151b19" stroke="#314139" stroke-width="1.5"></rect>
-        <path d="M90 95 H1090 M90 145 H1090 M90 195 H1090" stroke="#ffffff" stroke-width="1" opacity="0.035"></path>
+        <rect x="90" y="46" width="1000" height="548" rx="6" fill="#ffffff" stroke="#dbe3ea" stroke-width="1.5"></rect>
+        <path d="M90 95 H1090 M90 145 H1090 M90 195 H1090" stroke="#e2e8f0" stroke-width="1" opacity="0.65"></path>
 
         <line class="grid" x1="120" y1="570" x2="1070" y2="570"></line>
         <line class="grid" x1="120" y1="470" x2="1070" y2="470"></line>
@@ -305,11 +302,11 @@
         <text class="axis-label" x="595" y="660" text-anchor="middle">시간</text>
         <text class="axis-label" x="42" y="320" text-anchor="middle" transform="rotate(-90 42 320)">교통량</text>
 
-        <path class="series" d="M120 500 L278 430 L436 410 L594 260 L752 300 L910 220 L1070 260" stroke="#39d98a"></path>
-        <path class="series" d="M120 460 L278 480 L436 360 L594 310 L752 240 L910 260 L1070 210" stroke="#f4b449"></path>
-        <path class="series" d="M120 530 L278 500 L436 450 L594 390 L752 280 L910 300 L1070 330" stroke="#56c6f2"></path>
-        <path class="series" d="M120 420 L278 390 L436 300 L594 350 L752 320 L910 180 L1070 160" stroke="#ff6f61"></path>
-        <path class="series" d="M120 550 L278 510 L436 380 L594 430 L752 360 L910 320 L1070 290" stroke="#a98bff"></path>
+        <path class="series" d="M120 500 L278 430 L436 410 L594 260 L752 300 L910 220 L1070 260" stroke="#15803d"></path>
+        <path class="series" d="M120 460 L278 480 L436 360 L594 310 L752 240 L910 260 L1070 210" stroke="#b45309"></path>
+        <path class="series" d="M120 530 L278 500 L436 450 L594 390 L752 280 L910 300 L1070 330" stroke="#0369a1"></path>
+        <path class="series" d="M120 420 L278 390 L436 300 L594 350 L752 320 L910 180 L1070 160" stroke="#dc2626"></path>
+        <path class="series" d="M120 550 L278 510 L436 380 L594 430 L752 360 L910 320 L1070 290" stroke="#7c3aed"></path>
 
         <line class="hover-guide" x1="120" y1="70" x2="120" y2="570"></line>
         <rect class="hover-capture" x="90" y="46" width="1000" height="548" rx="6"></rect>
@@ -335,11 +332,11 @@
         { time: "24:00", values: [620, 720, 480, 820, 560] },
       ];
       const series = [
-        { label: "북측", color: "#39d98a" },
-        { label: "동측", color: "#f4b449" },
-        { label: "남측", color: "#56c6f2" },
-        { label: "서측", color: "#ff6f61" },
-        { label: "순환", color: "#a98bff" },
+        { label: "북측", color: "#15803d" },
+        { label: "동측", color: "#b45309" },
+        { label: "남측", color: "#0369a1" },
+        { label: "서측", color: "#dc2626" },
+        { label: "순환", color: "#7c3aed" },
       ];
       const formatter = new Intl.NumberFormat("ko-KR");
 
