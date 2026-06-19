@@ -46,6 +46,150 @@ def _slot(
     }
 
 
+class RecordingProgress:
+    def __init__(self, total=0):
+        self.total = total
+        self.starts = []
+        self.phases = []
+        self.advances = []
+        self.finishes = []
+
+    def start(self, phase=""):
+        self.starts.append(phase)
+
+    def update_phase(self, phase):
+        self.phases.append(phase)
+
+    def advance(self, step=1):
+        self.advances.append(step)
+
+    def finish(self, success=True):
+        self.finishes.append(success)
+
+
+def test_console_progress_line_includes_spinner_percent_count_and_phase():
+    progress = gct.ConsoleProgress(total=2)
+
+    progress.update_phase("API 조회: 260412~260415")
+    progress.advance()
+    line = progress.format_line()
+
+    assert line.startswith("| [##########----------]")
+    assert "50.00%" in line
+    assert "(1/2)" in line
+    assert "API 조회: 260412~260415" in line
+
+
+def test_fetch_corrected_direction_slots_advances_after_each_period(monkeypatch):
+    periods = gct.parse_periods("260412,260413")
+    intersections = [gct.Intersection(1, "계남고가사거리", 0)]
+    interval = gct.parse_interval("5분")
+    time_range = gct.parse_time_range("24시간", interval)
+    progress = RecordingProgress()
+    calls = []
+
+    def fake_api_post(path, payload, base_url=gct.API_BASE_URL):
+        calls.append((path, payload, base_url))
+        return {
+            "drct_slots": [
+                {
+                    "interval": "5m",
+                    "timestamp": f"{payload['date_start']}T08:00:00",
+                    "node_id": 1,
+                    "node_name": "계남고가사거리",
+                    "approach_id": 10,
+                    "approach_name": "계남고가사거리-동(서향)",
+                    "drct_cd": "01",
+                    "drct_name": "좌",
+                    "corrected_value": 10,
+                }
+            ]
+        }
+
+    monkeypatch.setattr(gct, "api_post", fake_api_post)
+
+    rows = gct.fetch_corrected_direction_slots(
+        intersections,
+        periods,
+        interval,
+        time_range,
+        progress=progress,
+    )
+
+    assert [phase for phase in progress.phases] == ["API 조회: 260412", "API 조회: 260413"]
+    assert progress.advances == [1, 1]
+    assert len(calls) == 2
+    assert len(rows) == 2
+
+
+def test_extract_progress_total_includes_excel_save(monkeypatch):
+    periods = gct.parse_periods("260412,260413")
+    intersections = [gct.Intersection(1, "계남고가사거리", 0)]
+    interval = gct.parse_interval("5분")
+    time_range = gct.parse_time_range("24시간", interval)
+    created_progress = []
+
+    class FakeConsoleProgress(RecordingProgress):
+        def __init__(self, total):
+            super().__init__(total)
+            created_progress.append(self)
+
+    monkeypatch.setattr(gct, "ConsoleProgress", FakeConsoleProgress)
+    monkeypatch.setattr(gct, "fetch_corrected_direction_slots", lambda *args, **kwargs: [])
+    monkeypatch.setattr(gct, "make_output_path", lambda *args, **kwargs: Path("out.xlsx"))
+    monkeypatch.setattr(gct, "save_workbook", lambda *args, **kwargs: None)
+
+    output_path, row_count = gct.extract_and_save_corrected_direction_slots(
+        intersections,
+        periods,
+        interval,
+        time_range,
+        gct.OUTPUT_MODE_DIRECTION,
+    )
+
+    progress = created_progress[0]
+    assert output_path == Path("out.xlsx")
+    assert row_count == 0
+    assert progress.total == 3
+    assert progress.starts == ["API 조회 준비"]
+    assert progress.phases == ["Excel 저장"]
+    assert progress.advances == [1]
+    assert progress.finishes == [True]
+
+
+def test_extract_finishes_progress_and_reraises_api_exception(monkeypatch):
+    periods = gct.parse_periods("260412")
+    intersections = [gct.Intersection(1, "계남고가사거리", 0)]
+    interval = gct.parse_interval("5분")
+    time_range = gct.parse_time_range("24시간", interval)
+    created_progress = []
+
+    class FakeConsoleProgress(RecordingProgress):
+        def __init__(self, total):
+            super().__init__(total)
+            created_progress.append(self)
+
+    def fail_fetch(*args, **kwargs):
+        raise RuntimeError("API failure")
+
+    monkeypatch.setattr(gct, "ConsoleProgress", FakeConsoleProgress)
+    monkeypatch.setattr(gct, "fetch_corrected_direction_slots", fail_fetch)
+
+    with pytest.raises(RuntimeError, match="API failure"):
+        gct.extract_and_save_corrected_direction_slots(
+            intersections,
+            periods,
+            interval,
+            time_range,
+            gct.OUTPUT_MODE_DIRECTION,
+        )
+
+    progress = created_progress[0]
+    assert progress.total == 2
+    assert progress.advances == []
+    assert progress.finishes == [False]
+
+
 def test_resolve_intersection_input_all_and_dedupes_comma_order():
     items = [
         {"node_id": 1, "name": "계남고가사거리"},

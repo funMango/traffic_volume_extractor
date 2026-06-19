@@ -11,13 +11,14 @@ from __future__ import annotations
 import json
 import re
 import sys
+import threading
 import urllib.error
 import urllib.request
 from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, TextIO
 
 try:
     from openpyxl import Workbook
@@ -41,6 +42,105 @@ OUTPUT_MODE_DIRECTION = "direction"
 
 HANGUL_RE = re.compile(r"[가-힣]")
 INVALID_FILENAME_RE = re.compile(r'[\\/:*?"<>|]+')
+
+
+class ProgressReporter(Protocol):
+    def update_phase(self, phase: str) -> None:
+        """Display the currently running phase."""
+
+    def advance(self, step: int = 1) -> None:
+        """Mark one or more work units as complete."""
+
+
+class ConsoleProgress:
+    SPINNER_FRAMES = ("|", "/", "-", "\\")
+
+    def __init__(
+        self,
+        total: int,
+        stream: TextIO | None = None,
+        width: int = 20,
+        refresh_interval: float = 0.1,
+    ) -> None:
+        if total < 1:
+            raise ValueError("진행률 총 작업 수는 1 이상이어야 합니다.")
+        if width < 1:
+            raise ValueError("진행률 표시 너비는 1 이상이어야 합니다.")
+
+        self.total = total
+        self.stream = stream or sys.stdout
+        self.width = width
+        self.refresh_interval = refresh_interval
+        self.done = 0
+        self.phase = ""
+        self._frame_index = 0
+        self._last_line_length = 0
+        self._lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._started = False
+
+    def start(self, phase: str = "") -> None:
+        with self._lock:
+            if self._started:
+                return
+            if phase:
+                self.phase = phase
+            self._started = True
+            self._render_locked()
+
+        self._thread = threading.Thread(target=self._spin, daemon=True)
+        self._thread.start()
+
+    def update_phase(self, phase: str) -> None:
+        with self._lock:
+            self.phase = phase
+            if self._started:
+                self._render_locked()
+
+    def advance(self, step: int = 1) -> None:
+        with self._lock:
+            self.done = min(self.total, self.done + step)
+            if self._started:
+                self._render_locked()
+
+    def finish(self, success: bool = True) -> None:
+        thread = self._thread
+        with self._lock:
+            if success:
+                self.done = self.total
+            self._stop_event.set()
+            if self._started:
+                self._render_locked()
+                self.stream.write("\n")
+                self.stream.flush()
+
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=max(self.refresh_interval * 2, 0.1))
+
+    def format_line(self) -> str:
+        with self._lock:
+            return self._format_line_locked()
+
+    def _spin(self) -> None:
+        while not self._stop_event.wait(self.refresh_interval):
+            with self._lock:
+                self._frame_index = (self._frame_index + 1) % len(self.SPINNER_FRAMES)
+                self._render_locked()
+
+    def _render_locked(self) -> None:
+        line = self._format_line_locked()
+        padding = " " * max(0, self._last_line_length - len(line))
+        self.stream.write(f"\r{line}{padding}")
+        self.stream.flush()
+        self._last_line_length = len(line)
+
+    def _format_line_locked(self) -> str:
+        percent = (self.done / self.total) * 100
+        filled = int((self.done / self.total) * self.width)
+        bar = "#" * filled + "-" * (self.width - filled)
+        spinner = self.SPINNER_FRAMES[self._frame_index]
+        return f"{spinner} [{bar}] {percent:6.2f}% ({self.done}/{self.total}) {self.phase}"
 
 
 @dataclass(frozen=True)
@@ -325,12 +425,15 @@ def fetch_corrected_direction_slots(
     interval: IntervalSpec,
     time_range: TimeRange,
     base_url: str = API_BASE_URL,
+    progress: ProgressReporter | None = None,
 ) -> list[dict]:
     order_map = {_node_key(item.node_id): item.order for item in intersections}
     name_map = {_node_key(item.node_id): item.name for item in intersections}
     rows: list[dict] = []
 
     for period in periods:
+        if progress is not None:
+            progress.update_phase(f"API 조회: {period.label}")
         payload = {
             "node_ids": [item.node_id for item in intersections],
             "date_start": period.start.isoformat(),
@@ -339,6 +442,8 @@ def fetch_corrected_direction_slots(
             "interval": interval.api_interval,
         }
         response = api_post(ENDPOINT, payload, base_url=base_url)
+        if progress is not None:
+            progress.advance()
         for slot in response.get("drct_slots", []):
             if not isinstance(slot, dict):
                 continue
@@ -845,6 +950,36 @@ def safe_filename(value: str) -> str:
     return sanitized
 
 
+def extract_and_save_corrected_direction_slots(
+    intersections: list[Intersection],
+    periods: list[Period],
+    interval: IntervalSpec,
+    time_range: TimeRange,
+    output_mode: str,
+    base_url: str = API_BASE_URL,
+) -> tuple[Path, int]:
+    progress = ConsoleProgress(total=len(periods) + 1)
+    try:
+        progress.start("API 조회 준비")
+        rows = fetch_corrected_direction_slots(
+            intersections,
+            periods,
+            interval,
+            time_range,
+            base_url=base_url,
+            progress=progress,
+        )
+        output_path = make_output_path(intersections, periods, interval, output_mode)
+        progress.update_phase("Excel 저장")
+        save_workbook(rows, interval, output_mode, output_path)
+        progress.advance()
+        progress.finish(success=True)
+        return output_path, len(rows)
+    except BaseException:
+        progress.finish(success=False)
+        raise
+
+
 def input_intersections(items: list[dict]) -> list[Intersection]:
     print("\n[1단계] 교차로 입력")
     print("  예: 계남고가사거리,중동IC사거리")
@@ -921,18 +1056,16 @@ def main() -> int:
         time_range = input_time_range(interval)
         output_mode = input_output_mode()
 
-        print("\nAPI 조회 중...")
-        rows = fetch_corrected_direction_slots(
+        output_path, row_count = extract_and_save_corrected_direction_slots(
             intersections,
             periods,
             interval,
             time_range,
+            output_mode,
             base_url=API_BASE_URL,
         )
-        output_path = make_output_path(intersections, periods, interval, output_mode)
-        save_workbook(rows, interval, output_mode, output_path)
-        print(f"\n저장 완료: {output_path}")
-        print(f"행 수: {len(rows):,}")
+        print(f"저장 완료: {output_path}")
+        print(f"행 수: {row_count:,}")
         return 0
     except KeyboardInterrupt:
         print("\n사용자에 의해 중단되었습니다.")
