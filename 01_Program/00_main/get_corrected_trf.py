@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
 import sys
 import threading
 import urllib.error
@@ -39,6 +40,7 @@ TRAFFIC_NUMBER_FORMAT = "#,##0"
 
 OUTPUT_MODE_INTERSECTION = "intersection"
 OUTPUT_MODE_DIRECTION = "direction"
+OUTPUT_MODE_APPROACH = "approach"
 
 HANGUL_RE = re.compile(r"[가-힣]")
 INVALID_FILENAME_RE = re.compile(r'[\\/:*?"<>|]+')
@@ -517,6 +519,9 @@ def normalize_api_slot(
         "traffic_volume": slot.get("traffic_volume"),
         "corrected_value": slot.get("corrected_value"),
         "value": value,
+        "anomaly_type": slot.get("anomaly_type"),
+        "correction_method": slot.get("correction_method"),
+        "is_corrected": is_corrected_slot(slot),
     }
 
 
@@ -551,6 +556,19 @@ def numeric_or_none(value: Any) -> int | float | None:
     except (TypeError, ValueError):
         return None
     return int(parsed) if parsed.is_integer() else parsed
+
+
+def is_corrected_slot(slot: dict) -> bool:
+    return any(
+        _is_correction_marker(slot.get(key)) for key in ("anomaly_type", "correction_method")
+    )
+
+
+def _is_correction_marker(value: Any) -> bool:
+    if value is None:
+        return False
+    raw = str(value).strip()
+    return bool(raw) and raw != "정상"
 
 
 def normalize_drct_cd(value: Any) -> str:
@@ -608,7 +626,11 @@ def aggregate_slots_by_interval(rows: list[dict], interval: IntervalSpec) -> lis
             item["traffic_volume"] = None
             item["corrected_value"] = None
             item["value"] = None
+            item["is_corrected"] = False
             aggregate[key] = item
+        aggregate[key]["is_corrected"] = bool(
+            aggregate[key]["is_corrected"] or row.get("is_corrected")
+        )
         value = numeric_or_none(row.get("value"))
         if value is not None:
             aggregate[key]["value"] = sum_optional(aggregate[key]["value"], value)
@@ -688,6 +710,56 @@ def save_workbook(
     wb = create_workbook(rows, interval, output_mode)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
+
+
+def save_approach_database(rows: list[dict], interval: IntervalSpec, output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(output_path) as conn:
+        conn.execute('DROP TABLE IF EXISTS "접근로"')
+        conn.execute(
+            """
+            CREATE TABLE "접근로" (
+                "시간대" TEXT,
+                "교차로이름" TEXT,
+                "방향이름" TEXT,
+                "접근로" TEXT,
+                "교통량" INTEGER,
+                "보정" INTEGER CHECK ("보정" IN (0, 1))
+            )
+            """
+        )
+        conn.executemany(
+            """
+            INSERT INTO "접근로" (
+                "시간대",
+                "교차로이름",
+                "방향이름",
+                "접근로",
+                "교통량",
+                "보정"
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (approach_database_row(row, interval) for row in rows),
+        )
+
+
+def approach_database_row(row: dict, interval: IntervalSpec) -> tuple:
+    return (
+        format_slot_label(row, interval),
+        row.get("node_name", ""),
+        compact_approach_name(row.get("node_name", ""), row.get("approach_name", "")),
+        row.get("drct_name", ""),
+        traffic_value_for_database(row.get("value")),
+        1 if row.get("is_corrected") else 0,
+    )
+
+
+def traffic_value_for_database(value: Any) -> int | None:
+    numeric = numeric_or_none(value)
+    if numeric is None:
+        return None
+    return int(numeric)
 
 
 def require_openpyxl() -> None:
@@ -944,7 +1016,9 @@ def parse_output_mode(raw: str) -> str:
         return OUTPUT_MODE_INTERSECTION
     if value in {"2", "방향", "방향별", "방향별 교통량"}:
         return OUTPUT_MODE_DIRECTION
-    raise ValueError("출력방식은 1 또는 2를 선택해 주세요.")
+    if value in {"3", "접근로", "접근로 교통량"}:
+        return OUTPUT_MODE_APPROACH
+    raise ValueError("출력방식은 1, 2, 3 중 하나를 선택해 주세요.")
 
 
 def make_output_path(
@@ -962,11 +1036,22 @@ def make_output_path(
         intersection_label = f"{len(intersections)}개교차로"
 
     period_label = "_".join(period.label for period in periods)
-    mode_label = "교차로" if output_mode == OUTPUT_MODE_INTERSECTION else "방향"
+    mode_labels = {
+        OUTPUT_MODE_INTERSECTION: "교차로",
+        OUTPUT_MODE_DIRECTION: "방향",
+        OUTPUT_MODE_APPROACH: "접근로",
+    }
+    extensions = {
+        OUTPUT_MODE_INTERSECTION: ".xlsx",
+        OUTPUT_MODE_DIRECTION: ".xlsx",
+        OUTPUT_MODE_APPROACH: ".db",
+    }
+    if output_mode not in mode_labels:
+        raise ValueError(f"알 수 없는 출력 방식입니다: {output_mode}")
+    mode_label = mode_labels[output_mode]
+    extension = extensions[output_mode]
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = (
-        f"보정교통량_{intersection_label}_{period_label}_{interval.label}_{mode_label}_{stamp}.xlsx"
-    )
+    filename = f"보정교통량_{intersection_label}_{period_label}_{interval.label}_{mode_label}_{stamp}{extension}"
     return output_dir / safe_filename(filename)
 
 
@@ -999,8 +1084,12 @@ def extract_and_save_corrected_direction_slots(
             progress=progress,
         )
         output_path = make_output_path(intersections, periods, interval, output_mode)
-        progress.update_phase("Excel 저장")
-        save_workbook(rows, interval, output_mode, output_path)
+        if output_mode == OUTPUT_MODE_APPROACH:
+            progress.update_phase("DB 저장")
+            save_approach_database(rows, interval, output_path)
+        else:
+            progress.update_phase("Excel 저장")
+            save_workbook(rows, interval, output_mode, output_path)
         progress.advance()
         progress.finish(success=True)
         return output_path, len(rows)
@@ -1066,6 +1155,7 @@ def input_output_mode() -> str:
     print("\n[5단계] 출력방식 입력")
     print("  1. 교차로 교통량")
     print("  2. 방향별 교통량")
+    print("  3. 접근로 교통량")
     while True:
         raw = input("출력방식: ").strip()
         try:

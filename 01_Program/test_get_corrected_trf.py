@@ -1,4 +1,5 @@
 import importlib.util
+import sqlite3
 import sys
 from datetime import date
 from pathlib import Path
@@ -23,6 +24,8 @@ def _slot(
     drct_cd="01",
     drct_name="좌",
     value=10,
+    anomaly_type=None,
+    correction_method=None,
 ):
     ts_date, ts_time = timestamp.split("T")
     hour, minute, _second = ts_time.split(":")
@@ -43,6 +46,11 @@ def _slot(
         "traffic_volume": value,
         "corrected_value": value,
         "value": value,
+        "anomaly_type": anomaly_type,
+        "correction_method": correction_method,
+        "is_corrected": gct.is_corrected_slot(
+            {"anomaly_type": anomaly_type, "correction_method": correction_method}
+        ),
     }
 
 
@@ -301,6 +309,51 @@ def test_parse_time_ranges_rejects_invalid_multiple_range_inputs():
             gct.parse_time_ranges(raw, "1시간")
 
 
+def test_parse_output_mode_accepts_approach_aliases():
+    assert gct.parse_output_mode("1") == gct.OUTPUT_MODE_INTERSECTION
+    assert gct.parse_output_mode("교차로 교통량") == gct.OUTPUT_MODE_INTERSECTION
+    assert gct.parse_output_mode("2") == gct.OUTPUT_MODE_DIRECTION
+    assert gct.parse_output_mode("방향별 교통량") == gct.OUTPUT_MODE_DIRECTION
+    assert gct.parse_output_mode("3") == gct.OUTPUT_MODE_APPROACH
+    assert gct.parse_output_mode("접근로") == gct.OUTPUT_MODE_APPROACH
+    assert gct.parse_output_mode("접근로 교통량") == gct.OUTPUT_MODE_APPROACH
+
+
+def test_make_output_path_uses_db_extension_only_for_approach(tmp_path):
+    intersections = [gct.Intersection(1, "계남고가사거리", 0)]
+    periods = gct.parse_periods("260412")
+    interval = gct.parse_interval("5분")
+
+    intersection_path = gct.make_output_path(
+        intersections,
+        periods,
+        interval,
+        gct.OUTPUT_MODE_INTERSECTION,
+        output_dir=tmp_path,
+    )
+    direction_path = gct.make_output_path(
+        intersections,
+        periods,
+        interval,
+        gct.OUTPUT_MODE_DIRECTION,
+        output_dir=tmp_path,
+    )
+    approach_path = gct.make_output_path(
+        intersections,
+        periods,
+        interval,
+        gct.OUTPUT_MODE_APPROACH,
+        output_dir=tmp_path,
+    )
+
+    assert intersection_path.suffix == ".xlsx"
+    assert "_교차로_" in intersection_path.name
+    assert direction_path.suffix == ".xlsx"
+    assert "_방향_" in direction_path.name
+    assert approach_path.suffix == ".db"
+    assert "_접근로_" in approach_path.name
+
+
 def test_slot_in_time_ranges_includes_only_configured_ranges():
     time_ranges = gct.parse_time_ranges("09:00~10:00, 12:00~14:00", "1시간")
 
@@ -353,7 +406,7 @@ def test_fetch_corrected_direction_slots_uses_hour_union_and_filters_time_ranges
 def test_aggregates_5m_rows_to_15m_and_30m():
     rows = [
         _slot(timestamp="2026-04-12T17:00:00", value=1),
-        _slot(timestamp="2026-04-12T17:05:00", value=2),
+        _slot(timestamp="2026-04-12T17:05:00", value=2, anomaly_type="이상치"),
         _slot(timestamp="2026-04-12T17:10:00", value=3),
         _slot(timestamp="2026-04-12T17:15:00", value=4),
     ]
@@ -366,8 +419,10 @@ def test_aggregates_5m_rows_to_15m_and_30m():
         "2026-04-12T17:15:00",
     ]
     assert [row["value"] for row in rows_15m] == [6, 4]
+    assert [row["is_corrected"] for row in rows_15m] == [True, False]
     assert [row["timestamp"] for row in rows_30m] == ["2026-04-12T17:00:00"]
     assert rows_30m[0]["value"] == 10
+    assert rows_30m[0]["is_corrected"] is True
 
 
 def test_sort_slots_uses_approach_and_drct_code_order():
@@ -444,6 +499,58 @@ def test_direction_sheet_header_structure_uses_full_approach_name():
     assert sheet["E1"].value == "합계"
     assert sheet["B2"].value == "계남고가사거리-동(서향)"
     assert [sheet.cell(2, col).value for col in range(3, 6)] == ["-", 20, 20]
+
+
+def test_save_approach_database_writes_vertical_rows_and_correction_flags(tmp_path):
+    output_path = tmp_path / "approach.db"
+    rows = [
+        _slot(
+            timestamp="2026-04-12T08:00:00",
+            approach_name="계남고가사거리-동(서향)",
+            drct_name="좌",
+            value=10,
+            anomaly_type="정상",
+        ),
+        _slot(
+            timestamp="2026-04-12T08:05:00",
+            approach_name="계남고가사거리-동(서향)",
+            drct_cd="02",
+            drct_name="직",
+            value=20,
+            correction_method="선형보간",
+        ),
+    ]
+
+    gct.save_approach_database(rows, gct.parse_interval("5분"), output_path)
+
+    with sqlite3.connect(output_path) as conn:
+        table_names = [
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"
+            )
+        ]
+        columns = [row[1] for row in conn.execute('PRAGMA table_info("접근로")')]
+        saved_rows = conn.execute(
+            """
+            SELECT
+                "시간대",
+                "교차로이름",
+                "방향이름",
+                "접근로",
+                "교통량",
+                "보정"
+            FROM "접근로"
+            ORDER BY "시간대", "접근로"
+            """
+        ).fetchall()
+
+    assert table_names == ["접근로"]
+    assert columns == ["시간대", "교차로이름", "방향이름", "접근로", "교통량", "보정"]
+    assert saved_rows == [
+        ("2026-04-12 08:00~08:05", "계남고가사거리", "동(서향)", "좌", 10, 0),
+        ("2026-04-12 08:05~08:10", "계남고가사거리", "동(서향)", "직", 20, 1),
+    ]
 
 
 def test_verify_api_contract_requires_corrected_endpoint(monkeypatch):
