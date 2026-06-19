@@ -240,7 +240,6 @@
       const tooltip = chartArea.querySelector(".chart-tooltip");
       const xPositions = [120, 278, 436, 594, 752, 910, 1070];
       const yPositions = [520, 450, 340, 230, 270, 180, 240];
-      const xTickLabels = [["00"], ["04"], ["08"], ["12"], ["16"], ["20"], ["24"]];
       const traffic = [
         { time: "00:00", value: 100 },
         { time: "04:00", value: 240 },
@@ -252,6 +251,22 @@
       ];
       const formatter = new Intl.NumberFormat("ko-KR");
       const svgNamespace = "http://www.w3.org/2000/svg";
+      const formatXAxisLabel = (label) => {
+        const value = String(label).trim();
+        const timeMatch = value.match(/^(\d{1,2}):(\d{2})$/);
+        const dateMatch = value.match(/^(\d{1,2})월\s*(\d{1,2})일$/);
+
+        if (timeMatch) {
+          return [timeMatch[1].padStart(2, "0"), timeMatch[2]];
+        }
+
+        if (dateMatch) {
+          return [dateMatch[1].padStart(2, "0"), dateMatch[2].padStart(2, "0")];
+        }
+
+        return [value];
+      };
+      const xTickLabels = traffic.map((item) => formatXAxisLabel(item.time));
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 

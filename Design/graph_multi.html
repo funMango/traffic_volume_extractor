@@ -44,37 +44,12 @@
       box-shadow: 0 18px 48px rgba(15, 23, 42, 0.12);
     }
 
-    .header {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 24px;
-      padding: 26px 30px 18px;
-      border-bottom: 1px solid #e5e7eb;
-      background: var(--page);
-    }
-
-    .title {
-      margin: 0;
-      font-size: clamp(20px, 2.4vw, 32px);
-      font-weight: 750;
-      letter-spacing: 0;
-    }
-
-    .caption {
-      margin: 8px 0 0;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.45;
-    }
-
     .legend {
       display: flex;
       flex-wrap: wrap;
-      justify-content: flex-end;
+      justify-content: center;
       gap: 10px 16px;
-      max-width: 360px;
-      margin: 0;
+      margin: 18px 0 0;
       padding: 0;
       list-style: none;
       color: var(--muted);
@@ -239,16 +214,6 @@
         margin: 16px auto;
       }
 
-      .header {
-        align-items: flex-start;
-        flex-direction: column;
-        padding: 20px 18px 16px;
-      }
-
-      .legend {
-        justify-content: flex-start;
-      }
-
       .chart-area {
         padding: 18px 12px 20px;
       }
@@ -261,19 +226,6 @@
 </head>
 <body>
   <main class="page" aria-label="교통량 다중 그래프 시안">
-    <header class="header">
-      <div>
-        <h1 class="title">접근로별 시간대 교통량</h1>
-        <p class="caption">동일 축에서 비교하는 5개 방향 샘플 흐름</p>
-      </div>
-      <ul class="legend" aria-label="그래프 범례">
-        <li><span class="swatch" style="--line-color: var(--green)"></span>북측</li>
-        <li><span class="swatch" style="--line-color: var(--amber)"></span>동측</li>
-        <li><span class="swatch" style="--line-color: var(--cyan)"></span>남측</li>
-        <li><span class="swatch" style="--line-color: var(--coral)"></span>서측</li>
-        <li><span class="swatch" style="--line-color: var(--violet)"></span>순환</li>
-      </ul>
-    </header>
 
     <section class="chart-area">
       <svg viewBox="0 0 1160 700" role="img" aria-labelledby="chart-title chart-desc">
@@ -308,13 +260,7 @@
         <text class="tick" x="102" y="177" text-anchor="end">800</text>
         <text class="tick" x="102" y="77" text-anchor="end">1000</text>
 
-        <text class="tick" x="120" y="612" text-anchor="middle">00</text>
-        <text class="tick" x="278" y="612" text-anchor="middle">04</text>
-        <text class="tick" x="436" y="612" text-anchor="middle">08</text>
-        <text class="tick" x="594" y="612" text-anchor="middle">12</text>
-        <text class="tick" x="752" y="612" text-anchor="middle">16</text>
-        <text class="tick" x="910" y="612" text-anchor="middle">20</text>
-        <text class="tick" x="1070" y="612" text-anchor="middle">24</text>
+        <g class="x-ticks" aria-hidden="true"></g>
 
         <text class="axis-label" x="595" y="660" text-anchor="middle">시간</text>
         <text class="axis-label" x="42" y="320" text-anchor="middle" transform="rotate(-90 42 320)">교통량</text>
@@ -329,6 +275,13 @@
         <g class="hover-points" aria-hidden="true"></g>
         <rect class="hover-capture" x="90" y="46" width="1000" height="548" rx="6"></rect>
       </svg>
+      <ul class="legend" aria-label="그래프 범례">
+        <li><span class="swatch" style="--line-color: var(--green)"></span>북측</li>
+        <li><span class="swatch" style="--line-color: var(--amber)"></span>동측</li>
+        <li><span class="swatch" style="--line-color: var(--cyan)"></span>남측</li>
+        <li><span class="swatch" style="--line-color: var(--coral)"></span>서측</li>
+        <li><span class="swatch" style="--line-color: var(--violet)"></span>순환</li>
+      </ul>
       <div class="chart-tooltip" role="status" aria-live="polite"></div>
     </section>
   </main>
@@ -339,6 +292,7 @@
       const capture = svg.querySelector(".hover-capture");
       const guide = svg.querySelector(".hover-guide");
       const pointLayer = svg.querySelector(".hover-points");
+      const xTickLayer = svg.querySelector(".x-ticks");
       const tooltip = chartArea.querySelector(".chart-tooltip");
       const xPositions = [120, 278, 436, 594, 752, 910, 1070];
       const yPositions = [
@@ -364,7 +318,24 @@
         { label: "서측", color: "#dc2626" },
         { label: "순환", color: "#7c3aed" },
       ];
+      const svgNamespace = "http://www.w3.org/2000/svg";
       const formatter = new Intl.NumberFormat("ko-KR");
+      const formatXAxisLabel = (label) => {
+        const value = String(label).trim();
+        const timeMatch = value.match(/^(\d{1,2}):(\d{2})$/);
+        const dateMatch = value.match(/^(\d{1,2})월\s*(\d{1,2})일$/);
+
+        if (timeMatch) {
+          return [timeMatch[1].padStart(2, "0"), timeMatch[2]];
+        }
+
+        if (dateMatch) {
+          return [dateMatch[1].padStart(2, "0"), dateMatch[2].padStart(2, "0")];
+        }
+
+        return [value];
+      };
+      const xTickLabels = traffic.map((item) => formatXAxisLabel(item.time));
       const markers = series.map((item) => {
         const marker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         marker.setAttribute("class", "hover-point");
@@ -375,6 +346,32 @@
       });
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const renderXAxisTicks = () => {
+        xTickLayer.replaceChildren();
+
+        xTickLabels.forEach((lines, index) => {
+          const text = document.createElementNS(svgNamespace, "text");
+
+          text.setAttribute("class", "tick");
+          text.setAttribute("x", xPositions[index]);
+          text.setAttribute("y", lines.length > 1 ? "604" : "612");
+          text.setAttribute("text-anchor", "middle");
+
+          lines.forEach((line, lineIndex) => {
+            const tspan = document.createElementNS(svgNamespace, "tspan");
+
+            tspan.setAttribute("x", xPositions[index]);
+            if (lineIndex > 0) {
+              tspan.setAttribute("dy", "22");
+            }
+            tspan.textContent = line;
+            text.appendChild(tspan);
+          });
+
+          xTickLayer.appendChild(text);
+        });
+      };
 
       const toSvgPoint = (event) => {
         const point = svg.createSVGPoint();
@@ -449,6 +446,7 @@
         tooltip.classList.remove("is-visible");
       };
 
+      renderXAxisTicks();
       capture.addEventListener("pointerenter", showTooltip);
       capture.addEventListener("pointermove", showTooltip);
       capture.addEventListener("pointerleave", hideTooltip);
