@@ -190,6 +190,31 @@ def test_extract_finishes_progress_and_reraises_api_exception(monkeypatch):
     assert progress.finishes == [False]
 
 
+def test_api_request_json_waits_without_timeout(monkeypatch):
+    calls = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def read(self):
+            return b'{"ok": true}'
+
+    def fake_urlopen(req, timeout=None):
+        calls.append((req, timeout))
+        return FakeResponse()
+
+    monkeypatch.setattr(gct.urllib.request, "urlopen", fake_urlopen)
+
+    response = gct._api_request_json("GET", "/health", base_url="http://api.local")
+
+    assert response == {"ok": True}
+    assert calls == [("http://api.local/health", None)]
+
+
 def test_resolve_intersection_input_all_and_dedupes_comma_order():
     items = [
         {"node_id": 1, "name": "계남고가사거리"},
