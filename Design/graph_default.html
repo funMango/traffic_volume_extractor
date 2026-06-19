@@ -93,6 +93,19 @@
       opacity: 1;
     }
 
+    .hover-point {
+      opacity: 0;
+      fill: #ffffff;
+      stroke: var(--signal);
+      stroke-width: 3;
+      pointer-events: none;
+      transition: opacity 120ms ease;
+    }
+
+    .hover-point.is-visible {
+      opacity: 1;
+    }
+
     .chart-tooltip {
       position: absolute;
       z-index: 3;
@@ -198,13 +211,7 @@
         <text class="tick" x="102" y="177" text-anchor="end">800</text>
         <text class="tick" x="102" y="77" text-anchor="end">1000</text>
 
-        <text class="tick" x="120" y="612" text-anchor="middle">00</text>
-        <text class="tick" x="278" y="612" text-anchor="middle">04</text>
-        <text class="tick" x="436" y="612" text-anchor="middle">08</text>
-        <text class="tick" x="594" y="612" text-anchor="middle">12</text>
-        <text class="tick" x="752" y="612" text-anchor="middle">16</text>
-        <text class="tick" x="910" y="612" text-anchor="middle">20</text>
-        <text class="tick" x="1070" y="612" text-anchor="middle">24</text>
+        <g class="x-ticks" aria-hidden="true"></g>
 
         <text class="axis-label" x="595" y="660" text-anchor="middle">시간</text>
         <text class="axis-label" x="42" y="320" text-anchor="middle" transform="rotate(-90 42 320)">교통량</text>
@@ -214,6 +221,9 @@
         <path d="M120 520 L278 450 L436 340 L594 230 L752 270 L910 180 L1070 240" fill="none" stroke="#2563eb" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"></path>
         <path d="M120 520 L278 450 L436 340 L594 230 L752 270 L910 180 L1070 240" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
         <line class="hover-guide" x1="120" y1="70" x2="120" y2="570"></line>
+        <g class="hover-point-layer" aria-hidden="true">
+          <circle class="hover-point" cx="120" cy="520" r="6"></circle>
+        </g>
         <rect class="hover-capture" x="90" y="46" width="1000" height="548" rx="6"></rect>
       </svg>
       <div class="chart-tooltip" role="status" aria-live="polite"></div>
@@ -225,8 +235,12 @@
       const svg = chartArea.querySelector("svg");
       const capture = svg.querySelector(".hover-capture");
       const guide = svg.querySelector(".hover-guide");
+      const hoverPoint = svg.querySelector(".hover-point");
+      const xTickLayer = svg.querySelector(".x-ticks");
       const tooltip = chartArea.querySelector(".chart-tooltip");
       const xPositions = [120, 278, 436, 594, 752, 910, 1070];
+      const yPositions = [520, 450, 340, 230, 270, 180, 240];
+      const xTickLabels = [["00"], ["04"], ["08"], ["12"], ["16"], ["20"], ["24"]];
       const traffic = [
         { time: "00:00", value: 100 },
         { time: "04:00", value: 240 },
@@ -237,8 +251,36 @@
         { time: "24:00", value: 660 },
       ];
       const formatter = new Intl.NumberFormat("ko-KR");
+      const svgNamespace = "http://www.w3.org/2000/svg";
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const renderXAxisTicks = () => {
+        xTickLayer.replaceChildren();
+
+        xTickLabels.forEach((label, index) => {
+          const lines = Array.isArray(label) ? label : [label];
+          const text = document.createElementNS(svgNamespace, "text");
+
+          text.setAttribute("class", "tick");
+          text.setAttribute("x", xPositions[index]);
+          text.setAttribute("y", lines.length > 1 ? "604" : "612");
+          text.setAttribute("text-anchor", "middle");
+
+          lines.forEach((line, lineIndex) => {
+            const tspan = document.createElementNS(svgNamespace, "tspan");
+
+            tspan.setAttribute("x", xPositions[index]);
+            if (lineIndex > 0) {
+              tspan.setAttribute("dy", "22");
+            }
+            tspan.textContent = line;
+            text.appendChild(tspan);
+          });
+
+          xTickLayer.appendChild(text);
+        });
+      };
 
       const toSvgPoint = (event) => {
         const point = svg.createSVGPoint();
@@ -282,6 +324,9 @@
         guide.setAttribute("x1", xPositions[index]);
         guide.setAttribute("x2", xPositions[index]);
         guide.classList.add("is-visible");
+        hoverPoint.setAttribute("cx", xPositions[index]);
+        hoverPoint.setAttribute("cy", yPositions[index]);
+        hoverPoint.classList.add("is-visible");
         tooltip.innerHTML = `
           <div class="tooltip-time">${item.time}</div>
           <div class="tooltip-value">
@@ -295,9 +340,11 @@
 
       const hideTooltip = () => {
         guide.classList.remove("is-visible");
+        hoverPoint.classList.remove("is-visible");
         tooltip.classList.remove("is-visible");
       };
 
+      renderXAxisTicks();
       capture.addEventListener("pointerenter", showTooltip);
       capture.addEventListener("pointermove", showTooltip);
       capture.addEventListener("pointerleave", hideTooltip);
