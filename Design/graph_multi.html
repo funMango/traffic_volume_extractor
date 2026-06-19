@@ -135,12 +135,13 @@
       fill: none;
       stroke-linecap: round;
       stroke-linejoin: round;
+      stroke-opacity: 0.7;
       stroke-width: 3;
     }
 
     .hover-capture {
       fill: transparent;
-      cursor: crosshair;
+      cursor: default;
       pointer-events: all;
     }
 
@@ -155,6 +156,22 @@
 
     .hover-guide.is-visible {
       opacity: 1;
+    }
+
+    .hover-points {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 120ms ease;
+    }
+
+    .hover-points.is-visible {
+      opacity: 1;
+    }
+
+    .hover-point {
+      fill: #ffffff;
+      stroke-width: 2.5;
+      vector-effect: non-scaling-stroke;
     }
 
     .chart-tooltip {
@@ -309,6 +326,7 @@
         <path class="series" d="M120 550 L278 510 L436 380 L594 430 L752 360 L910 320 L1070 290" stroke="#7c3aed"></path>
 
         <line class="hover-guide" x1="120" y1="70" x2="120" y2="570"></line>
+        <g class="hover-points" aria-hidden="true"></g>
         <rect class="hover-capture" x="90" y="46" width="1000" height="548" rx="6"></rect>
       </svg>
       <div class="chart-tooltip" role="status" aria-live="polite"></div>
@@ -320,8 +338,16 @@
       const svg = chartArea.querySelector("svg");
       const capture = svg.querySelector(".hover-capture");
       const guide = svg.querySelector(".hover-guide");
+      const pointLayer = svg.querySelector(".hover-points");
       const tooltip = chartArea.querySelector(".chart-tooltip");
       const xPositions = [120, 278, 436, 594, 752, 910, 1070];
+      const yPositions = [
+        [500, 430, 410, 260, 300, 220, 260],
+        [460, 480, 360, 310, 240, 260, 210],
+        [530, 500, 450, 390, 280, 300, 330],
+        [420, 390, 300, 350, 320, 180, 160],
+        [550, 510, 380, 430, 360, 320, 290],
+      ];
       const traffic = [
         { time: "00:00", values: [140, 220, 80, 300, 40] },
         { time: "04:00", values: [280, 180, 140, 360, 120] },
@@ -339,6 +365,14 @@
         { label: "순환", color: "#7c3aed" },
       ];
       const formatter = new Intl.NumberFormat("ko-KR");
+      const markers = series.map((item) => {
+        const marker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        marker.setAttribute("class", "hover-point");
+        marker.setAttribute("r", "5.5");
+        marker.setAttribute("stroke", item.color);
+        pointLayer.append(marker);
+        return marker;
+      });
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -384,6 +418,14 @@
         </div>
       `).join("");
 
+      const updateMarkers = (index) => {
+        markers.forEach((marker, seriesIndex) => {
+          marker.setAttribute("cx", xPositions[index]);
+          marker.setAttribute("cy", yPositions[seriesIndex][index]);
+        });
+        pointLayer.classList.add("is-visible");
+      };
+
       const showTooltip = (event) => {
         const point = toSvgPoint(event);
         const index = nearestIndex(point.x);
@@ -392,6 +434,7 @@
         guide.setAttribute("x1", xPositions[index]);
         guide.setAttribute("x2", xPositions[index]);
         guide.classList.add("is-visible");
+        updateMarkers(index);
         tooltip.innerHTML = `
           <div class="tooltip-time">${item.time}</div>
           ${renderRows(item.values)}
@@ -402,6 +445,7 @@
 
       const hideTooltip = () => {
         guide.classList.remove("is-visible");
+        pointLayer.classList.remove("is-visible");
         tooltip.classList.remove("is-visible");
       };
 
