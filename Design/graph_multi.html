@@ -77,6 +77,17 @@
       background: var(--page);
     }
 
+    .chart-scroll {
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-gutter: stable;
+    }
+
+    .chart-scroll:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 4px;
+    }
+
     svg {
       display: block;
       width: 100%;
@@ -228,29 +239,26 @@
   <main class="page" aria-label="교통량 다중 그래프 시안">
 
     <section class="chart-area">
+      <div class="chart-scroll" tabindex="0">
       <svg viewBox="0 0 1160 700" role="img" aria-labelledby="chart-title chart-desc">
         <title id="chart-title">여러 방향 교통량 꺾은선 그래프</title>
         <desc id="chart-desc">시간 축과 교통량 축 위에 서로 다른 색상의 얇은 꺾은선 다섯 개가 표시된 그래프</desc>
 
-        <rect x="90" y="46" width="1000" height="548" rx="6" fill="#ffffff" stroke="#dbe3ea" stroke-width="1.5"></rect>
-        <path d="M90 95 H1090 M90 145 H1090 M90 195 H1090" stroke="#e2e8f0" stroke-width="1" opacity="0.65"></path>
+        <rect class="plot-frame" x="90" y="46" width="1000" height="548" rx="6" fill="#ffffff" stroke="#dbe3ea" stroke-width="1.5"></rect>
+        <path class="plot-overlay-lines" d="M90 95 H1090 M90 145 H1090 M90 195 H1090" stroke="#e2e8f0" stroke-width="1" opacity="0.65"></path>
 
-        <line class="grid" x1="120" y1="570" x2="1070" y2="570"></line>
-        <line class="grid" x1="120" y1="470" x2="1070" y2="470"></line>
-        <line class="grid" x1="120" y1="370" x2="1070" y2="370"></line>
-        <line class="grid" x1="120" y1="270" x2="1070" y2="270"></line>
-        <line class="grid" x1="120" y1="170" x2="1070" y2="170"></line>
-        <line class="grid" x1="120" y1="70" x2="1070" y2="70"></line>
+        <g class="y-grid-lines" aria-hidden="true">
+          <line class="grid" x1="120" y1="570" x2="1070" y2="570"></line>
+          <line class="grid" x1="120" y1="470" x2="1070" y2="470"></line>
+          <line class="grid" x1="120" y1="370" x2="1070" y2="370"></line>
+          <line class="grid" x1="120" y1="270" x2="1070" y2="270"></line>
+          <line class="grid" x1="120" y1="170" x2="1070" y2="170"></line>
+          <line class="grid" x1="120" y1="70" x2="1070" y2="70"></line>
+        </g>
 
-        <line class="grid" x1="120" y1="70" x2="120" y2="570"></line>
-        <line class="grid" x1="278" y1="70" x2="278" y2="570"></line>
-        <line class="grid" x1="436" y1="70" x2="436" y2="570"></line>
-        <line class="grid" x1="594" y1="70" x2="594" y2="570"></line>
-        <line class="grid" x1="752" y1="70" x2="752" y2="570"></line>
-        <line class="grid" x1="910" y1="70" x2="910" y2="570"></line>
-        <line class="grid" x1="1070" y1="70" x2="1070" y2="570"></line>
+        <g class="x-grid-lines" aria-hidden="true"></g>
 
-        <line class="axis" x1="120" y1="570" x2="1070" y2="570"></line>
+        <line class="axis x-axis" x1="120" y1="570" x2="1070" y2="570"></line>
         <line class="axis" x1="120" y1="70" x2="120" y2="570"></line>
 
         <text class="tick" x="102" y="577" text-anchor="end">0</text>
@@ -265,16 +273,17 @@
         <text class="axis-label" x="595" y="660" text-anchor="middle">시간</text>
         <text class="axis-label" x="42" y="320" text-anchor="middle" transform="rotate(-90 42 320)">교통량</text>
 
-        <path class="series" d="M120 500 L278 430 L436 410 L594 260 L752 300 L910 220 L1070 260" stroke="#15803d"></path>
-        <path class="series" d="M120 460 L278 480 L436 360 L594 310 L752 240 L910 260 L1070 210" stroke="#b45309"></path>
-        <path class="series" d="M120 530 L278 500 L436 450 L594 390 L752 280 L910 300 L1070 330" stroke="#0369a1"></path>
-        <path class="series" d="M120 420 L278 390 L436 300 L594 350 L752 320 L910 180 L1070 160" stroke="#dc2626"></path>
-        <path class="series" d="M120 550 L278 510 L436 380 L594 430 L752 360 L910 320 L1070 290" stroke="#7c3aed"></path>
+        <path class="series" stroke="#15803d"></path>
+        <path class="series" stroke="#b45309"></path>
+        <path class="series" stroke="#0369a1"></path>
+        <path class="series" stroke="#dc2626"></path>
+        <path class="series" stroke="#7c3aed"></path>
 
         <line class="hover-guide" x1="120" y1="70" x2="120" y2="570"></line>
         <g class="hover-points" aria-hidden="true"></g>
         <rect class="hover-capture" x="90" y="46" width="1000" height="548" rx="6"></rect>
       </svg>
+      </div>
       <ul class="legend" aria-label="그래프 범례">
         <li><span class="swatch" style="--line-color: var(--green)"></span>북측</li>
         <li><span class="swatch" style="--line-color: var(--amber)"></span>동측</li>
@@ -293,15 +302,14 @@
       const guide = svg.querySelector(".hover-guide");
       const pointLayer = svg.querySelector(".hover-points");
       const xTickLayer = svg.querySelector(".x-ticks");
+      const xGridLayer = svg.querySelector(".x-grid-lines");
+      const yGridLines = svg.querySelectorAll(".y-grid-lines .grid");
+      const plotFrame = svg.querySelector(".plot-frame");
+      const plotOverlayLines = svg.querySelector(".plot-overlay-lines");
+      const xAxis = svg.querySelector(".x-axis");
+      const xAxisLabel = svg.querySelector(".axis-label");
+      const seriesPaths = svg.querySelectorAll(".series");
       const tooltip = chartArea.querySelector(".chart-tooltip");
-      const xPositions = [120, 278, 436, 594, 752, 910, 1070];
-      const yPositions = [
-        [500, 430, 410, 260, 300, 220, 260],
-        [460, 480, 360, 310, 240, 260, 210],
-        [530, 500, 450, 390, 280, 300, 330],
-        [420, 390, 300, 350, 320, 180, 160],
-        [550, 510, 380, 430, 360, 320, 290],
-      ];
       const traffic = [
         { time: "00:00", values: [140, 220, 80, 300, 40] },
         { time: "04:00", values: [280, 180, 140, 360, 120] },
@@ -311,6 +319,26 @@
         { time: "20:00", values: [700, 620, 540, 780, 500] },
         { time: "24:00", values: [620, 720, 480, 820, 560] },
       ];
+      const chart = {
+        baseWidth: 1160,
+        left: 120,
+        right: 1070,
+        top: 70,
+        bottom: 570,
+        frameX: 90,
+        framePaddingRight: 20,
+        pointGap: 950 / 6,
+        maxValue: 1000,
+      };
+      const plotWidth = Math.max(chart.right - chart.left, (traffic.length - 1) * chart.pointGap);
+      const plotRight = chart.left + plotWidth;
+      const chartWidth = plotRight + 90;
+      const xPositions = traffic.map((_, index) => (
+        chart.left + (traffic.length === 1 ? 0 : (plotWidth / (traffic.length - 1)) * index)
+      ));
+      const yPositions = Array.from({ length: 5 }, (_, seriesIndex) => traffic.map((item) => (
+        chart.bottom - (item.values[seriesIndex] / chart.maxValue) * (chart.bottom - chart.top)
+      )));
       const series = [
         { label: "북측", color: "#15803d" },
         { label: "동측", color: "#b45309" },
@@ -346,6 +374,42 @@
       });
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const seriesPath = (points) => xPositions.map((x, index) => (
+        `${index === 0 ? "M" : "L"}${x} ${points[index]}`
+      )).join(" ");
+
+      const renderChartFrame = () => {
+        const frameWidth = plotWidth + chart.left - chart.frameX + chart.framePaddingRight;
+
+        svg.setAttribute("viewBox", `0 0 ${chartWidth} 700`);
+        svg.style.width = `${(chartWidth / chart.baseWidth) * 100}%`;
+        plotFrame.setAttribute("width", frameWidth);
+        capture.setAttribute("width", frameWidth);
+        plotOverlayLines.setAttribute("d", `M90 95 H${plotRight + chart.framePaddingRight} M90 145 H${plotRight + chart.framePaddingRight} M90 195 H${plotRight + chart.framePaddingRight}`);
+        xAxis.setAttribute("x2", plotRight);
+        xAxisLabel.setAttribute("x", (chart.left + plotRight) / 2);
+
+        yGridLines.forEach((line) => {
+          line.setAttribute("x2", plotRight);
+        });
+
+        xGridLayer.replaceChildren();
+        xPositions.forEach((x) => {
+          const line = document.createElementNS(svgNamespace, "line");
+
+          line.setAttribute("class", "grid");
+          line.setAttribute("x1", x);
+          line.setAttribute("y1", chart.top);
+          line.setAttribute("x2", x);
+          line.setAttribute("y2", chart.bottom);
+          xGridLayer.appendChild(line);
+        });
+
+        seriesPaths.forEach((path, index) => {
+          path.setAttribute("d", seriesPath(yPositions[index]));
+        });
+      };
 
       const renderXAxisTicks = () => {
         xTickLayer.replaceChildren();
@@ -446,6 +510,7 @@
         tooltip.classList.remove("is-visible");
       };
 
+      renderChartFrame();
       renderXAxisTicks();
       capture.addEventListener("pointerenter", showTooltip);
       capture.addEventListener("pointermove", showTooltip);

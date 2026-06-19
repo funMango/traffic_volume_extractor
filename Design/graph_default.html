@@ -45,6 +45,17 @@
       background: var(--page);
     }
 
+    .chart-scroll {
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-gutter: stable;
+    }
+
+    .chart-scroll:focus-visible {
+      outline: 2px solid var(--signal);
+      outline-offset: 4px;
+    }
+
     svg {
       display: block;
       width: 100%;
@@ -170,6 +181,7 @@
 <body>
   <main class="page" aria-label="교통량 단일 그래프 시안">
     <section class="chart-area">
+      <div class="chart-scroll" tabindex="0">
       <svg viewBox="0 0 1160 700" role="img" aria-labelledby="chart-title chart-desc">
         <title id="chart-title">단일 교통량 꺾은선 그래프</title>
         <desc id="chart-desc">시간 축과 교통량 축 위에 선 아래가 그라데이션으로 채워진 단일 꺾은선 그래프</desc>
@@ -184,24 +196,20 @@
           </filter>
         </defs>
 
-        <rect x="90" y="46" width="1000" height="548" rx="6" fill="#ffffff" stroke="#dbe3ea" stroke-width="1.5"></rect>
+        <rect class="plot-frame" x="90" y="46" width="1000" height="548" rx="6" fill="#ffffff" stroke="#dbe3ea" stroke-width="1.5"></rect>
 
-        <line class="grid" x1="120" y1="570" x2="1070" y2="570"></line>
-        <line class="grid" x1="120" y1="470" x2="1070" y2="470"></line>
-        <line class="grid" x1="120" y1="370" x2="1070" y2="370"></line>
-        <line class="grid" x1="120" y1="270" x2="1070" y2="270"></line>
-        <line class="grid" x1="120" y1="170" x2="1070" y2="170"></line>
-        <line class="grid" x1="120" y1="70" x2="1070" y2="70"></line>
+        <g class="y-grid-lines" aria-hidden="true">
+          <line class="grid" x1="120" y1="570" x2="1070" y2="570"></line>
+          <line class="grid" x1="120" y1="470" x2="1070" y2="470"></line>
+          <line class="grid" x1="120" y1="370" x2="1070" y2="370"></line>
+          <line class="grid" x1="120" y1="270" x2="1070" y2="270"></line>
+          <line class="grid" x1="120" y1="170" x2="1070" y2="170"></line>
+          <line class="grid" x1="120" y1="70" x2="1070" y2="70"></line>
+        </g>
 
-        <line class="grid" x1="120" y1="70" x2="120" y2="570"></line>
-        <line class="grid" x1="278" y1="70" x2="278" y2="570"></line>
-        <line class="grid" x1="436" y1="70" x2="436" y2="570"></line>
-        <line class="grid" x1="594" y1="70" x2="594" y2="570"></line>
-        <line class="grid" x1="752" y1="70" x2="752" y2="570"></line>
-        <line class="grid" x1="910" y1="70" x2="910" y2="570"></line>
-        <line class="grid" x1="1070" y1="70" x2="1070" y2="570"></line>
+        <g class="x-grid-lines" aria-hidden="true"></g>
 
-        <line class="axis" x1="120" y1="570" x2="1070" y2="570"></line>
+        <line class="axis x-axis" x1="120" y1="570" x2="1070" y2="570"></line>
         <line class="axis" x1="120" y1="70" x2="120" y2="570"></line>
 
         <text class="tick" x="102" y="577" text-anchor="end">0</text>
@@ -216,16 +224,17 @@
         <text class="axis-label" x="595" y="660" text-anchor="middle">시간</text>
         <text class="axis-label" x="42" y="320" text-anchor="middle" transform="rotate(-90 42 320)">교통량</text>
 
-        <path d="M120 520 L278 450 L436 340 L594 230 L752 270 L910 180 L1070 240 L1070 570 L120 570 Z" fill="url(#traffic-fill)"></path>
-        <path d="M120 520 L278 450 L436 340 L594 230 L752 270 L910 180 L1070 240" fill="none" stroke="#2563eb" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" opacity="0.14" filter="url(#line-shadow)"></path>
-        <path d="M120 520 L278 450 L436 340 L594 230 L752 270 L910 180 L1070 240" fill="none" stroke="#2563eb" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"></path>
-        <path d="M120 520 L278 450 L436 340 L594 230 L752 270 L910 180 L1070 240" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+        <path class="traffic-area" fill="url(#traffic-fill)"></path>
+        <path class="traffic-line" fill="none" stroke="#2563eb" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" opacity="0.14" filter="url(#line-shadow)"></path>
+        <path class="traffic-line" fill="none" stroke="#2563eb" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path class="traffic-line" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
         <line class="hover-guide" x1="120" y1="70" x2="120" y2="570"></line>
         <g class="hover-point-layer" aria-hidden="true">
           <circle class="hover-point" cx="120" cy="520" r="6"></circle>
         </g>
         <rect class="hover-capture" x="90" y="46" width="1000" height="548" rx="6"></rect>
       </svg>
+      </div>
       <div class="chart-tooltip" role="status" aria-live="polite"></div>
     </section>
   </main>
@@ -237,9 +246,14 @@
       const guide = svg.querySelector(".hover-guide");
       const hoverPoint = svg.querySelector(".hover-point");
       const xTickLayer = svg.querySelector(".x-ticks");
+      const xGridLayer = svg.querySelector(".x-grid-lines");
+      const yGridLines = svg.querySelectorAll(".y-grid-lines .grid");
+      const plotFrame = svg.querySelector(".plot-frame");
+      const xAxis = svg.querySelector(".x-axis");
+      const xAxisLabel = svg.querySelector(".axis-label");
+      const trafficArea = svg.querySelector(".traffic-area");
+      const trafficLines = svg.querySelectorAll(".traffic-line");
       const tooltip = chartArea.querySelector(".chart-tooltip");
-      const xPositions = [120, 278, 436, 594, 752, 910, 1070];
-      const yPositions = [520, 450, 340, 230, 270, 180, 240];
       const traffic = [
         { time: "00:00", value: 100 },
         { time: "04:00", value: 240 },
@@ -249,6 +263,26 @@
         { time: "20:00", value: 780 },
         { time: "24:00", value: 660 },
       ];
+      const chart = {
+        baseWidth: 1160,
+        left: 120,
+        right: 1070,
+        top: 70,
+        bottom: 570,
+        frameX: 90,
+        framePaddingRight: 20,
+        pointGap: 950 / 6,
+        maxValue: 1000,
+      };
+      const plotWidth = Math.max(chart.right - chart.left, (traffic.length - 1) * chart.pointGap);
+      const plotRight = chart.left + plotWidth;
+      const chartWidth = plotRight + 90;
+      const xPositions = traffic.map((_, index) => (
+        chart.left + (traffic.length === 1 ? 0 : (plotWidth / (traffic.length - 1)) * index)
+      ));
+      const yPositions = traffic.map((item) => (
+        chart.bottom - (item.value / chart.maxValue) * (chart.bottom - chart.top)
+      ));
       const formatter = new Intl.NumberFormat("ko-KR");
       const svgNamespace = "http://www.w3.org/2000/svg";
       const formatXAxisLabel = (label) => {
@@ -269,6 +303,43 @@
       const xTickLabels = traffic.map((item) => formatXAxisLabel(item.time));
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+      const pointsPath = () => xPositions.map((x, index) => (
+        `${index === 0 ? "M" : "L"}${x} ${yPositions[index]}`
+      )).join(" ");
+
+      const renderChartFrame = () => {
+        const frameWidth = plotWidth + chart.left - chart.frameX + chart.framePaddingRight;
+
+        svg.setAttribute("viewBox", `0 0 ${chartWidth} 700`);
+        svg.style.width = `${(chartWidth / chart.baseWidth) * 100}%`;
+        plotFrame.setAttribute("width", frameWidth);
+        capture.setAttribute("width", frameWidth);
+        xAxis.setAttribute("x2", plotRight);
+        xAxisLabel.setAttribute("x", (chart.left + plotRight) / 2);
+
+        yGridLines.forEach((line) => {
+          line.setAttribute("x2", plotRight);
+        });
+
+        xGridLayer.replaceChildren();
+        xPositions.forEach((x) => {
+          const line = document.createElementNS(svgNamespace, "line");
+
+          line.setAttribute("class", "grid");
+          line.setAttribute("x1", x);
+          line.setAttribute("y1", chart.top);
+          line.setAttribute("x2", x);
+          line.setAttribute("y2", chart.bottom);
+          xGridLayer.appendChild(line);
+        });
+
+        const linePath = pointsPath();
+        trafficArea.setAttribute("d", `${linePath} L${plotRight} ${chart.bottom} L${chart.left} ${chart.bottom} Z`);
+        trafficLines.forEach((line) => {
+          line.setAttribute("d", linePath);
+        });
+      };
 
       const renderXAxisTicks = () => {
         xTickLayer.replaceChildren();
@@ -359,6 +430,7 @@
         tooltip.classList.remove("is-visible");
       };
 
+      renderChartFrame();
       renderXAxisTicks();
       capture.addEventListener("pointerenter", showTooltip);
       capture.addEventListener("pointermove", showTooltip);
