@@ -240,6 +240,91 @@ def test_parse_time_range_validates_interval_alignment_and_24_hour_rule():
         gct.parse_time_range("18:00~24:00", "1일")
 
 
+def test_parse_time_ranges_supports_multiple_ranges_and_api_hour_union():
+    time_ranges = gct.parse_time_ranges("09:00~10:00, 12:00~14:00", "1시간")
+
+    assert [(item.start_minute, item.end_minute) for item in time_ranges] == [
+        (9 * 60, 10 * 60),
+        (12 * 60, 14 * 60),
+    ]
+    assert gct.hours_for_api(time_ranges) == [9, 12, 13]
+
+
+def test_parse_time_ranges_preserves_single_range_and_full_day_behavior():
+    single = gct.parse_time_ranges("17:15~17:45", "15분")
+    full_day = gct.parse_time_ranges("24시간", "5분")
+
+    assert [(item.start_minute, item.end_minute) for item in single] == [
+        (17 * 60 + 15, 17 * 60 + 45)
+    ]
+    assert len(full_day) == 1
+    assert full_day[0].is_full_day
+    assert gct.hours_for_api(full_day) == list(range(24))
+
+
+def test_parse_time_ranges_rejects_invalid_multiple_range_inputs():
+    invalid_inputs = [
+        "",
+        "09:00",
+        "10:00~09:00",
+        "24시간, 09:00~10:00",
+        "09:15~10:00",
+    ]
+
+    for raw in invalid_inputs:
+        with pytest.raises(ValueError):
+            gct.parse_time_ranges(raw, "1시간")
+
+
+def test_slot_in_time_ranges_includes_only_configured_ranges():
+    time_ranges = gct.parse_time_ranges("09:00~10:00, 12:00~14:00", "1시간")
+
+    assert gct.slot_in_time_ranges(_slot(timestamp="2026-04-12T09:00:00"), time_ranges)
+    assert not gct.slot_in_time_ranges(_slot(timestamp="2026-04-12T10:00:00"), time_ranges)
+    assert not gct.slot_in_time_ranges(_slot(timestamp="2026-04-12T11:00:00"), time_ranges)
+    assert gct.slot_in_time_ranges(_slot(timestamp="2026-04-12T13:00:00"), time_ranges)
+    assert not gct.slot_in_time_ranges(_slot(timestamp="2026-04-12T14:00:00"), time_ranges)
+
+
+def test_fetch_corrected_direction_slots_uses_hour_union_and_filters_time_ranges(monkeypatch):
+    periods = gct.parse_periods("260412")
+    intersections = [gct.Intersection(1, "계남고가사거리", 0)]
+    interval = gct.parse_interval("1시간")
+    time_ranges = gct.parse_time_ranges("09:00~10:00, 12:00~14:00", interval)
+    calls = []
+
+    def fake_api_post(path, payload, base_url=gct.API_BASE_URL):
+        calls.append((path, payload, base_url))
+        return {
+            "drct_slots": [
+                {
+                    "interval": "1h",
+                    "timestamp": f"{payload['date_start']}T{hour:02d}:00:00",
+                    "node_id": 1,
+                    "node_name": "계남고가사거리",
+                    "approach_id": 10,
+                    "approach_name": "계남고가사거리(상향)",
+                    "drct_cd": "01",
+                    "drct_name": "좌",
+                    "corrected_value": hour,
+                }
+                for hour in [9, 10, 11, 12, 13, 14]
+            ]
+        }
+
+    monkeypatch.setattr(gct, "api_post", fake_api_post)
+
+    rows = gct.fetch_corrected_direction_slots(
+        intersections,
+        periods,
+        interval,
+        time_ranges,
+    )
+
+    assert calls[0][1]["hours"] == [9, 12, 13]
+    assert [row["hour"] for row in rows] == [9, 12, 13]
+
+
 def test_aggregates_5m_rows_to_15m_and_30m():
     rows = [
         _slot(timestamp="2026-04-12T17:00:00", value=1),

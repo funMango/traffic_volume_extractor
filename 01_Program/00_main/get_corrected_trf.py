@@ -263,7 +263,7 @@ def _parse_yymmdd(raw: str) -> date:
 def parse_time_range(raw: str, interval: IntervalSpec | str) -> TimeRange:
     spec = parse_interval(interval) if isinstance(interval, str) else interval
     value = raw.strip()
-    if value in {"24시간", "24", "all", "ALL", "*", "전체"}:
+    if _is_full_day_time_range(value):
         time_range = TimeRange(0, 24 * 60, "24시간")
     else:
         match = re.fullmatch(r"(\d{1,2}:\d{2})~(\d{1,2}:\d{2})", value)
@@ -277,6 +277,19 @@ def parse_time_range(raw: str, interval: IntervalSpec | str) -> TimeRange:
 
     _validate_time_range_alignment(time_range, spec)
     return time_range
+
+
+def parse_time_ranges(raw: str, interval: IntervalSpec | str) -> list[TimeRange]:
+    parts = [part.strip() for part in raw.split(",") if part.strip()]
+    if not parts:
+        raise ValueError("시간을 입력해 주세요.")
+    if any(_is_full_day_time_range(part) for part in parts) and len(parts) > 1:
+        raise ValueError("24시간은 다른 시간 범위와 함께 사용할 수 없습니다.")
+    return [parse_time_range(part, interval) for part in parts]
+
+
+def _is_full_day_time_range(value: str) -> bool:
+    return value.strip().lower() in {"24시간", "24", "all", "*", "전체"}
 
 
 def _parse_clock(raw: str, is_end: bool) -> int:
@@ -313,12 +326,23 @@ def _validate_time_range_alignment(time_range: TimeRange, interval: IntervalSpec
         raise ValueError("시간 범위가 선택한 집계 간격보다 짧습니다.")
 
 
-def hours_for_api(time_range: TimeRange) -> list[int]:
-    if time_range.is_full_day:
+def hours_for_api(time_range: TimeRange | list[TimeRange]) -> list[int]:
+    time_ranges = _normalize_time_ranges(time_range)
+    if any(item.is_full_day for item in time_ranges):
         return list(range(24))
-    first_hour = time_range.start_minute // 60
-    last_hour = (time_range.end_minute - 1) // 60
-    return list(range(first_hour, last_hour + 1))
+
+    hours: set[int] = set()
+    for item in time_ranges:
+        first_hour = item.start_minute // 60
+        last_hour = (item.end_minute - 1) // 60
+        hours.update(range(first_hour, last_hour + 1))
+    return sorted(hours)
+
+
+def _normalize_time_ranges(time_range: TimeRange | list[TimeRange]) -> list[TimeRange]:
+    if isinstance(time_range, TimeRange):
+        return [time_range]
+    return time_range
 
 
 def resolve_intersection_input(raw: str, items: list[dict]) -> list[Intersection]:
@@ -423,10 +447,11 @@ def fetch_corrected_direction_slots(
     intersections: list[Intersection],
     periods: list[Period],
     interval: IntervalSpec,
-    time_range: TimeRange,
+    time_ranges: TimeRange | list[TimeRange],
     base_url: str = API_BASE_URL,
     progress: ProgressReporter | None = None,
 ) -> list[dict]:
+    time_ranges = _normalize_time_ranges(time_ranges)
     order_map = {_node_key(item.node_id): item.order for item in intersections}
     name_map = {_node_key(item.node_id): item.name for item in intersections}
     rows: list[dict] = []
@@ -438,7 +463,7 @@ def fetch_corrected_direction_slots(
             "node_ids": [item.node_id for item in intersections],
             "date_start": period.start.isoformat(),
             "date_end": period.end.isoformat(),
-            "hours": hours_for_api(time_range),
+            "hours": hours_for_api(time_ranges),
             "interval": interval.api_interval,
         }
         response = api_post(ENDPOINT, payload, base_url=base_url)
@@ -450,7 +475,7 @@ def fetch_corrected_direction_slots(
             row = normalize_api_slot(slot, order_map, name_map)
             if not is_valid_direction_slot(row):
                 continue
-            if not slot_in_time_range(row, time_range):
+            if not slot_in_time_ranges(row, time_ranges):
                 continue
             rows.append(row)
 
@@ -552,6 +577,10 @@ def slot_in_time_range(row: dict, time_range: TimeRange) -> bool:
     ts = datetime.fromisoformat(row["timestamp"])
     minute_of_day = ts.hour * 60 + ts.minute
     return time_range.start_minute <= minute_of_day < time_range.end_minute
+
+
+def slot_in_time_ranges(row: dict, time_ranges: list[TimeRange]) -> bool:
+    return any(slot_in_time_range(row, time_range) for time_range in time_ranges)
 
 
 def aggregate_slots_by_interval(rows: list[dict], interval: IntervalSpec) -> list[dict]:
@@ -954,7 +983,7 @@ def extract_and_save_corrected_direction_slots(
     intersections: list[Intersection],
     periods: list[Period],
     interval: IntervalSpec,
-    time_range: TimeRange,
+    time_ranges: TimeRange | list[TimeRange],
     output_mode: str,
     base_url: str = API_BASE_URL,
 ) -> tuple[Path, int]:
@@ -965,7 +994,7 @@ def extract_and_save_corrected_direction_slots(
             intersections,
             periods,
             interval,
-            time_range,
+            time_ranges,
             base_url=base_url,
             progress=progress,
         )
@@ -1021,13 +1050,14 @@ def input_interval() -> IntervalSpec:
             print(f"  {exc}")
 
 
-def input_time_range(interval: IntervalSpec) -> TimeRange:
+def input_time_range(interval: IntervalSpec) -> list[TimeRange]:
     print("\n[4단계] 시간 입력")
     print("  예: 24시간, 18:00~24:00, 17:15~17:45")
+    print("  여러 구간은 쉼표로 구분: 09:00~10:00, 12:00~14:00")
     while True:
         raw = input("시간: ").strip()
         try:
-            return parse_time_range(raw, interval)
+            return parse_time_ranges(raw, interval)
         except ValueError as exc:
             print(f"  {exc}")
 
@@ -1053,14 +1083,14 @@ def main() -> int:
         intersections = input_intersections(items)
         periods = input_periods()
         interval = input_interval()
-        time_range = input_time_range(interval)
+        time_ranges = input_time_range(interval)
         output_mode = input_output_mode()
 
         output_path, row_count = extract_and_save_corrected_direction_slots(
             intersections,
             periods,
             interval,
-            time_range,
+            time_ranges,
             output_mode,
             base_url=API_BASE_URL,
         )
