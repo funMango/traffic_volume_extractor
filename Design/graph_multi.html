@@ -95,12 +95,6 @@
       overflow: visible;
     }
 
-    .axis-label {
-      fill: var(--text);
-      font-size: 24px;
-      font-weight: 700;
-    }
-
     .tick {
       fill: var(--muted);
       font-family: Consolas, "Cascadia Mono", monospace;
@@ -247,15 +241,6 @@
         <rect class="plot-frame" x="90" y="46" width="1000" height="548" rx="6" fill="#ffffff" stroke="#dbe3ea" stroke-width="1.5"></rect>
         <path class="plot-overlay-lines" d="M90 95 H1090 M90 145 H1090 M90 195 H1090" stroke="#e2e8f0" stroke-width="1" opacity="0.65"></path>
 
-        <g class="y-grid-lines" aria-hidden="true">
-          <line class="grid" x1="120" y1="570" x2="1070" y2="570"></line>
-          <line class="grid" x1="120" y1="470" x2="1070" y2="470"></line>
-          <line class="grid" x1="120" y1="370" x2="1070" y2="370"></line>
-          <line class="grid" x1="120" y1="270" x2="1070" y2="270"></line>
-          <line class="grid" x1="120" y1="170" x2="1070" y2="170"></line>
-          <line class="grid" x1="120" y1="70" x2="1070" y2="70"></line>
-        </g>
-
         <g class="x-grid-lines" aria-hidden="true"></g>
 
         <line class="axis x-axis" x1="120" y1="570" x2="1070" y2="570"></line>
@@ -269,9 +254,6 @@
         <text class="tick" x="102" y="77" text-anchor="end">1000</text>
 
         <g class="x-ticks" aria-hidden="true"></g>
-
-        <text class="axis-label" x="595" y="660" text-anchor="middle">시간</text>
-        <text class="axis-label" x="42" y="320" text-anchor="middle" transform="rotate(-90 42 320)">교통량</text>
 
         <path class="series" stroke="#15803d"></path>
         <path class="series" stroke="#b45309"></path>
@@ -303,11 +285,9 @@
       const pointLayer = svg.querySelector(".hover-points");
       const xTickLayer = svg.querySelector(".x-ticks");
       const xGridLayer = svg.querySelector(".x-grid-lines");
-      const yGridLines = svg.querySelectorAll(".y-grid-lines .grid");
       const plotFrame = svg.querySelector(".plot-frame");
       const plotOverlayLines = svg.querySelector(".plot-overlay-lines");
       const xAxis = svg.querySelector(".x-axis");
-      const xAxisLabel = svg.querySelector(".axis-label");
       const seriesPaths = svg.querySelectorAll(".series");
       const tooltip = chartArea.querySelector(".chart-tooltip");
       const traffic = [
@@ -405,11 +385,6 @@
         capture.setAttribute("width", frameWidth);
         plotOverlayLines.setAttribute("d", `M90 95 H${plotRight + chart.framePaddingRight} M90 145 H${plotRight + chart.framePaddingRight} M90 195 H${plotRight + chart.framePaddingRight}`);
         xAxis.setAttribute("x2", plotRight);
-        xAxisLabel.setAttribute("x", (chart.left + plotRight) / 2);
-
-        yGridLines.forEach((line) => {
-          line.setAttribute("x2", plotRight);
-        });
 
         xGridLayer.replaceChildren();
         xPositions.forEach((x) => {
