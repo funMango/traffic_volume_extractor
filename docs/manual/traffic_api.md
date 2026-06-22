@@ -25,9 +25,9 @@ cmd /c "C:\01_Project\09_교통량 추출 시스템\01_Program\09_else\start_api
 - `POST /jobs`: 교통량 처리 작업을 생성한다.
 - `GET /jobs/{job_id}`: 생성된 작업 상태 또는 결과를 조회한다.
 - `POST /corrected-traffic`: 보정 교통량 결과를 조회한다.
-- `POST /corrected-traffic-acsr`: 접근로 기준 보정 교통량 결과를 조회한다.
-- `POST /corrected-traffic-crsrd`: 교차로 기준 보정 교통량 결과를 조회한다.
-- `POST /corrected-traffic-drct`: 방향 기준 보정 교통량 결과를 조회한다.
+- `POST /corrected-traffic-acsr`: DRCT 5분 원천 기반 접근로 기준 보정 교통량 결과를 조회한다.
+- `POST /corrected-traffic-crsrd`: DRCT 5분 원천 기반 교차로 기준 보정 교통량 결과를 조회한다.
+- `POST /corrected-traffic-drct`: DRCT 5분 원천 기반 방향 기준 보정 교통량 결과를 조회한다.
 - `POST /corrected-traffic-vknd`: 차종 기준 보정 교통량 결과를 조회한다.
 - `GET /vehicle-kinds`: 차종 기준 목록을 조회한다.
 - `POST /anomaly-daily-summary`: 이상탐지 일별 요약을 조회한다.
@@ -51,6 +51,15 @@ cmd /c "C:\01_Project\09_교통량 추출 시스템\01_Program\09_else\start_api
 - `hours`: 선택 필드, 0부터 23까지의 정수 배열
 - `hours_preset`: 선택 필드, `all` 또는 `peak`
 - `hours`와 `hours_preset`은 동시에 지정하지 않는다.
+
+`POST /corrected-traffic-drct`, `POST /corrected-traffic-acsr`, `POST /corrected-traffic-crsrd`는 DRCT 계열 보정 API다.
+
+- 원천 데이터는 `S_CRSRD_DRCT_TRF_5MI`의 DRCT 5분 슬롯이다.
+- 보정은 5분 단위로 수행하며, 값이 없는 슬롯만 보정한다.
+- 수집값이 있는 슬롯은 원시값 사용 후 상위 집계에 포함한다.
+- `interval`: `5m`, `1h`, `1d` 중 하나를 지정할 수 있으며, 기본값은 `1h`다.
+- `interval=5m`이면 5분 보정 슬롯을 반환하고, `interval=1h` 또는 `interval=1d`이면 5분 보정 결과를 각각 1시간 또는 1일 단위로 합산한다.
+- `POST /corrected-traffic-acsr`와 `POST /corrected-traffic-crsrd`도 같은 DRCT 5분 보정 결과를 접근로 또는 교차로 단위로 집계한다.
 
 `POST /corrected-traffic-vknd`는 추가로 다음 필드를 사용할 수 있다.
 

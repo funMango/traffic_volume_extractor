@@ -73,6 +73,8 @@ API 스키마, 보정 로직, 데이터베이스 접근 코드는 이 문서에�
   - 선형보간 거리 합이 7일 초과
 - 위 조건에 해당하지 않는 보정값은 `OK`다.
 
+이 절의 이상 슬롯 전반 보정 설명은 ACSR 기본 보정과 VKND 보정에 적용된다. DRCT 계열 보정 API는 아래의 DRCT 5분 원천 기준 설명을 우선 적용한다.
+
 ## 집계 방식
 
 ### ACSR 기본 보정
@@ -87,12 +89,17 @@ API 스키마, 보정 로직, 데이터베이스 접근 코드는 이 문서에�
 
 `POST /corrected-traffic-drct`는 방향 단위 보정 결과와 접근로 집계를 함께 반환한다.
 
+- DRCT/ACSR/CRSRD 보정 API는 `S_CRSRD_DRCT_TRF_5MI`를 원천으로 사용한다.
+- 보정 단위는 5분이며, 값이 없는 슬롯만 보정한다.
+- 값이 없는 5분 슬롯은 `A형` 결측으로 보고 보정값을 산정한다.
+- 수집값이 있는 슬롯은 원시값 사용 후 `corrected_value`에 원시값을 넣어 상위 `1h`/`1d`/ACSR/CRSRD 집계에 사용한다.
+- `interval=5m`이면 5분 보정 슬롯을 반환하고, `interval=1h` 또는 `interval=1d`이면 5분 보정 결과를 1시간 또는 1일 단위로 합산한다.
 - `drct_slots`가 먼저 생성된다.
 - `drct_cd=00`은 응답 집계 대상에서 제외된다.
 - `slots`는 DRCT 슬롯을 접근로 단위로 합산한 결과다.
 - `POST /corrected-traffic-acsr`는 DRCT 기반 접근로 집계 `slots`만 반환한다.
 - `POST /corrected-traffic-crsrd`는 접근로 집계를 다시 교차로 단위로 합산한 `slots`를 반환한다.
-- 집계 중 `corrected_value`가 `null`인 정상 슬롯은 원시값을 보정 후 값처럼 사용해 합산한다.
+- 집계 중 수집값이 있는 슬롯은 원시값을 보정 후 값처럼 사용해 합산한다.
 - 하위 슬롯에 `A형`과 `B형`이 함께 있으면 상위 집계의 `anomaly_type`은 `A+B혼합`이다.
 
 ### VKND 차종 보정
