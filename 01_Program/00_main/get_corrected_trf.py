@@ -44,6 +44,8 @@ OUTPUT_MODE_APPROACH = "approach"
 
 HANGUL_RE = re.compile(r"[가-힣]")
 INVALID_FILENAME_RE = re.compile(r'[\\/:*?"<>|]+')
+INVALID_SHEET_TITLE_RE = re.compile(r"[\[\]:*?/\\]")
+MAX_SHEET_TITLE_LENGTH = 31
 
 
 class ProgressReporter(Protocol):
@@ -689,16 +691,65 @@ def format_slot_label(row: dict, interval: IntervalSpec) -> str:
 def create_workbook(rows: list[dict], interval: IntervalSpec, output_mode: str):
     require_openpyxl()
     wb = Workbook()
-    ws = wb.active
     if output_mode == OUTPUT_MODE_INTERSECTION:
-        ws.title = "교차로"
-        write_intersection_sheet(ws, rows, interval)
+        default_title = "\uad50\ucc28\ub85c"
+        sheet_writer = write_intersection_sheet
     elif output_mode == OUTPUT_MODE_DIRECTION:
-        ws.title = "방향"
-        write_direction_sheet(ws, rows, interval)
+        default_title = "\ubc29\ud5a5"
+        sheet_writer = write_direction_sheet
     else:
         raise ValueError(f"알 수 없는 출력 방식입니다: {output_mode}")
+
+    ws = wb.active
+    intersection_groups = group_rows_by_intersection(rows)
+    if len(intersection_groups) <= 1:
+        ws.title = default_title
+        sheet_writer(ws, rows, interval)
+        return wb
+
+    used_titles: set[str] = set()
+    for index, group in enumerate(intersection_groups):
+        sheet = ws if index == 0 else wb.create_sheet()
+        sheet.title = safe_sheet_title(group["title"], used_titles)
+        sheet_writer(sheet, group["rows"], interval)
     return wb
+
+
+def group_rows_by_intersection(rows: list[dict]) -> list[dict]:
+    groups: dict[tuple, dict] = {}
+    for index, row in enumerate(rows):
+        node_key = _node_key(row.get("node_key") or row.get("node_id"))
+        node_name = str(row.get("node_name") or "")
+        node_order = row.get("node_order", 10**9)
+        key = (node_key, node_name, node_order)
+        if key not in groups:
+            title = node_name or str(row.get("node_id") or node_key or "\uad50\ucc28\ub85c")
+            groups[key] = {
+                "node_order": node_order,
+                "first_index": index,
+                "title": title,
+                "rows": [],
+            }
+        groups[key]["rows"].append(row)
+
+    return sorted(groups.values(), key=lambda item: (item["node_order"], item["first_index"]))
+
+
+def safe_sheet_title(value: Any, used_titles: set[str]) -> str:
+    base = INVALID_SHEET_TITLE_RE.sub("_", str(value or "").strip())
+    if not base:
+        base = "\uad50\ucc28\ub85c"
+    base = base[:MAX_SHEET_TITLE_LENGTH]
+
+    title = base
+    sequence = 2
+    while title in used_titles:
+        suffix = f"_{sequence}"
+        title = f"{base[: MAX_SHEET_TITLE_LENGTH - len(suffix)]}{suffix}"
+        sequence += 1
+
+    used_titles.add(title)
+    return title
 
 
 def save_workbook(

@@ -501,6 +501,67 @@ def test_direction_sheet_header_structure_uses_full_approach_name():
     assert [sheet.cell(2, col).value for col in range(3, 6)] == ["-", 20, 20]
 
 
+def test_create_workbook_splits_multiple_intersections_into_sheets():
+    rows = [
+        _slot(node_key="1", node_name="Alpha", node_order=0, approach_id=10, value=11),
+        _slot(node_key="2", node_name="Beta", node_order=1, approach_id=20, value=22),
+    ]
+
+    workbook = gct.create_workbook(
+        rows,
+        gct.IntervalSpec("5m", "5m", 5),
+        gct.OUTPUT_MODE_INTERSECTION,
+    )
+
+    assert workbook.sheetnames == ["Alpha", "Beta"]
+    assert workbook["Alpha"]["B3"].value == "Alpha"
+    assert workbook["Alpha"]["C3"].value == 11
+    assert workbook["Beta"]["B3"].value == "Beta"
+    assert workbook["Beta"]["C3"].value == 22
+
+
+def test_create_direction_workbook_splits_multiple_intersections_into_sheets():
+    rows = [
+        _slot(
+            node_key="1",
+            node_name="Alpha",
+            node_order=0,
+            approach_id=10,
+            approach_name="Alpha-North",
+            value=11,
+        ),
+        _slot(
+            node_key="2",
+            node_name="Beta",
+            node_order=1,
+            approach_id=20,
+            approach_name="Beta-South",
+            value=22,
+        ),
+    ]
+
+    workbook = gct.create_workbook(
+        rows,
+        gct.IntervalSpec("5m", "5m", 5),
+        gct.OUTPUT_MODE_DIRECTION,
+    )
+
+    assert workbook.sheetnames == ["Alpha", "Beta"]
+    assert workbook["Alpha"]["B2"].value == "Alpha-North"
+    assert workbook["Alpha"]["C2"].value == 11
+    assert workbook["Beta"]["B2"].value == "Beta-South"
+    assert workbook["Beta"]["C2"].value == 22
+
+
+def test_safe_sheet_title_handles_invalid_and_duplicate_names():
+    used_titles = set()
+    long_name = "A" * 40
+
+    assert gct.safe_sheet_title("Bad[]:*?/\\Name", used_titles) == "Bad_______Name"
+    assert gct.safe_sheet_title(long_name, used_titles) == "A" * 31
+    assert gct.safe_sheet_title(long_name, used_titles) == f"{'A' * 29}_2"
+
+
 def test_save_approach_database_writes_vertical_rows_and_correction_flags(tmp_path):
     output_path = tmp_path / "approach.db"
     rows = [
