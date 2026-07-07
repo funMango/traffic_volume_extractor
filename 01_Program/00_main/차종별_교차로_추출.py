@@ -41,7 +41,7 @@ except ImportError:  # pragma: no cover - 실행 환경 안내용
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR.parent / "00_Data" / ".env"
 VKND_KIND_PATH = BASE_DIR.parent / "00_Data" / "VKND_KIND.json"
-RESULT_DIR = BASE_DIR / "02_Result" / "차종별_교통량_추출"
+RESULT_DIR = BASE_DIR.parent / "02_Result" / "차종별_교통량_추출"
 FIXED_SQLITE_OUTPUT_PATH = (
     BASE_DIR
     / "02_Result"
