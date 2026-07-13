@@ -25,18 +25,18 @@ OUTPUT_DIR = BASE_DIR / "02_Result" / "09_기타"
 OUTPUT_PATH = OUTPUT_DIR / "삼정동_레미콘_014차량_location별.xlsx"
 
 TABLE_NAME = "vehicle_detection"
-EXPECTED_TOTAL_ROWS = 8793
-EXPECTED_LOCATION_COUNT = 5
+EXPECTED_TOTAL_ROWS = 10551
+EXPECTED_LOCATION_COUNT = 7
 VEHICLE_NUMBER_PATTERN = re.compile(r"^014[가-힣]")
 INVALID_SHEET_CHARS = re.compile(r"[\[\]\:\*\?\/\\]")
 MONTH_PATTERN = re.compile(r"^\d{4}-\d{2}$")
 
 ANALYSIS_SHEET_NAME = "월평균분석"
 ROAD_LOCATION_GROUPS = [
-    ("신흥로", ["산업길 사거리[남향]", "삼정동320-1 부천IC"]),
+    ("신흥로", ["산업길 사거리[남향]", "산업길 사거리[북향]", "삼정동320-1 부천IC"]),
     (
         "오정로",
-        ["삼정고가 삼거리[동향]", "삼정교 사거리[북동향]", "자동차검사소"],
+        ["삼정고가 삼거리[동향]", "삼정고가 삼거리[서향]", "삼정교 사거리[북동향]", "자동차검사소"],
     ),
 ]
 
