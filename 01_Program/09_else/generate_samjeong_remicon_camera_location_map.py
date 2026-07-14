@@ -202,6 +202,8 @@ def render_html(locations: Iterable[CameraLocation]) -> str:
     h1 {{ margin: 0 0 8px; font-size: 27px; }}
     .notice {{ margin: 0 0 18px; padding: 14px 16px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; color: #7c2d12; line-height: 1.6; }}
     #map {{ height: min(72vh, 720px); min-height: 480px; border: 1px solid #cbd5e1; border-radius: 12px; box-shadow: 0 4px 16px #0f172a18; }}
+    /* Prevent host-page image rules (for example max-width: 100%) from breaking Leaflet tile positions. */
+    .leaflet-container img.leaflet-tile {{ max-width: none !important; max-height: none !important; }}
     .camera-marker {{ display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 2px 7px #0f172a80; color: #fff; font-size: 13px; font-weight: 700; }}
     .camera-marker.cctv {{ background: #2563eb; }}
     .camera-marker.edge {{ background: #dc2626; }}
