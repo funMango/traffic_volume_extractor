@@ -241,7 +241,6 @@ def render_html(locations: Iterable[CameraLocation]) -> str:
     .legend-title {{ font-weight: 700; margin-bottom: 3px; }}
     .legend-dot {{ display: inline-block; width: 12px; height: 12px; margin-right: 6px; border-radius: 50%; vertical-align: -1px; }}
     .legend-cctv {{ background: #2563eb; }} .legend-edge {{ background: #dc2626; }}
-    .legend-line {{ display: inline-block; width: 22px; border-top: 2px dashed #64748b; margin: 0 6px 3px 0; }}
     .popup-title {{ margin: 0 0 8px; font-size: 15px; }} .popup-table {{ border-collapse: collapse; font-size: 13px; }} .popup-table th {{ text-align: left; padding: 3px 10px 3px 0; color: #475569; }} .popup-table td {{ padding: 3px 0; }}
     .camera-index {{ margin-top: 20px; padding: 18px; background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; }}
     .camera-index h2 {{ margin: 0 0 14px; font-size: 18px; }} .camera-index ol {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; margin: 0; padding: 0; list-style: none; }}
@@ -298,7 +297,7 @@ def render_html(locations: Iterable[CameraLocation]) -> str:
     const legend = L.control({{ position: 'bottomright' }});
     legend.onAdd = () => {{
       const element = L.DomUtil.create('div', 'legend');
-      element.innerHTML = '<div class="legend-title">카메라 종류</div><div><span class="legend-dot legend-cctv"></span>방범CCTV</div><div><span class="legend-dot legend-edge"></span>엣지카메라</div><div><span class="legend-line"></span>실제 위치 연결선</div>';
+      element.innerHTML = '<div class="legend-title">카메라 종류</div><div><span class="legend-dot legend-cctv"></span>방범CCTV</div><div><span class="legend-dot legend-edge"></span>엣지카메라</div>';
       return element;
     }};
     legend.addTo(map);
