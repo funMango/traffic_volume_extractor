@@ -195,7 +195,7 @@ def render_html(locations: Iterable[CameraLocation]) -> str:
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>삼정동 레미콘 카메라 위치 지도</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3s0Vf2R+0n0J6dH8tV2dG3f3p3p3s=" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     body {{ margin: 0; background: #f1f5f9; color: #172033; font-family: "Malgun Gothic", "Noto Sans KR", sans-serif; }}
     main {{ max-width: 1200px; margin: 0 auto; padding: 28px 20px 36px; }}
