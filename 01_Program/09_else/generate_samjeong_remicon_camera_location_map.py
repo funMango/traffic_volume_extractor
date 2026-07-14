@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import math
 import re
@@ -190,6 +191,22 @@ def map_record(location: CameraLocation, display_number: int) -> dict[str, objec
     }
 
 
+def render_camera_index(locations: list[CameraLocation]) -> str:
+    items: list[str] = []
+    for location, display_number in zip(locations, DISPLAY_NUMBERS, strict=True):
+        marker_class = "cctv" if location.camera_type == "방범CCTV" else "edge"
+        items.append(
+            "<li>"
+            f'<span class="index-number {marker_class}">{display_number}</span>'
+            "<div>"
+            f"<strong>{html.escape(location.name)}</strong>"
+            f"<span>{html.escape(location.road)} · {html.escape(location.camera_type)}</span>"
+            "</div>"
+            "</li>"
+        )
+    return "\n".join(items)
+
+
 def render_html(locations: Iterable[CameraLocation]) -> str:
     location_list = list(locations)
     if len(location_list) != len(DISPLAY_NUMBERS):
@@ -201,6 +218,7 @@ def render_html(locations: Iterable[CameraLocation]) -> str:
         ],
         ensure_ascii=False,
     )
+    camera_index = render_camera_index(location_list)
     return f"""<!doctype html>
 <html lang="ko">
 <head>
@@ -225,7 +243,11 @@ def render_html(locations: Iterable[CameraLocation]) -> str:
     .legend-cctv {{ background: #2563eb; }} .legend-edge {{ background: #dc2626; }}
     .legend-line {{ display: inline-block; width: 22px; border-top: 2px dashed #64748b; margin: 0 6px 3px 0; }}
     .popup-title {{ margin: 0 0 8px; font-size: 15px; }} .popup-table {{ border-collapse: collapse; font-size: 13px; }} .popup-table th {{ text-align: left; padding: 3px 10px 3px 0; color: #475569; }} .popup-table td {{ padding: 3px 0; }}
-    @media (max-width: 600px) {{ main {{ padding: 18px 10px 24px; }} h1 {{ font-size: 22px; }} #map {{ min-height: 420px; }} }}
+    .camera-index {{ margin-top: 20px; padding: 18px; background: #fff; border: 1px solid #cbd5e1; border-radius: 12px; }}
+    .camera-index h2 {{ margin: 0 0 14px; font-size: 18px; }} .camera-index ol {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; margin: 0; padding: 0; list-style: none; }}
+    .camera-index li {{ display: flex; align-items: center; gap: 9px; min-width: 0; }} .index-number {{ display: inline-flex; flex: 0 0 28px; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; font-size: 13px; font-weight: 700; }} .index-number.cctv {{ background: #2563eb; }} .index-number.edge {{ background: #dc2626; }}
+    .camera-index strong, .camera-index span {{ display: block; }} .camera-index strong {{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }} .camera-index li div > span {{ margin-top: 2px; color: #64748b; font-size: 12px; }}
+    @media (max-width: 600px) {{ main {{ padding: 18px 10px 24px; }} h1 {{ font-size: 22px; }} #map {{ min-height: 420px; }} .camera-index ol {{ grid-template-columns: 1fr; }} }}
   </style>
 </head>
 <body>
@@ -233,6 +255,12 @@ def render_html(locations: Iterable[CameraLocation]) -> str:
     <h1>삼정동 레미콘 카메라 위치 지도</h1>
     <p class="notice">가까운 카메라(35m 이내)는 실제 좌표를 보존한 채 가독성을 위해 표시 위치만 약 20m 벌려 표시했습니다. 점선은 실제 위치와 보정된 표시 위치를 연결합니다.</p>
     <div id="map" aria-label="삼정동 레미콘 카메라 위치 지도"></div>
+    <section class="camera-index" id="camera-index" aria-label="카메라 번호 안내">
+      <h2>카메라 번호 안내</h2>
+      <ol>
+        {camera_index}
+      </ol>
+    </section>
   </main>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
@@ -291,6 +319,7 @@ def validate_html(
         "L.polyline",
         "map.fitBounds",
         "카메라 종류",
+        "카메라 번호 안내",
     )
     if any(fragment not in content for fragment in required_fragments):
         raise RuntimeError("생성 HTML에 필수 지도 구성 요소가 없습니다.")
