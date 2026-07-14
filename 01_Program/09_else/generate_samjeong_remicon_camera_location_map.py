@@ -24,6 +24,8 @@ REQUIRED_HEADERS: Final = ("도로", "위치명", "카메라 종류", "위도", 
 EXPECTED_CAMERA_COUNT: Final = 7
 PROXIMITY_METERS: Final = 35.0
 DISPLAY_OFFSET_METERS: Final = 20.0
+# Input-row camera number -> map marker number: 1→7, 2→5, 3→6, 4→1, 5→2, 6→4, 7→3.
+DISPLAY_NUMBERS: Final = (7, 5, 6, 1, 2, 4, 3)
 
 
 @dataclass(frozen=True)
@@ -173,8 +175,9 @@ def adjust_display_locations(
     return adjusted, groups
 
 
-def map_record(location: CameraLocation) -> dict[str, object]:
+def map_record(location: CameraLocation, display_number: int) -> dict[str, object]:
     return {
+        "displayNumber": display_number,
         "road": location.road,
         "name": location.name,
         "cameraType": location.camera_type,
@@ -188,7 +191,16 @@ def map_record(location: CameraLocation) -> dict[str, object]:
 
 
 def render_html(locations: Iterable[CameraLocation]) -> str:
-    camera_data = json.dumps([map_record(location) for location in locations], ensure_ascii=False)
+    location_list = list(locations)
+    if len(location_list) != len(DISPLAY_NUMBERS):
+        raise RuntimeError("지도 마커 번호 구성과 카메라 수가 일치하지 않습니다.")
+    camera_data = json.dumps(
+        [
+            map_record(location, DISPLAY_NUMBERS[index])
+            for index, location in enumerate(location_list)
+        ],
+        ensure_ascii=False,
+    )
     return f"""<!doctype html>
 <html lang="ko">
 <head>
@@ -239,11 +251,11 @@ def render_html(locations: Iterable[CameraLocation]) -> str:
         : '';
       return `<h2 class="popup-title">${{camera.name}}</h2><table class="popup-table"><tr><th>도로</th><td>${{camera.road}}</td></tr><tr><th>카메라 종류</th><td>${{camera.cameraType}}</td></tr><tr><th>실제 위도</th><td>${{camera.latitude.toFixed(6)}}</td></tr><tr><th>실제 경도</th><td>${{camera.longitude.toFixed(6)}}</td></tr></table>${{adjustment}}`;
     }};
-    cameras.forEach((camera, index) => {{
+    cameras.forEach((camera) => {{
       const marker = L.marker([camera.displayLatitude, camera.displayLongitude], {{
         icon: L.divIcon({{
           className: '',
-          html: `<span class="camera-marker ${{typeClass(camera.cameraType)}}">${{index + 1}}</span>`,
+          html: `<span class="camera-marker ${{typeClass(camera.cameraType)}}">${{camera.displayNumber}}</span>`,
           iconSize: [32, 32], iconAnchor: [16, 16]
         }}),
         title: camera.name
@@ -288,6 +300,10 @@ def validate_html(
     camera_data = json.loads(match.group(1))
     if len(camera_data) != EXPECTED_CAMERA_COUNT or len(camera_data) != len(locations):
         raise RuntimeError("HTML 카메라 데이터 수가 올바르지 않습니다.")
+    if sorted(camera["displayNumber"] for camera in camera_data) != list(
+        range(1, EXPECTED_CAMERA_COUNT + 1)
+    ):
+        raise RuntimeError("HTML 지도 마커 번호가 1부터 7까지 한 번씩 포함되지 않습니다.")
     adjusted_count = sum(bool(camera["isAdjusted"]) for camera in camera_data)
     expected_adjusted_count = sum(len(group) for group in groups)
     if adjusted_count != expected_adjusted_count:
