@@ -23,6 +23,7 @@ DEFAULT_WORKBOOK_PATH = BASE_DIR / "02_Result" / "09_기타" / "삼정동_레미
 
 TABLE_NAME = "vehicle_detection"
 TEMPLATE_SHEET_NAME = "작성서식"
+WEEKEND_SUMMARY_SHEET_NAME = "주말집계"
 START_AT = "2026-05-01 00:00:00"
 END_AT = "2026-07-01 00:00:00"
 REMICON_PATTERN = re.compile(r"^014[가-힣]")
@@ -39,6 +40,12 @@ SOURCE_COLUMNS = [
     "owner_registered_area",
     "source_file",
     "source_sheet",
+]
+SUMMARY_COLUMNS = [
+    "location_name",
+    "주말 총 통행량",
+    "주말 레미콘 통행량",
+    "주말 레미콘 비율(%)",
 ]
 
 
@@ -91,6 +98,53 @@ def fetch_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return rows
 
 
+def fetch_weekend_summary(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    total_sql = f"""
+        SELECT location_name, COUNT(*) AS total_count
+        FROM {TABLE_NAME}
+        WHERE collected_at >= ?
+          AND collected_at < ?
+          AND strftime('%w', collected_at) IN ('0', '6')
+        GROUP BY location_name
+        ORDER BY location_name ASC
+    """
+    remicon_sql = f"""
+        SELECT location_name, vehicle_number
+        FROM {TABLE_NAME}
+        WHERE collected_at >= ?
+          AND collected_at < ?
+          AND strftime('%w', collected_at) IN ('0', '6')
+          AND vehicle_number LIKE '014%'
+        ORDER BY location_name ASC
+    """
+
+    totals = {
+        str(row["location_name"] or "location_name_없음"): int(row["total_count"])
+        for row in conn.execute(total_sql, (START_AT, END_AT))
+    }
+    remicon_counts = dict.fromkeys(totals, 0)
+    for row in conn.execute(remicon_sql, (START_AT, END_AT)):
+        vehicle_number = str(row["vehicle_number"] or "")
+        if REMICON_PATTERN.match(vehicle_number):
+            location_name = str(row["location_name"] or "location_name_없음")
+            remicon_counts[location_name] = remicon_counts.get(location_name, 0) + 1
+
+    summary_rows: list[dict[str, Any]] = []
+    for location_name in sorted(totals):
+        total_count = totals[location_name]
+        remicon_count = remicon_counts.get(location_name, 0)
+        ratio = 0.0 if total_count == 0 else round(remicon_count / total_count * 100, 2)
+        summary_rows.append(
+            {
+                "location_name": location_name,
+                "주말 총 통행량": total_count,
+                "주말 레미콘 통행량": remicon_count,
+                "주말 레미콘 비율(%)": ratio,
+            }
+        )
+    return summary_rows
+
+
 def group_by_location(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
@@ -133,7 +187,13 @@ def style_header(ws: Worksheet) -> None:
 
 
 def fit_columns(ws: Worksheet, rows: list[dict[str, Any]]) -> None:
-    for column_index, column_name in enumerate(SOURCE_COLUMNS, start=1):
+    fit_columns_for_dict_rows(ws, SOURCE_COLUMNS, rows)
+
+
+def fit_columns_for_dict_rows(
+    ws: Worksheet, columns: list[str], rows: list[dict[str, Any]]
+) -> None:
+    for column_index, column_name in enumerate(columns, start=1):
         max_width = display_width(column_name)
         for row in rows:
             max_width = max(max_width, display_width(row[column_name]))
@@ -154,7 +214,31 @@ def write_log_sheet(wb: Any, sheet_name: str, rows: list[dict[str, Any]]) -> Non
     fit_columns(ws, rows)
 
 
-def update_workbook(workbook_path: Path, grouped_rows: dict[str, list[dict[str, Any]]]) -> None:
+def write_weekend_summary_sheet(wb: Any, rows: list[dict[str, Any]]) -> None:
+    if WEEKEND_SUMMARY_SHEET_NAME in wb.sheetnames:
+        del wb[WEEKEND_SUMMARY_SHEET_NAME]
+
+    insert_index = wb.sheetnames.index(TEMPLATE_SHEET_NAME) + 1
+    ws = wb.create_sheet(WEEKEND_SUMMARY_SHEET_NAME, insert_index)
+    ws.append(SUMMARY_COLUMNS)
+    for row in rows:
+        ws.append([row[column] for column in SUMMARY_COLUMNS])
+
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
+    style_header(ws)
+    for row_index in range(2, ws.max_row + 1):
+        ws.cell(row=row_index, column=2).number_format = "#,##0"
+        ws.cell(row=row_index, column=3).number_format = "#,##0"
+        ws.cell(row=row_index, column=4).number_format = "0.00"
+    fit_columns_for_dict_rows(ws, SUMMARY_COLUMNS, rows)
+
+
+def update_workbook(
+    workbook_path: Path,
+    grouped_rows: dict[str, list[dict[str, Any]]],
+    weekend_summary_rows: list[dict[str, Any]],
+) -> None:
     if not workbook_path.exists():
         raise FileNotFoundError(f"Workbook file does not exist: {workbook_path.resolve()}")
 
@@ -167,6 +251,8 @@ def update_workbook(workbook_path: Path, grouped_rows: dict[str, list[dict[str, 
     for sheet_name in list(wb.sheetnames):
         if sheet_name in log_sheet_names:
             del wb[sheet_name]
+
+    write_weekend_summary_sheet(wb, weekend_summary_rows)
 
     sheet_name_map = build_sheet_name_map(list(grouped_rows), set(wb.sheetnames))
     for location_name, rows in grouped_rows.items():
@@ -193,25 +279,87 @@ def validate_rows(
             raise RuntimeError(f"Rows are not sorted by collected_at/id: {location_name}")
 
 
+def validate_weekend_summary_rows(
+    conn: sqlite3.Connection, weekend_summary_rows: list[dict[str, Any]]
+) -> None:
+    distinct_location_count = conn.execute(
+        f"""
+        SELECT COUNT(*)
+        FROM (
+            SELECT DISTINCT location_name
+            FROM {TABLE_NAME}
+            WHERE collected_at >= ?
+              AND collected_at < ?
+              AND strftime('%w', collected_at) IN ('0', '6')
+        )
+        """,
+        (START_AT, END_AT),
+    ).fetchone()[0]
+    if len(weekend_summary_rows) != int(distinct_location_count):
+        raise RuntimeError(
+            "Weekend summary location count mismatch: "
+            f"{len(weekend_summary_rows)} != {distinct_location_count}"
+        )
+
+    for row in weekend_summary_rows:
+        total_count = int(row["주말 총 통행량"])
+        remicon_count = int(row["주말 레미콘 통행량"])
+        ratio = float(row["주말 레미콘 비율(%)"])
+        if remicon_count > total_count:
+            raise RuntimeError(f"Weekend remicon count exceeds total count: {row['location_name']}")
+        expected_ratio = 0.0 if total_count == 0 else round(remicon_count / total_count * 100, 2)
+        if ratio != expected_ratio:
+            raise RuntimeError(
+                f"Weekend ratio mismatch for {row['location_name']}: {ratio} != {expected_ratio}"
+            )
+
+
 def validate_saved_workbook(
-    workbook_path: Path, grouped_rows: dict[str, list[dict[str, Any]]]
+    workbook_path: Path,
+    grouped_rows: dict[str, list[dict[str, Any]]],
+    weekend_summary_rows: list[dict[str, Any]],
 ) -> None:
     wb = load_workbook(workbook_path, read_only=True, data_only=True)
     try:
         if TEMPLATE_SHEET_NAME not in wb.sheetnames:
             raise RuntimeError(f"Missing required sheet after save: {TEMPLATE_SHEET_NAME}")
+        if WEEKEND_SUMMARY_SHEET_NAME not in wb.sheetnames:
+            raise RuntimeError(f"Missing required sheet after save: {WEEKEND_SUMMARY_SHEET_NAME}")
 
         sheet_name_map = build_sheet_name_map(
             list(grouped_rows),
             set(wb.sheetnames)
-            - set(build_sheet_name_map(list(grouped_rows), {TEMPLATE_SHEET_NAME}).values()),
+            - set(build_sheet_name_map(list(grouped_rows), {TEMPLATE_SHEET_NAME}).values())
+            - {WEEKEND_SUMMARY_SHEET_NAME},
         )
         expected_log_names = set(sheet_name_map.values())
-        actual_log_names = set(wb.sheetnames) - {TEMPLATE_SHEET_NAME}
+        actual_log_names = set(wb.sheetnames) - {TEMPLATE_SHEET_NAME, WEEKEND_SUMMARY_SHEET_NAME}
         if expected_log_names != actual_log_names:
             raise RuntimeError(
                 f"Log sheet mismatch: expected {sorted(expected_log_names)}, got {sorted(actual_log_names)}"
             )
+
+        summary_ws = wb[WEEKEND_SUMMARY_SHEET_NAME]
+        summary_header = [cell.value for cell in next(summary_ws.iter_rows(min_row=1, max_row=1))]
+        if summary_header != SUMMARY_COLUMNS:
+            raise RuntimeError(
+                f"Unexpected header in {WEEKEND_SUMMARY_SHEET_NAME}: {summary_header}"
+            )
+        if summary_ws.max_row - 1 != len(weekend_summary_rows):
+            raise RuntimeError(
+                f"Weekend summary row count mismatch: {summary_ws.max_row - 1} "
+                f"!= {len(weekend_summary_rows)}"
+            )
+        for row_index, expected_row in enumerate(weekend_summary_rows, start=2):
+            actual_row = {
+                column: summary_ws.cell(row=row_index, column=column_index).value
+                for column_index, column in enumerate(SUMMARY_COLUMNS, start=1)
+            }
+            if actual_row != expected_row:
+                raise RuntimeError(
+                    f"Weekend summary row mismatch at row {row_index}: "
+                    f"{actual_row} != {expected_row}"
+                )
 
         for location_name, sheet_name in sheet_name_map.items():
             ws = wb[sheet_name]
@@ -234,17 +382,20 @@ def main() -> int:
     try:
         validate_schema(conn)
         rows = fetch_rows(conn)
+        weekend_summary_rows = fetch_weekend_summary(conn)
+        validate_weekend_summary_rows(conn, weekend_summary_rows)
     finally:
         conn.close()
 
     grouped_rows = group_by_location(rows)
     validate_rows(rows, grouped_rows)
-    update_workbook(args.workbook, grouped_rows)
-    validate_saved_workbook(args.workbook, grouped_rows)
+    update_workbook(args.workbook, grouped_rows, weekend_summary_rows)
+    validate_saved_workbook(args.workbook, grouped_rows, weekend_summary_rows)
 
     print(f"workbook={args.workbook.resolve()}")
     print(f"total_rows={len(rows)}")
     print(f"sheet_count={len(grouped_rows)}")
+    print(f"weekend_summary_rows={len(weekend_summary_rows)}")
     for location_name, location_rows in grouped_rows.items():
         print(f"{location_name}\t{len(location_rows)}")
     return 0
