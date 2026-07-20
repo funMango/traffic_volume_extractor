@@ -20,10 +20,8 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_DB_PATH = BASE_DIR / "00_Data" / "삼정동_레미콘" / "삼정동_레미콘_데이터.db"
-DEFAULT_TEMPLATE_PATH = (
-    BASE_DIR / "00_Data" / "삼정동_레미콘" / "삼정동_레미콘_교통량_작성서식.xlsx"
-)
-DEFAULT_OUTPUT_PATH = BASE_DIR / "02_Result" / "09_기타" / "삼정동_레미콘_교통량_작성서식_결과.xlsx"
+DEFAULT_TEMPLATE_PATH = BASE_DIR / "02_Result" / "09_기타" / "삼정동_레미콘_교통량.xlsx"
+DEFAULT_OUTPUT_PATH = BASE_DIR / "02_Result" / "09_기타" / "삼정동_레미콘_교통량_지역명14포함.xlsx"
 
 TABLE_NAME = "vehicle_detection"
 SHEET_NAME = "작성서식"
@@ -33,7 +31,10 @@ REQUIRED_COLUMNS = {
     "location_name",
     "vehicle_number",
 }
-REMICON_PATTERN = re.compile(r"^014[가-힣]")
+REMICON_PATTERNS = (
+    re.compile(r"^014[가-힣]"),
+    re.compile(r"^[가-힣]{2}14[가-힣][0-9]\*{3}$"),
+)
 HOLIDAYS = {
     date(2026, 5, 1),
     date(2026, 5, 5),
@@ -136,7 +137,8 @@ def connect_readonly(db_path: Path) -> sqlite3.Connection:
 
 
 def is_remicon(vehicle_number: object) -> int:
-    return int(bool(REMICON_PATTERN.match(str(vehicle_number or ""))))
+    normalized = str(vehicle_number or "")
+    return int(any(pattern.match(normalized) for pattern in REMICON_PATTERNS))
 
 
 def validate_database(conn: sqlite3.Connection) -> None:
@@ -178,7 +180,7 @@ def validate_template(ws: Worksheet) -> None:
             raise RuntimeError(
                 f"Unexpected month label A{rows.start}: {month_cell!r} != {month_label!r}"
             )
-        actual_labels = [str(ws[f"B{row}"].value or "") for row in rows]
+        actual_labels = [str(ws[f"B{row}"].value or "").rstrip("*") for row in rows]
         expected_labels = list(LOCATION_MAPPING)
         if actual_labels != expected_labels:
             raise RuntimeError(f"Unexpected location labels for {month_label}: {actual_labels!r}")
@@ -285,7 +287,7 @@ def fill_template(db_path: Path, template_path: Path, output_path: Path) -> None
 
         for month_label, rows in MONTH_ROWS.items():
             for row in rows:
-                template_location = str(ws[f"B{row}"].value or "")
+                template_location = str(ws[f"B{row}"].value or "").rstrip("*")
                 metrics = fetch_metrics(
                     conn,
                     month_label,
