@@ -28,7 +28,6 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 EDGE_DB_PATH = BASE_DIR / "00_Data" / "삼정동_레미콘" / "삼정동_레미콘_데이터.db"
 TEMPLATE_PATH = BASE_DIR / "00_Data" / "삼정동_레미콘" / "삼정동_레미콘_교통량_작성서식.xlsx"
 DEFAULT_OUTPUT_PATH = BASE_DIR / "02_Result" / "09_기타" / "삼정동_교차로_비교_작성서식.xlsx"
-TEMPLATE_ROWS = {5: range(4, 10), 6: range(12, 18)}
 HOLIDAYS = {date(2026, 5, 1), date(2026, 5, 5), date(2026, 5, 25), date(2026, 6, 3)}
 MONTHS = (5, 6)
 PEAK_HOURS = {7, 8, 17, 18}
@@ -329,29 +328,26 @@ def write_template(template_path: Path, output_path: Path, payload: dict) -> Non
     if not template_path.exists():
         raise FileNotFoundError(template_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(template_path, output_path)
+    if template_path.resolve() != output_path.resolve():
+        shutil.copy2(template_path, output_path)
     workbook = load_workbook(output_path)
     try:
         worksheet = workbook["작성서식"]
         rows_by_key = {(int(item["month"]), str(item["label"])): item for item in payload["rows"]}
-        for month, rows in TEMPLATE_ROWS.items():
-            for row in rows:
-                label = str(worksheet.cell(row, 2).value or "").rstrip("*").strip()
-                item = rows_by_key.get((month, label))
-                if item is None:
-                    raise RuntimeError(f"작성서식 행을 매핑할 수 없습니다: {row} {month}월 {label}")
-                values = (
-                    item["edge"]["monthly"],
-                    item["smart"]["monthly"],
-                    item["edge"]["weekday"],
-                    item["smart"]["weekday"],
-                    item["edge"]["peak"],
-                    item["smart"]["peak"],
-                )
-                for column, value in enumerate(values, start=3):
-                    cell = worksheet.cell(row, column)
-                    cell.value = value
-                    cell.number_format = "#,##0"
+        for month, row, label in _find_target_rows(worksheet, rows_by_key):
+            item = rows_by_key[(month, label)]
+            values = (
+                item["edge"]["monthly"],
+                item["smart"]["monthly"],
+                item["edge"]["weekday"],
+                item["smart"]["weekday"],
+                item["edge"]["peak"],
+                item["smart"]["peak"],
+            )
+            for column, value in enumerate(values, start=3):
+                cell = worksheet.cell(row, column)
+                cell.value = value
+                cell.number_format = "#,##0"
         workbook.save(output_path)
     finally:
         workbook.close()
@@ -362,27 +358,40 @@ def verify_template(output_path: Path, payload: dict) -> None:
     try:
         worksheet = workbook["작성서식"]
         rows_by_key = {(int(item["month"]), str(item["label"])): item for item in payload["rows"]}
-        for month, rows in TEMPLATE_ROWS.items():
-            for row in rows:
-                label = str(worksheet.cell(row, 2).value or "").rstrip("*").strip()
-                item = rows_by_key[(month, label)]
-                actual = [worksheet.cell(row, column).value for column in range(3, 9)]
-                expected = [
-                    item["edge"]["monthly"],
-                    item["smart"]["monthly"],
-                    item["edge"]["weekday"],
-                    item["smart"]["weekday"],
-                    item["edge"]["peak"],
-                    item["smart"]["peak"],
-                ]
-                if actual != expected:
-                    raise AssertionError(f"작성서식 값 불일치: row={row}, {actual} != {expected}")
-                if any(
-                    worksheet.cell(row, column).number_format != "#,##0" for column in range(3, 9)
-                ):
-                    raise AssertionError(f"작성서식 표시 형식 불일치: row={row}")
+        for month, row, label in _find_target_rows(worksheet, rows_by_key):
+            item = rows_by_key[(month, label)]
+            actual = [worksheet.cell(row, column).value for column in range(3, 9)]
+            expected = [
+                item["edge"]["monthly"],
+                item["smart"]["monthly"],
+                item["edge"]["weekday"],
+                item["smart"]["weekday"],
+                item["edge"]["peak"],
+                item["smart"]["peak"],
+            ]
+            if actual != expected:
+                raise AssertionError(f"작성서식 값 불일치: row={row}, {actual} != {expected}")
+            if any(worksheet.cell(row, column).number_format != "#,##0" for column in range(3, 9)):
+                raise AssertionError(f"작성서식 표시 형식 불일치: row={row}")
     finally:
         workbook.close()
+
+
+def _find_target_rows(
+    worksheet, rows_by_key: dict[tuple[int, str], dict]
+) -> list[tuple[int, int, str]]:
+    month: int | None = None
+    target_rows: list[tuple[int, int, str]] = []
+    for row in range(1, worksheet.max_row + 1):
+        month_value = str(worksheet.cell(row, 1).value or "")
+        if month_value in {"5월", "6월"}:
+            month = int(month_value[0])
+        label = str(worksheet.cell(row, 2).value or "").rstrip("*").strip()
+        if month in MONTHS and (month, label) in rows_by_key:
+            target_rows.append((month, row, label))
+    if len(target_rows) != len(rows_by_key):
+        raise RuntimeError(f"작성서식 대상 행 수가 올바르지 않습니다: {len(target_rows)}")
+    return target_rows
 
 
 def main() -> int:
