@@ -15,8 +15,6 @@ from pathlib import Path
 from typing import Any
 
 from openpyxl import load_workbook
-from openpyxl.styles import Alignment, Font, PatternFill
-from openpyxl.utils import get_column_letter
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -146,20 +144,19 @@ def round_two(value: Decimal) -> float:
 def write_average_sheet(workbook: Any, conn: sqlite3.Connection) -> None:
     if AVERAGE_SHEET in workbook.sheetnames:
         del workbook[AVERAGE_SHEET]
-    ws = workbook.create_sheet(AVERAGE_SHEET, 1)
-    headers = [
-        "월",
-        "교차로 묶음",
-        "기준",
-        "분모(일)",
-        "총 통행량 일평균",
-        "레미콘 통행량 일평균",
-        "레미콘 비율(%)",
-    ]
-    ws.append(headers)
-    for month_label, start, end in MONTHS:
-        for group_name, locations in LOCATION_GROUPS.items():
-            for criterion in ("월별", "평일", "평일 첨두시"):
+    source = workbook[TEMPLATE_SHEET]
+    ws = workbook.copy_worksheet(source)
+    ws.title = AVERAGE_SHEET
+    workbook._sheets.remove(ws)
+    workbook._sheets.insert(1, ws)
+
+    month_rows = ((MONTHS[0], range(4, 12)), (MONTHS[1], range(12, 20)))
+    criteria = (("월별", 3), ("평일", 6), ("평일 첨두시", 9))
+    for (month_label, start, end), rows in month_rows:
+        for row in rows:
+            group_name = str(ws.cell(row=row, column=2).value or "").rstrip("*")
+            locations = LOCATION_GROUPS[group_name]
+            for criterion, column in criteria:
                 divisor = day_count(start, end, criterion, group_name)
                 counts = fetch_counts(conn, locations, start, end, criterion)
                 total_average = round_two(Decimal(counts.total) / Decimal(divisor))
@@ -169,31 +166,12 @@ def write_average_sheet(workbook: Any, conn: sqlite3.Connection) -> None:
                     if counts.total
                     else 0.0
                 )
-                ws.append(
-                    [
-                        month_label,
-                        group_name,
-                        criterion,
-                        divisor,
-                        total_average,
-                        remicon_average,
-                        ratio,
-                    ]
-                )
-    header_fill = PatternFill("solid", fgColor="1F4E78")
-    for cell in ws[1]:
-        cell.fill = header_fill
-        cell.font = Font(color="FFFFFF", bold=True)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = ws.dimensions
-    for row in ws.iter_rows(min_row=2, min_col=4, max_col=7):
-        row[0].number_format = "0"
-        for cell in row[1:]:
-            cell.number_format = "0.00"
-    widths = (10, 22, 16, 12, 22, 24, 18)
-    for index, width in enumerate(widths, start=1):
-        ws.column_dimensions[get_column_letter(index)].width = width
+                ws.cell(row=row, column=column).value = total_average
+                ws.cell(row=row, column=column + 1).value = remicon_average
+                ws.cell(row=row, column=column + 2).value = ratio
+                ws.cell(row=row, column=column).number_format = "#,##0.00"
+                ws.cell(row=row, column=column + 1).number_format = "#,##0.00"
+                ws.cell(row=row, column=column + 2).number_format = "0.00"
 
 
 def load_detail_rows(conn: sqlite3.Connection) -> dict[str, list[dict[str, Any]]]:
@@ -238,27 +216,20 @@ def validate_workbook(workbook_path: Path, grouped_rows: dict[str, list[dict[str
         if AVERAGE_SHEET not in wb.sheetnames:
             raise RuntimeError("Monthly average sheet is missing")
         ws = wb[AVERAGE_SHEET]
-        if ws.max_row != 49 or ws.auto_filter.ref != ws.dimensions:
-            raise RuntimeError("Monthly average sheet shape or filter is invalid")
-        divisors = {
-            (row[0], row[1], row[2]): row[3] for row in ws.iter_rows(min_row=2, values_only=True)
-        }
-        if divisors[("5월", "자동차검사소", "월별")] != 25:
-            raise RuntimeError("Automobile inspection May monthly divisor must be 25")
-        if any(
-            divisors[("5월", group, "월별")] != 31
-            for group in LOCATION_GROUPS
-            if group != "자동차검사소"
-        ):
-            raise RuntimeError("May monthly divisors must be 31")
-        if any(divisors[("6월", group, "월별")] != 30 for group in LOCATION_GROUPS):
-            raise RuntimeError("June monthly divisors must be 30")
-        if (
-            divisors[("5월", "자동차검사소", "평일")] != 15
-            or divisors[("5월", "박촌교 삼거리", "평일")] != 18
-            or divisors[("6월", "박촌교 삼거리", "평일")] != 21
-        ):
-            raise RuntimeError("Weekday divisor values are invalid")
+        template_ws = wb[TEMPLATE_SHEET]
+        if ws.max_row != 21 or ws.max_column != 11:
+            raise RuntimeError("Monthly average sheet must use the A1:K21 template layout")
+        if set(ws.merged_cells.ranges) != set(template_ws.merged_cells.ranges):
+            raise RuntimeError("Monthly average sheet merged ranges differ from the template")
+        for row in range(1, 22):
+            for column in range(1, 12):
+                if row >= 4 and row <= 19 and column >= 3:
+                    continue
+                if (
+                    ws.cell(row=row, column=column).value
+                    != template_ws.cell(row=row, column=column).value
+                ):
+                    raise RuntimeError("Monthly average sheet labels differ from the template")
         for location_name, expected_rows in grouped_rows.items():
             sheet_name = detail_sheet_name(location_name)
             ws = wb[sheet_name]
@@ -280,25 +251,36 @@ def validate_average_values(workbook_path: Path, conn: sqlite3.Connection) -> No
     wb = load_workbook(workbook_path, read_only=True, data_only=True)
     try:
         ws = wb[AVERAGE_SHEET]
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            month_label, group_name, criterion, divisor, total_avg, remicon_avg, ratio = row
-            start, end = next((start, end) for label, start, end in MONTHS if label == month_label)
-            expected_divisor = day_count(start, end, str(criterion), str(group_name))
-            counts = fetch_counts(
-                conn, LOCATION_GROUPS[str(group_name)], start, end, str(criterion)
-            )
-            expected = (
-                expected_divisor,
-                round_two(Decimal(counts.total) / Decimal(expected_divisor)),
-                round_two(Decimal(counts.remicon) / Decimal(expected_divisor)),
-                round_two(Decimal(counts.remicon) * Decimal("100") / Decimal(counts.total))
-                if counts.total
-                else 0.0,
-            )
-            if (divisor, total_avg, remicon_avg, ratio) != expected:
-                raise RuntimeError(
-                    f"Monthly average DB reaggregation mismatch: {row} != {expected}"
-                )
+        month_rows = ((MONTHS[0], range(4, 12)), (MONTHS[1], range(12, 20)))
+        criteria = (("월별", 3), ("평일", 6), ("평일 첨두시", 9))
+        for (_month_label, start, end), rows in month_rows:
+            for row in rows:
+                group_name = str(ws.cell(row=row, column=2).value or "").rstrip("*")
+                for criterion, column in criteria:
+                    divisor = day_count(start, end, criterion, group_name)
+                    counts = fetch_counts(conn, LOCATION_GROUPS[group_name], start, end, criterion)
+                    expected = (
+                        round_two(Decimal(counts.total) / Decimal(divisor)),
+                        round_two(Decimal(counts.remicon) / Decimal(divisor)),
+                        round_two(Decimal(counts.remicon) * Decimal("100") / Decimal(counts.total))
+                        if counts.total
+                        else 0.0,
+                    )
+                    actual = tuple(
+                        ws.cell(row=row, column=index).value for index in range(column, column + 3)
+                    )
+                    if actual != expected:
+                        raise RuntimeError(
+                            f"Monthly average DB reaggregation mismatch: row={row}, criterion={criterion}, {actual} != {expected}"
+                        )
+                    if (
+                        ws.cell(row=row, column=column).number_format != "#,##0.00"
+                        or ws.cell(row=row, column=column + 1).number_format != "#,##0.00"
+                        or ws.cell(row=row, column=column + 2).number_format != "0.00"
+                    ):
+                        raise RuntimeError(
+                            f"Monthly average number format mismatch: row={row}, criterion={criterion}"
+                        )
     finally:
         wb.close()
 
