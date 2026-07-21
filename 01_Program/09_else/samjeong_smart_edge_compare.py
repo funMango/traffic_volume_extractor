@@ -266,8 +266,8 @@ class OracleSmartReader:
         return result
 
 
-class OracleIntersectionDailyReader:
-    """Reads smart-intersection totals from the daily and hourly raw tables."""
+class OracleIntersectionHourlyReader:
+    """Reads raw smart-intersection traffic by intersection, day, and hour."""
 
     def __init__(self) -> None:
         sys.path.insert(0, str(BASE_DIR / "01_Program" / "09_else"))
@@ -275,7 +275,7 @@ class OracleIntersectionDailyReader:
 
         self._oracle = oracle_analysis
 
-    def load(self) -> dict[str, dict[date, tuple[int, int]]]:
+    def load(self) -> dict[str, dict[date, dict[int, int]]]:
         names = {target.label: target.smart_intersection for target in TARGETS}
         conn = self._oracle.connect_db()
         try:
@@ -309,27 +309,18 @@ class OracleIntersectionDailyReader:
                 )
                 cursor.execute(
                     f"""
-                    SELECT NODE_ID, TRUNC(TOT_DT), SUM(NVL(TRF_QNTY, 0))
-                    FROM S_CRSRD_TRF_1DD
-                    WHERE NODE_ID IN ({node_placeholders})
-                      AND TOT_DT >= :start_time AND TOT_DT < :end_time
-                    GROUP BY NODE_ID, TRUNC(TOT_DT)
-                    """,
-                    query_bind,
-                )
-                daily_rows = cursor.fetchall()
-                cursor.execute(
-                    f"""
-                    SELECT NODE_ID, TRUNC(TOT_DT), SUM(NVL(TRF_QNTY, 0))
+                    SELECT NODE_ID,
+                           TRUNC(TOT_DT),
+                           TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')),
+                           SUM(NVL(TRF_QNTY, 0))
                     FROM S_CRSRD_TRF_1HH
                     WHERE NODE_ID IN ({node_placeholders})
                       AND TOT_DT >= :start_time AND TOT_DT < :end_time
-                      AND TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')) IN (7, 8, 17, 18)
-                    GROUP BY NODE_ID, TRUNC(TOT_DT)
+                    GROUP BY NODE_ID, TRUNC(TOT_DT), TO_NUMBER(TO_CHAR(TOT_DT, 'HH24'))
                     """,
                     query_bind,
                 )
-                peak_rows = cursor.fetchall()
+                hourly_rows = cursor.fetchall()
         finally:
             conn.close()
         node_to_label = {
@@ -338,25 +329,50 @@ class OracleIntersectionDailyReader:
             for node_id, actual in nodes
             if actual == name
         }
-        result = {
-            label: {day: (0, 0) for day in calendar_days(date(2026, 5, 1), date(2026, 6, 30))}
-            for label in names
-        }
-        for node_id, raw_day, volume in daily_rows:
+        result = {label: defaultdict(dict) for label in names}
+        for node_id, raw_day, hour, volume in hourly_rows:
             day = raw_day.date() if isinstance(raw_day, datetime) else raw_day
             label = node_to_label[str(node_id).strip()]
-            _, peak = result[label][day]
-            result[label][day] = (int(volume or 0), peak)
-        for node_id, raw_day, volume in peak_rows:
-            day = raw_day.date() if isinstance(raw_day, datetime) else raw_day
-            label = node_to_label[str(node_id).strip()]
-            daily, _ = result[label][day]
-            result[label][day] = (daily, int(volume or 0))
+            result[label][day][int(hour)] = max(int(volume or 0), 0)
         return result
 
 
+def is_hourly_day_valid(hours: dict[int, int]) -> bool:
+    """A date is usable when fewer than four hourly records are null, zero, or absent."""
+    invalid_count = sum(hours.get(hour, 0) <= 0 for hour in range(24))
+    return invalid_count < 4
+
+
+def average_hourly_days(
+    values: dict[date, dict[int, int]], days: Iterable[date]
+) -> tuple[int, int]:
+    valid = [day for day in days if is_hourly_day_valid(values.get(day, {}))]
+    total = sum(sum(max(values[day].get(hour, 0), 0) for hour in range(24)) for day in valid)
+    return (round_half_up(Decimal(total) / len(valid)), len(valid)) if valid else (0, 0)
+
+
+def average_weekday_peak_hours(
+    values: dict[date, dict[int, int]], days: Iterable[date]
+) -> tuple[int, int]:
+    daily_averages = []
+    for day in days:
+        hours = values.get(day, {})
+        if not is_hourly_day_valid(hours):
+            continue
+        positive_peaks = [
+            max(hours.get(hour, 0), 0) for hour in PEAK_HOURS if hours.get(hour, 0) > 0
+        ]
+        if positive_peaks:
+            daily_averages.append(Decimal(sum(positive_peaks)) / len(positive_peaks))
+    return (
+        (round_half_up(sum(daily_averages) / len(daily_averages)), len(daily_averages))
+        if daily_averages
+        else (0, 0)
+    )
+
+
 def smart_v2_payload(
-    reader: OracleIntersectionDailyReader,
+    reader: OracleIntersectionHourlyReader,
 ) -> dict[tuple[int, str], dict[str, int]]:
     source = reader.load()
     payload: dict[tuple[int, str], dict[str, int]] = {}
@@ -367,15 +383,9 @@ def smart_v2_payload(
         weekday_days = [day for day in month_days if is_weekday(day)]
         for target in TARGETS:
             values = source[target.label]
-
-            def average(days: list[date], index: int) -> tuple[int, int]:
-                valid = [day for day in days if values[day][index] > 0]
-                total = sum(values[day][index] for day in valid)
-                return (round_half_up(Decimal(total) / len(valid)), len(valid)) if valid else (0, 0)
-
-            monthly, monthly_days = average(month_days, 0)
-            weekday, weekday_count = average(weekday_days, 0)
-            peak, peak_count = average(weekday_days, 1)
+            monthly, monthly_days = average_hourly_days(values, month_days)
+            weekday, weekday_count = average_hourly_days(values, weekday_days)
+            peak, peak_count = average_weekday_peak_hours(values, weekday_days)
             payload[(month, target.label)] = {
                 "monthly": monthly,
                 "weekday": weekday,
@@ -639,7 +649,7 @@ def main() -> int:
             workbook.close()
         return 0
     if args.fill_v2:
-        payload = smart_v2_payload(OracleIntersectionDailyReader())
+        payload = smart_v2_payload(OracleIntersectionHourlyReader())
         non_target = v2_non_target_snapshot(args.v2_workbook)
         write_v2_workbook(args.v2_workbook, payload)
         verify_v2_workbook(args.v2_workbook, payload, non_target)

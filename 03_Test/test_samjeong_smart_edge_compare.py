@@ -54,27 +54,58 @@ def test_rounding_is_half_up() -> None:
     assert comparison.round_half_up(comparison.Decimal("10.5")) == 11
 
 
-def test_v2_smart_averages_exclude_zero_days_and_holidays() -> None:
+def test_v2_smart_averages_use_only_hourly_quality_valid_days() -> None:
     class FakeReader:
         def load(self):
             values = {}
             for target in comparison.TARGETS:
                 daily = {}
                 for day in comparison.calendar_days(date(2026, 5, 1), date(2026, 6, 30)):
-                    daily[day] = (0, 0)
-                daily[date(2026, 5, 1)] = (100, 100)  # Holiday: excluded from weekday metrics.
-                daily[date(2026, 5, 6)] = (10, 5)
-                daily[date(2026, 5, 7)] = (20, 10)
+                    daily[day] = {}
+                daily[date(2026, 5, 1)] = {hour: 10 for hour in range(24)}
+                daily[date(2026, 5, 6)] = {hour: 10 for hour in range(24)}
+                daily[date(2026, 5, 7)] = {hour: 20 for hour in range(24)}
                 values[target.label] = daily
             return values
 
     payload = comparison.smart_v2_payload(FakeReader())
     result = payload[(5, "박촌교 삼거리")]
     assert result == {
-        "monthly": 43,
-        "weekday": 15,
-        "peak": 8,
+        "monthly": 320,
+        "weekday": 360,
+        "peak": 15,
         "monthly_days": 3,
         "weekday_days": 2,
         "peak_days": 2,
     }
+
+
+def test_hourly_quality_allows_three_invalid_hours_and_rejects_four() -> None:
+    usable = {hour: 10 for hour in range(24)}
+    for hour in (1, 2, 3):
+        usable[hour] = 0
+    rejected = {hour: 10 for hour in range(24)}
+    for hour in (1, 2, 3, 4):
+        rejected[hour] = 0
+    values = {date(2026, 5, 6): usable, date(2026, 5, 7): rejected}
+
+    assert comparison.average_hourly_days(values, values) == (210, 1)
+
+
+def test_weekday_peak_uses_positive_peak_hours_and_half_up_rounding() -> None:
+    partial_peak = {hour: 10 for hour in range(24)}
+    partial_peak.update({7: 0, 8: 0, 17: 0, 18: 40})
+    full_peak = {hour: 10 for hour in range(24)}
+    full_peak.update({7: 1, 8: 1, 17: 1, 18: 1})
+    values = {date(2026, 5, 6): partial_peak, date(2026, 5, 7): full_peak}
+
+    assert comparison.average_weekday_peak_hours(values, values) == (21, 2)
+
+
+def test_weekday_peak_excludes_a_day_with_no_valid_peak_hour() -> None:
+    no_peak = {hour: 10 for hour in range(24)}
+    no_peak.update({7: 0, 8: 0, 17: 0, 18: 0})
+
+    assert comparison.average_weekday_peak_hours(
+        {date(2026, 5, 6): no_peak}, [date(2026, 5, 6)]
+    ) == (0, 0)
