@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import tempfile
 from datetime import date
 from pathlib import Path
+
+from openpyxl import Workbook
 
 
 MODULE_PATH = (
@@ -54,7 +57,7 @@ def test_rounding_is_half_up() -> None:
     assert comparison.round_half_up(comparison.Decimal("10.5")) == 11
 
 
-def test_v2_smart_averages_use_only_hourly_quality_valid_days() -> None:
+def test_v2_smart_peak_uses_fixed_divisor_without_hourly_quality_filter() -> None:
     class FakeReader:
         def load(self):
             values = {}
@@ -73,10 +76,10 @@ def test_v2_smart_averages_use_only_hourly_quality_valid_days() -> None:
     assert result == {
         "monthly": 320,
         "weekday": 360,
-        "peak": 15,
+        "peak": 6,
         "monthly_days": 3,
         "weekday_days": 2,
-        "peak_days": 2,
+        "peak_days": 18,
     }
 
 
@@ -92,20 +95,43 @@ def test_hourly_quality_allows_three_invalid_hours_and_rejects_four() -> None:
     assert comparison.average_hourly_days(values, values) == (210, 1)
 
 
-def test_weekday_peak_uses_positive_peak_hours_and_half_up_rounding() -> None:
-    partial_peak = {hour: 10 for hour in range(24)}
-    partial_peak.update({7: 0, 8: 0, 17: 0, 18: 40})
-    full_peak = {hour: 10 for hour in range(24)}
-    full_peak.update({7: 1, 8: 1, 17: 1, 18: 1})
-    values = {date(2026, 5, 6): partial_peak, date(2026, 5, 7): full_peak}
+def test_weekday_peak_sums_four_hours_and_truncates_with_fixed_month_divisor() -> None:
+    days = [date(2026, 5, 6), date(2026, 5, 7)]
+    values = {
+        days[0]: {7: 10, 8: 0, 17: 5},
+        days[1]: {7: 9, 8: 8, 17: 4, 18: 1},
+    }
 
-    assert comparison.average_weekday_peak_hours(values, values) == (21, 2)
+    assert comparison.average_weekday_peak_hours(values, days, 18) == (2, 18)
+    assert comparison.average_weekday_peak_hours(values, days, 20) == (1, 20)
 
 
-def test_weekday_peak_excludes_a_day_with_no_valid_peak_hour() -> None:
-    no_peak = {hour: 10 for hour in range(24)}
-    no_peak.update({7: 0, 8: 0, 17: 0, 18: 0})
+def test_weekday_peak_keeps_missing_and_zero_hours_in_fixed_denominator() -> None:
+    days = [date(2026, 6, 4), date(2026, 6, 5)]
 
-    assert comparison.average_weekday_peak_hours(
-        {date(2026, 5, 6): no_peak}, [date(2026, 5, 6)]
-    ) == (0, 0)
+    assert comparison.average_weekday_peak_hours({days[0]: {7: 20}}, days, 20) == (1, 20)
+
+
+def test_write_v2_workbook_changes_only_smart_peak_column() -> None:
+    with tempfile.TemporaryDirectory(dir=Path.cwd()) as temporary_directory:
+        workbook_path = Path(temporary_directory) / "comparison.xlsx"
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = comparison.V2_SHEET_NAME
+        payload = {}
+        for row in comparison.V2_TARGET_ROWS:
+            month = 5 if row <= 9 else 6
+            label = f"target-{row}"
+            worksheet.cell(row, 2).value = label
+            worksheet.cell(row, 4).value = f"=1+{row}"
+            worksheet.cell(row, 7).value = f"=2+{row}"
+            worksheet.cell(row, 10).value = -1
+            worksheet.cell(row, 11).value = f"=J{row}/100"
+            payload[(month, label)] = {"peak": row * 10}
+        workbook.create_sheet("Preserved")["A1"] = "unchanged"
+        workbook.save(workbook_path)
+        workbook.close()
+
+        before = comparison.v2_non_target_snapshot(workbook_path)
+        comparison.write_v2_workbook(workbook_path, payload)
+        comparison.verify_v2_workbook(workbook_path, payload, before)

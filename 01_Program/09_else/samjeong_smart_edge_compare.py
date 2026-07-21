@@ -32,6 +32,10 @@ V2_WORKBOOK_PATH = BASE_DIR / "02_Result" / "09_기타" / "삼정동_레미콘_�
 HOLIDAYS = {date(2026, 5, 1), date(2026, 5, 5), date(2026, 5, 25), date(2026, 6, 3)}
 MONTHS = (5, 6)
 PEAK_HOURS = {7, 8, 17, 18}
+WEEKDAY_PEAK_DIVISORS = {5: 18, 6: 20}
+V2_SHEET_NAME = "스마트교차로 비교"
+V2_TARGET_COLUMN = 10
+V2_TARGET_ROWS = range(4, 16)
 
 
 @dataclass(frozen=True)
@@ -352,23 +356,16 @@ def average_hourly_days(
 
 
 def average_weekday_peak_hours(
-    values: dict[date, dict[int, int]], days: Iterable[date]
+    values: dict[date, dict[int, int]], days: Iterable[date], divisor: int
 ) -> tuple[int, int]:
-    daily_averages = []
-    for day in days:
-        hours = values.get(day, {})
-        if not is_hourly_day_valid(hours):
-            continue
-        positive_peaks = [
-            max(hours.get(hour, 0), 0) for hour in PEAK_HOURS if hours.get(hour, 0) > 0
-        ]
-        if positive_peaks:
-            daily_averages.append(Decimal(sum(positive_peaks)) / len(positive_peaks))
-    return (
-        (round_half_up(sum(daily_averages) / len(daily_averages)), len(daily_averages))
-        if daily_averages
-        else (0, 0)
-    )
+    """Return the fixed-divisor weekday sum of the four peak hours.
+
+    Missing or zero-valued hours intentionally contribute zero.  This measure
+    is distinct from the existing monthly and weekday daily averages, which
+    retain their established data-quality rules.
+    """
+    total = sum(max(values.get(day, {}).get(hour, 0), 0) for day in days for hour in PEAK_HOURS)
+    return int(Decimal(total) / divisor), divisor
 
 
 def smart_v2_payload(
@@ -385,7 +382,9 @@ def smart_v2_payload(
             values = source[target.label]
             monthly, monthly_days = average_hourly_days(values, month_days)
             weekday, weekday_count = average_hourly_days(values, weekday_days)
-            peak, peak_count = average_weekday_peak_hours(values, weekday_days)
+            peak, peak_count = average_weekday_peak_hours(
+                values, weekday_days, WEEKDAY_PEAK_DIVISORS[month]
+            )
             payload[(month, target.label)] = {
                 "monthly": monthly,
                 "weekday": weekday,
@@ -400,27 +399,28 @@ def smart_v2_payload(
 def write_v2_workbook(workbook_path: Path, payload: dict[tuple[int, str], dict[str, int]]) -> None:
     workbook = load_workbook(workbook_path)
     try:
-        worksheet = workbook["스마트교차로 비교"]
-        for row, month in ((row, 5 if row <= 9 else 6) for row in range(4, 16)):
+        worksheet = workbook[V2_SHEET_NAME]
+        for row, month in ((row, 5 if row <= 9 else 6) for row in V2_TARGET_ROWS):
             label = str(worksheet.cell(row, 2).value or "").strip()
             values = payload[(month, label)]
-            for column, key in ((4, "monthly"), (7, "weekday"), (10, "peak")):
-                cell = worksheet.cell(row, column)
-                cell.value = values[key]
-                cell.number_format = "#,##0"
+            cell = worksheet.cell(row, V2_TARGET_COLUMN)
+            cell.value = values["peak"]
+            cell.number_format = "#,##0"
         workbook.save(workbook_path)
     finally:
         workbook.close()
 
 
-def v2_non_target_snapshot(workbook_path: Path) -> dict[str, object]:
+def v2_non_target_snapshot(workbook_path: Path) -> dict[tuple[str, str], object]:
     workbook = load_workbook(workbook_path, data_only=False)
     try:
-        worksheet = workbook["스마트교차로 비교"]
+        target_cells = {(V2_SHEET_NAME, f"J{row}") for row in V2_TARGET_ROWS}
         return {
-            worksheet.cell(row, column).coordinate: worksheet.cell(row, column).value
-            for row in range(4, 16)
-            for column in (3, 5, 6, 8, 9, 11)
+            (worksheet.title, cell.coordinate): cell.value
+            for worksheet in workbook.worksheets
+            for row in worksheet.iter_rows()
+            for cell in row
+            if (worksheet.title, cell.coordinate) not in target_cells
         }
     finally:
         workbook.close()
@@ -429,25 +429,35 @@ def v2_non_target_snapshot(workbook_path: Path) -> dict[str, object]:
 def verify_v2_workbook(
     workbook_path: Path,
     payload: dict[tuple[int, str], dict[str, int]],
-    expected_non_target: dict[str, object],
+    expected_non_target: dict[tuple[str, str], object],
 ) -> None:
     workbook = load_workbook(workbook_path, data_only=False)
     try:
-        worksheet = workbook["스마트교차로 비교"]
-        for row, month in ((row, 5 if row <= 9 else 6) for row in range(4, 16)):
+        worksheet = workbook[V2_SHEET_NAME]
+        for row, month in ((row, 5 if row <= 9 else 6) for row in V2_TARGET_ROWS):
             label = str(worksheet.cell(row, 2).value or "").strip()
             expected = payload[(month, label)]
-            for column, key in ((4, "monthly"), (7, "weekday"), (10, "peak")):
-                cell = worksheet.cell(row, column)
-                if cell.value != expected[key] or cell.number_format != "#,##0":
-                    raise AssertionError(f"스마트교차로 비교 불일치: {cell.coordinate}")
+            cell = worksheet.cell(row, V2_TARGET_COLUMN)
+            if cell.value != expected["peak"] or cell.number_format != "#,##0":
+                raise AssertionError(f"스마트교차로 비교 불일치: {cell.coordinate}")
         actual_non_target = {
-            worksheet.cell(row, column).coordinate: worksheet.cell(row, column).value
-            for row in range(4, 16)
-            for column in (3, 5, 6, 8, 9, 11)
+            (sheet.title, cell.coordinate): cell.value
+            for sheet in workbook.worksheets
+            for row in sheet.iter_rows()
+            for cell in row
+            if not (
+                sheet.title == V2_SHEET_NAME
+                and cell.column == V2_TARGET_COLUMN
+                and cell.row in V2_TARGET_ROWS
+            )
         }
         if actual_non_target != expected_non_target:
-            raise AssertionError("엣지카메라 수식 또는 비율 열 변경")
+            changed = sorted(
+                key
+                for key in actual_non_target | expected_non_target
+                if actual_non_target.get(key) != expected_non_target.get(key)
+            )
+            raise AssertionError(f"스마트교차로(대) 외 셀 변경: {changed[:10]}")
     finally:
         workbook.close()
 
