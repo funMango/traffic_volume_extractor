@@ -52,3 +52,29 @@ def test_peak_hours_are_exactly_the_two_half_open_windows() -> None:
 
 def test_rounding_is_half_up() -> None:
     assert comparison.round_half_up(comparison.Decimal("10.5")) == 11
+
+
+def test_v2_smart_averages_exclude_zero_days_and_holidays() -> None:
+    class FakeReader:
+        def load(self):
+            values = {}
+            for target in comparison.TARGETS:
+                daily = {}
+                for day in comparison.calendar_days(date(2026, 5, 1), date(2026, 6, 30)):
+                    daily[day] = (0, 0)
+                daily[date(2026, 5, 1)] = (100, 100)  # Holiday: excluded from weekday metrics.
+                daily[date(2026, 5, 6)] = (10, 5)
+                daily[date(2026, 5, 7)] = (20, 10)
+                values[target.label] = daily
+            return values
+
+    payload = comparison.smart_v2_payload(FakeReader())
+    result = payload[(5, "박촌교 삼거리")]
+    assert result == {
+        "monthly": 43,
+        "weekday": 15,
+        "peak": 8,
+        "monthly_days": 3,
+        "weekday_days": 2,
+        "peak_days": 2,
+    }

@@ -28,6 +28,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 EDGE_DB_PATH = BASE_DIR / "00_Data" / "삼정동_레미콘" / "삼정동_레미콘_데이터.db"
 TEMPLATE_PATH = BASE_DIR / "00_Data" / "삼정동_레미콘" / "삼정동_레미콘_교통량_작성서식.xlsx"
 DEFAULT_OUTPUT_PATH = BASE_DIR / "02_Result" / "09_기타" / "삼정동_교차로_비교_작성서식.xlsx"
+V2_WORKBOOK_PATH = BASE_DIR / "02_Result" / "09_기타" / "삼정동_레미콘_교통량_v2.xlsx"
 HOLIDAYS = {date(2026, 5, 1), date(2026, 5, 5), date(2026, 5, 25), date(2026, 6, 3)}
 MONTHS = (5, 6)
 PEAK_HOURS = {7, 8, 17, 18}
@@ -265,6 +266,182 @@ class OracleSmartReader:
         return result
 
 
+class OracleIntersectionDailyReader:
+    """Reads smart-intersection totals from the daily and hourly raw tables."""
+
+    def __init__(self) -> None:
+        sys.path.insert(0, str(BASE_DIR / "01_Program" / "09_else"))
+        from traffic_api.infrastructure import oracle_analysis
+
+        self._oracle = oracle_analysis
+
+    def load(self) -> dict[str, dict[date, tuple[int, int]]]:
+        names = {target.label: target.smart_intersection for target in TARGETS}
+        conn = self._oracle.connect_db()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SET TRANSACTION READ ONLY")
+                bind = {f"name_{index}": name for index, name in enumerate(names.values())}
+                placeholders = ", ".join(f":{key}" for key in bind)
+                cursor.execute(
+                    f"""
+                    SELECT NODE_ID, CRSRD_NM
+                    FROM M_CRSRD_INF
+                    WHERE CRSRD_NM IN ({placeholders})
+                    """,
+                    bind,
+                )
+                nodes = [
+                    (str(node_id).strip(), str(name).strip()) for node_id, name in cursor.fetchall()
+                ]
+                by_name = {name: node_id for node_id, name in nodes}
+                if set(by_name) != set(names.values()) or len(nodes) != len(names):
+                    raise RuntimeError(f"스마트교차로 NODE_ID 확인 실패: {nodes}")
+                query_bind = {
+                    f"node_{index}": node_id for index, node_id in enumerate(by_name.values())
+                }
+                node_placeholders = ", ".join(f":{key}" for key in query_bind)
+                query_bind.update(
+                    {
+                        "start_time": datetime(2026, 5, 1),
+                        "end_time": datetime(2026, 7, 1),
+                    }
+                )
+                cursor.execute(
+                    f"""
+                    SELECT NODE_ID, TRUNC(TOT_DT), SUM(NVL(TRF_QNTY, 0))
+                    FROM S_CRSRD_TRF_1DD
+                    WHERE NODE_ID IN ({node_placeholders})
+                      AND TOT_DT >= :start_time AND TOT_DT < :end_time
+                    GROUP BY NODE_ID, TRUNC(TOT_DT)
+                    """,
+                    query_bind,
+                )
+                daily_rows = cursor.fetchall()
+                cursor.execute(
+                    f"""
+                    SELECT NODE_ID, TRUNC(TOT_DT), SUM(NVL(TRF_QNTY, 0))
+                    FROM S_CRSRD_TRF_1HH
+                    WHERE NODE_ID IN ({node_placeholders})
+                      AND TOT_DT >= :start_time AND TOT_DT < :end_time
+                      AND TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')) IN (7, 8, 17, 18)
+                    GROUP BY NODE_ID, TRUNC(TOT_DT)
+                    """,
+                    query_bind,
+                )
+                peak_rows = cursor.fetchall()
+        finally:
+            conn.close()
+        node_to_label = {
+            node_id: label
+            for label, name in names.items()
+            for node_id, actual in nodes
+            if actual == name
+        }
+        result = {
+            label: {day: (0, 0) for day in calendar_days(date(2026, 5, 1), date(2026, 6, 30))}
+            for label in names
+        }
+        for node_id, raw_day, volume in daily_rows:
+            day = raw_day.date() if isinstance(raw_day, datetime) else raw_day
+            label = node_to_label[str(node_id).strip()]
+            _, peak = result[label][day]
+            result[label][day] = (int(volume or 0), peak)
+        for node_id, raw_day, volume in peak_rows:
+            day = raw_day.date() if isinstance(raw_day, datetime) else raw_day
+            label = node_to_label[str(node_id).strip()]
+            daily, _ = result[label][day]
+            result[label][day] = (daily, int(volume or 0))
+        return result
+
+
+def smart_v2_payload(
+    reader: OracleIntersectionDailyReader,
+) -> dict[tuple[int, str], dict[str, int]]:
+    source = reader.load()
+    payload: dict[tuple[int, str], dict[str, int]] = {}
+    for month in MONTHS:
+        start = date(2026, month, 1)
+        end = date(2026, month + 1, 1) - timedelta(days=1)
+        month_days = list(calendar_days(start, end))
+        weekday_days = [day for day in month_days if is_weekday(day)]
+        for target in TARGETS:
+            values = source[target.label]
+
+            def average(days: list[date], index: int) -> tuple[int, int]:
+                valid = [day for day in days if values[day][index] > 0]
+                total = sum(values[day][index] for day in valid)
+                return (round_half_up(Decimal(total) / len(valid)), len(valid)) if valid else (0, 0)
+
+            monthly, monthly_days = average(month_days, 0)
+            weekday, weekday_count = average(weekday_days, 0)
+            peak, peak_count = average(weekday_days, 1)
+            payload[(month, target.label)] = {
+                "monthly": monthly,
+                "weekday": weekday,
+                "peak": peak,
+                "monthly_days": monthly_days,
+                "weekday_days": weekday_count,
+                "peak_days": peak_count,
+            }
+    return payload
+
+
+def write_v2_workbook(workbook_path: Path, payload: dict[tuple[int, str], dict[str, int]]) -> None:
+    workbook = load_workbook(workbook_path)
+    try:
+        worksheet = workbook["스마트교차로 비교"]
+        for row, month in ((row, 5 if row <= 9 else 6) for row in range(4, 16)):
+            label = str(worksheet.cell(row, 2).value or "").strip()
+            values = payload[(month, label)]
+            for column, key in ((4, "monthly"), (7, "weekday"), (10, "peak")):
+                cell = worksheet.cell(row, column)
+                cell.value = values[key]
+                cell.number_format = "#,##0"
+        workbook.save(workbook_path)
+    finally:
+        workbook.close()
+
+
+def v2_non_target_snapshot(workbook_path: Path) -> dict[str, object]:
+    workbook = load_workbook(workbook_path, data_only=False)
+    try:
+        worksheet = workbook["스마트교차로 비교"]
+        return {
+            worksheet.cell(row, column).coordinate: worksheet.cell(row, column).value
+            for row in range(4, 16)
+            for column in (3, 5, 6, 8, 9, 11)
+        }
+    finally:
+        workbook.close()
+
+
+def verify_v2_workbook(
+    workbook_path: Path,
+    payload: dict[tuple[int, str], dict[str, int]],
+    expected_non_target: dict[str, object],
+) -> None:
+    workbook = load_workbook(workbook_path, data_only=False)
+    try:
+        worksheet = workbook["스마트교차로 비교"]
+        for row, month in ((row, 5 if row <= 9 else 6) for row in range(4, 16)):
+            label = str(worksheet.cell(row, 2).value or "").strip()
+            expected = payload[(month, label)]
+            for column, key in ((4, "monthly"), (7, "weekday"), (10, "peak")):
+                cell = worksheet.cell(row, column)
+                if cell.value != expected[key] or cell.number_format != "#,##0":
+                    raise AssertionError(f"스마트교차로 비교 불일치: {cell.coordinate}")
+        actual_non_target = {
+            worksheet.cell(row, column).coordinate: worksheet.cell(row, column).value
+            for row in range(4, 16)
+            for column in (3, 5, 6, 8, 9, 11)
+        }
+        if actual_non_target != expected_non_target:
+            raise AssertionError("엣지카메라 수식 또는 비율 열 변경")
+    finally:
+        workbook.close()
+
+
 def result_payload(
     edge_reader: EdgeDailyTrafficReader, smart_reader: SmartDailyTrafficReader
 ) -> dict:
@@ -404,6 +581,12 @@ def main() -> int:
     )
     parser.add_argument("--discover-approaches", action="store_true")
     parser.add_argument("--inspect-template", action="store_true")
+    parser.add_argument(
+        "--fill-v2",
+        action="store_true",
+        help="Fill smart-intersection values in the v2 remicon comparison workbook.",
+    )
+    parser.add_argument("--v2-workbook", type=Path, default=V2_WORKBOOK_PATH)
     args = parser.parse_args()
     if args.discover:
         reader = OracleSmartReader()
@@ -454,6 +637,19 @@ def main() -> int:
                 print(f"{row}\t{worksheet.cell(row, 1).value}\t{worksheet.cell(row, 2).value}")
         finally:
             workbook.close()
+        return 0
+    if args.fill_v2:
+        payload = smart_v2_payload(OracleIntersectionDailyReader())
+        non_target = v2_non_target_snapshot(args.v2_workbook)
+        write_v2_workbook(args.v2_workbook, payload)
+        verify_v2_workbook(args.v2_workbook, payload, non_target)
+        print(
+            json.dumps(
+                {f"{month}월 {label}": values for (month, label), values in payload.items()},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return 0
     payload = result_payload(SQLiteEdgeReader(args.edge_db), OracleSmartReader())
     write_template(args.template, args.output, payload)
