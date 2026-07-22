@@ -17,16 +17,22 @@ from openpyxl import load_workbook
 
 
 PROJECT_ROOT: Final = Path(__file__).resolve().parents[2]
-DEFAULT_INPUT_PATH: Final = PROJECT_ROOT / "00_Data" / "삼정동_위경도.xlsx"
-DEFAULT_OUTPUT_PATH: Final = (
-    PROJECT_ROOT / "02_Result" / "09_기타" / "삼정동_레미콘_카메라_위치지도.html"
-)
+DEFAULT_INPUT_PATH: Final = PROJECT_ROOT / "00_Data" / "삼정동_레미콘" / "삼정동_위경도.xlsx"
+DEFAULT_OUTPUT_PATH: Final = PROJECT_ROOT / "02_Result" / "삼정동_레미콘_8개_지점_위치지도.html"
 REQUIRED_HEADERS: Final = ("도로", "위치명", "카메라 종류", "위도", "경도")
-EXPECTED_CAMERA_COUNT: Final = 7
+EXPECTED_LOCATION_COUNT: Final = 8
 PROXIMITY_METERS: Final = 35.0
 DISPLAY_OFFSET_METERS: Final = 20.0
-# Input-row camera number -> map marker number: 1→7, 2→5, 3→6, 4→1, 5→2, 6→4, 7→3.
-DISPLAY_NUMBERS: Final = (7, 5, 6, 1, 2, 4, 3)
+TARGET_LOCATIONS: Final = (
+    ("박촌교 삼거리", "박촌교 삼거리"),
+    ("봉오고가교사거리", "봉오고가교 사거리"),
+    ("삼정고가삼거리", "삼정고가 삼거리"),
+    ("삼정교사거리", "삼정교 사거리"),
+    ("산업길사거리", "산업길 사거리"),
+    ("봉오대로사거리", "봉오대로 사거리"),
+    ("자동차검사소", "자동차검사소"),
+    ("삼정동 320-1", "삼정동320-1 부천IC"),
+)
 
 
 @dataclass(frozen=True)
@@ -58,6 +64,11 @@ def normalized_text(value: object) -> str:
     return str(value).strip() if value is not None else ""
 
 
+def source_location_name(name: str) -> str:
+    """Return the intersection name without a camera direction suffix."""
+    return re.sub(r"\s*\[[^]]+\]\s*$", "", name).strip()
+
+
 def load_locations(input_path: Path) -> list[CameraLocation]:
     if not input_path.is_file():
         raise FileNotFoundError(f"입력 엑셀을 찾을 수 없습니다: {input_path}")
@@ -75,7 +86,7 @@ def load_locations(input_path: Path) -> list[CameraLocation]:
             f"엑셀 헤더가 일치하지 않습니다: expected={REQUIRED_HEADERS}, actual={headers}"
         )
 
-    locations: list[CameraLocation] = []
+    source_locations: list[CameraLocation] = []
     last_road = ""
     for row_number, row in enumerate(rows[1:], start=2):
         if not any(value is not None and normalized_text(value) for value in row):
@@ -96,17 +107,47 @@ def load_locations(input_path: Path) -> list[CameraLocation]:
             raise RuntimeError(f"{row_number}행의 위도 또는 경도가 숫자가 아닙니다.") from exc
         if not 33.0 <= latitude_value <= 39.0 or not 124.0 <= longitude_value <= 132.0:
             raise RuntimeError(f"{row_number}행의 좌표가 대한민국 범위를 벗어났습니다.")
-        locations.append(
+        source_locations.append(
             CameraLocation(road_text, name_text, type_text, latitude_value, longitude_value)
         )
 
-    if len(locations) != EXPECTED_CAMERA_COUNT:
-        raise RuntimeError(
-            f"카메라 수가 일치하지 않습니다: expected={EXPECTED_CAMERA_COUNT}, actual={len(locations)}"
+    locations: list[CameraLocation] = []
+    used_source_indexes: set[int] = set()
+    for display_name, expected_source_name in TARGET_LOCATIONS:
+        matches = [
+            (index, location)
+            for index, location in enumerate(source_locations)
+            if source_location_name(location.name) == expected_source_name
+        ]
+        if not matches:
+            raise RuntimeError(f"필수 지점 좌표가 없습니다: {expected_source_name}")
+        source_indexes, cameras = zip(*matches, strict=True)
+        used_source_indexes.update(source_indexes)
+        camera_types = {camera.camera_type for camera in cameras}
+        if len(camera_types) != 1:
+            raise RuntimeError(f"{display_name}의 카메라 종류가 일치하지 않습니다.")
+        roads = {camera.road for camera in cameras}
+        if len(roads) != 1:
+            raise RuntimeError(f"{display_name}의 도로 정보가 일치하지 않습니다.")
+        locations.append(
+            CameraLocation(
+                road=cameras[0].road,
+                name=display_name,
+                camera_type=cameras[0].camera_type,
+                latitude=sum(camera.latitude for camera in cameras) / len(cameras),
+                longitude=sum(camera.longitude for camera in cameras) / len(cameras),
+            )
         )
-    names = [location.name for location in locations]
-    if len(set(names)) != len(names):
-        raise RuntimeError("중복된 위치명이 있습니다.")
+
+    if len(locations) != EXPECTED_LOCATION_COUNT:
+        raise RuntimeError("지도 지점 수가 8개가 아닙니다.")
+    if len(used_source_indexes) != len(source_locations):
+        unexpected = [
+            location.name
+            for index, location in enumerate(source_locations)
+            if index not in used_source_indexes
+        ]
+        raise RuntimeError(f"지정되지 않은 원본 카메라가 있습니다: {unexpected}")
     return locations
 
 
@@ -193,7 +234,7 @@ def map_record(location: CameraLocation, display_number: int) -> dict[str, objec
 
 def render_camera_index(locations: list[CameraLocation]) -> str:
     items: list[str] = []
-    for location, display_number in zip(locations, DISPLAY_NUMBERS, strict=True):
+    for display_number, location in enumerate(locations, start=1):
         marker_class = "cctv" if location.camera_type == "방범CCTV" else "edge"
         items.append(
             "<li>"
@@ -209,12 +250,12 @@ def render_camera_index(locations: list[CameraLocation]) -> str:
 
 def render_html(locations: Iterable[CameraLocation]) -> str:
     location_list = list(locations)
-    if len(location_list) != len(DISPLAY_NUMBERS):
+    if len(location_list) != EXPECTED_LOCATION_COUNT:
         raise RuntimeError("지도 마커 번호 구성과 카메라 수가 일치하지 않습니다.")
     camera_data = json.dumps(
         [
-            map_record(location, DISPLAY_NUMBERS[index])
-            for index, location in enumerate(location_list)
+            map_record(location, display_number)
+            for display_number, location in enumerate(location_list, start=1)
         ],
         ensure_ascii=False,
     )
@@ -251,11 +292,11 @@ def render_html(locations: Iterable[CameraLocation]) -> str:
 </head>
 <body>
   <main>
-    <h1>삼정동 레미콘 카메라 위치 지도</h1>
-    <p class="notice">가까운 카메라(35m 이내)는 실제 좌표를 보존한 채 가독성을 위해 표시 위치만 약 20m 벌려 표시했습니다. 점선은 실제 위치와 보정된 표시 위치를 연결합니다.</p>
-    <div id="map" aria-label="삼정동 레미콘 카메라 위치 지도"></div>
-    <section class="camera-index" id="camera-index" aria-label="카메라 번호 안내">
-      <h2>카메라 번호 안내</h2>
+    <h1>삼정동 레미콘 8개 지점 위치 지도</h1>
+    <p class="notice">같은 지점에 여러 카메라가 있는 경우 실제 좌표의 평균을 지점 좌표로 사용했습니다. 가까운 지점(35m 이내)은 가독성을 위해 표시 위치만 약 20m 벌려 표시했으며, 점선은 실제 위치와 보정된 표시 위치를 연결합니다.</p>
+    <div id="map" aria-label="삼정동 레미콘 8개 지점 위치 지도"></div>
+    <section class="camera-index" id="camera-index" aria-label="지점 번호 안내">
+      <h2>지점 번호 안내</h2>
       <ol>
         {camera_index}
       </ol>
@@ -314,11 +355,18 @@ def validate_html(
         "leaflet@1.9.4",
         "openstreetmap.org",
         "const cameras =",
+        "L.divIcon",
+        "popup-table",
+        "L.circleMarker",
         "가독성을 위한 표시 위치 보정",
         "L.polyline",
         "map.fitBounds",
         "카메라 종류",
-        "카메라 번호 안내",
+        "지점 번호 안내",
+        ".camera-marker.cctv",
+        ".camera-marker.edge",
+        "legend-cctv",
+        "legend-edge",
     )
     if any(fragment not in content for fragment in required_fragments):
         raise RuntimeError("생성 HTML에 필수 지도 구성 요소가 없습니다.")
@@ -326,12 +374,14 @@ def validate_html(
     if match is None:
         raise RuntimeError("HTML 카메라 데이터가 없습니다.")
     camera_data = json.loads(match.group(1))
-    if len(camera_data) != EXPECTED_CAMERA_COUNT or len(camera_data) != len(locations):
+    if len(camera_data) != EXPECTED_LOCATION_COUNT or len(camera_data) != len(locations):
         raise RuntimeError("HTML 카메라 데이터 수가 올바르지 않습니다.")
     if sorted(camera["displayNumber"] for camera in camera_data) != list(
-        range(1, EXPECTED_CAMERA_COUNT + 1)
+        range(1, EXPECTED_LOCATION_COUNT + 1)
     ):
-        raise RuntimeError("HTML 지도 마커 번호가 1부터 7까지 한 번씩 포함되지 않습니다.")
+        raise RuntimeError("HTML 지도 마커 번호가 1부터 8까지 한 번씩 포함되지 않습니다.")
+    if [camera["name"] for camera in camera_data] != [name for name, _ in TARGET_LOCATIONS]:
+        raise RuntimeError("HTML 지점 명칭 또는 표시 순서가 올바르지 않습니다.")
     adjusted_count = sum(bool(camera["isAdjusted"]) for camera in camera_data)
     expected_adjusted_count = sum(len(group) for group in groups)
     if adjusted_count != expected_adjusted_count:
@@ -347,7 +397,7 @@ def main() -> int:
     output_path.write_text(render_html(display_locations), encoding="utf-8")
     validate_html(output_path, display_locations, groups)
     print(f"output={output_path}")
-    print(f"camera_count={len(locations)}")
+    print(f"location_count={len(locations)}")
     print(f"proximity_groups={len(groups)}")
     print(f"adjusted_camera_count={sum(len(group) for group in groups)}")
     return 0
