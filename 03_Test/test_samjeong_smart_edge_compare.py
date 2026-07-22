@@ -57,7 +57,7 @@ def test_rounding_is_half_up() -> None:
     assert comparison.round_half_up(comparison.Decimal("10.5")) == 11
 
 
-def test_v2_smart_peak_uses_fixed_divisor_without_hourly_quality_filter() -> None:
+def test_v2_smart_metrics_use_only_the_requested_month_and_fixed_divisors() -> None:
     class FakeReader:
         def load(self):
             values = {}
@@ -65,20 +65,23 @@ def test_v2_smart_peak_uses_fixed_divisor_without_hourly_quality_filter() -> Non
                 daily = {}
                 for day in comparison.calendar_days(date(2026, 5, 1), date(2026, 6, 30)):
                     daily[day] = {}
-                daily[date(2026, 5, 1)] = {hour: 10 for hour in range(24)}
-                daily[date(2026, 5, 6)] = {hour: 10 for hour in range(24)}
-                daily[date(2026, 5, 7)] = {hour: 20 for hour in range(24)}
+                for day in comparison.calendar_days(date(2026, 5, 1), date(2026, 5, 31)):
+                    daily[day] = {0: 31}
+                for day in comparison.calendar_days(date(2026, 5, 1), date(2026, 5, 31)):
+                    if comparison.is_weekday(day):
+                        daily[day].update({7: 18, 8: 0, 17: 0, 18: 0})
+                daily[date(2026, 6, 1)] = {0: 99_999}
                 values[target.label] = daily
             return values
 
     payload = comparison.smart_v2_payload(FakeReader())
     result = payload[(5, "박촌교 삼거리")]
     assert result == {
-        "monthly": 320,
-        "weekday": 360,
-        "peak": 6,
-        "monthly_days": 3,
-        "weekday_days": 2,
+        "monthly": 41,
+        "weekday": 49,
+        "peak": 18,
+        "monthly_days": 31,
+        "weekday_days": 18,
         "peak_days": 18,
     }
 
@@ -95,7 +98,7 @@ def test_hourly_quality_allows_three_invalid_hours_and_rejects_four() -> None:
     assert comparison.average_hourly_days(values, values) == (210, 1)
 
 
-def test_weekday_peak_sums_four_hours_and_truncates_with_fixed_month_divisor() -> None:
+def test_weekday_peak_sums_four_hours_and_rounds_half_up_with_fixed_month_divisor() -> None:
     days = [date(2026, 5, 6), date(2026, 5, 7)]
     values = {
         days[0]: {7: 10, 8: 0, 17: 5},
@@ -103,16 +106,16 @@ def test_weekday_peak_sums_four_hours_and_truncates_with_fixed_month_divisor() -
     }
 
     assert comparison.average_weekday_peak_hours(values, days, 18) == (2, 18)
-    assert comparison.average_weekday_peak_hours(values, days, 20) == (1, 20)
+    assert comparison.average_weekday_peak_hours(values, days, 20) == (2, 20)
 
 
 def test_weekday_peak_keeps_missing_and_zero_hours_in_fixed_denominator() -> None:
     days = [date(2026, 6, 4), date(2026, 6, 5)]
 
-    assert comparison.average_weekday_peak_hours({days[0]: {7: 20}}, days, 20) == (1, 20)
+    assert comparison.average_weekday_peak_hours({days[0]: {7: 20}}, days, 21) == (1, 21)
 
 
-def test_write_v2_workbook_changes_only_smart_peak_column() -> None:
+def test_write_v2_workbook_changes_only_smart_metric_columns() -> None:
     with tempfile.TemporaryDirectory(dir=Path.cwd()) as temporary_directory:
         workbook_path = Path(temporary_directory) / "comparison.xlsx"
         workbook = Workbook()
@@ -127,7 +130,7 @@ def test_write_v2_workbook_changes_only_smart_peak_column() -> None:
             worksheet.cell(row, 7).value = f"=2+{row}"
             worksheet.cell(row, 10).value = -1
             worksheet.cell(row, 11).value = f"=J{row}/100"
-            payload[(month, label)] = {"peak": row * 10}
+            payload[(month, label)] = {"monthly": row * 10, "weekday": row * 20, "peak": row * 30}
         workbook.create_sheet("Preserved")["A1"] = "unchanged"
         workbook.save(workbook_path)
         workbook.close()

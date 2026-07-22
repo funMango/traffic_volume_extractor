@@ -32,9 +32,10 @@ V2_WORKBOOK_PATH = BASE_DIR / "02_Result" / "09_기타" / "삼정동_레미콘_�
 HOLIDAYS = {date(2026, 5, 1), date(2026, 5, 5), date(2026, 5, 25), date(2026, 6, 3)}
 MONTHS = (5, 6)
 PEAK_HOURS = {7, 8, 17, 18}
-WEEKDAY_PEAK_DIVISORS = {5: 18, 6: 20}
+MONTHLY_DIVISORS = {5: 31, 6: 30}
+WEEKDAY_DIVISORS = {5: 18, 6: 21}
 V2_SHEET_NAME = "스마트교차로 비교"
-V2_TARGET_COLUMN = 10
+V2_TARGET_COLUMNS = {"monthly": 4, "weekday": 7, "peak": 10}
 V2_TARGET_ROWS = range(4, 16)
 
 
@@ -271,7 +272,7 @@ class OracleSmartReader:
 
 
 class OracleIntersectionHourlyReader:
-    """Reads raw smart-intersection traffic by intersection, day, and hour."""
+    """Reads selected smart-intersection approaches by day and hour."""
 
     def __init__(self) -> None:
         sys.path.insert(0, str(BASE_DIR / "01_Program" / "09_else"))
@@ -301,43 +302,58 @@ class OracleIntersectionHourlyReader:
                 by_name = {name: node_id for node_id, name in nodes}
                 if set(by_name) != set(names.values()) or len(nodes) != len(names):
                     raise RuntimeError(f"스마트교차로 NODE_ID 확인 실패: {nodes}")
-                query_bind = {
-                    f"node_{index}": node_id for index, node_id in enumerate(by_name.values())
-                }
-                node_placeholders = ", ".join(f":{key}" for key in query_bind)
-                query_bind.update(
-                    {
-                        "start_time": datetime(2026, 5, 1),
-                        "end_time": datetime(2026, 7, 1),
+                selected_pairs: dict[tuple[str, str], str] = {}
+                for label, intersection_name in names.items():
+                    node_id = by_name[intersection_name]
+                    target = next(target for target in TARGETS if target.label == label)
+                    cursor.execute(
+                        "SELECT ACSR_ID, ACSR_NM FROM M_CRSRD_ACSR_INF WHERE NODE_ID = :node_id",
+                        node_id=node_id,
+                    )
+                    approaches = {
+                        str(approach_name).strip(): str(approach_id).strip()
+                        for approach_id, approach_name in cursor.fetchall()
                     }
-                )
+                    for approach_name in target.smart_approaches:
+                        if approach_name not in approaches:
+                            raise RuntimeError(
+                                f"스마트교차로 접근로 확인 실패: {intersection_name} / {approach_name}"
+                            )
+                        selected_pairs[(node_id, approaches[approach_name])] = label
+
+                query_bind: dict[str, object] = {
+                    "start_time": datetime(2026, 5, 1),
+                    "end_time": datetime(2026, 7, 1),
+                }
+                pair_clauses = []
+                for index, (node_id, approach_id) in enumerate(selected_pairs):
+                    node_key, approach_key = f"node_{index}", f"approach_{index}"
+                    query_bind[node_key] = node_id
+                    query_bind[approach_key] = approach_id
+                    pair_clauses.append(f"(NODE_ID = :{node_key} AND ACSR_ID = :{approach_key})")
                 cursor.execute(
                     f"""
                     SELECT NODE_ID,
+                           ACSR_ID,
                            TRUNC(TOT_DT),
                            TO_NUMBER(TO_CHAR(TOT_DT, 'HH24')),
                            SUM(NVL(TRF_QNTY, 0))
-                    FROM S_CRSRD_TRF_1HH
-                    WHERE NODE_ID IN ({node_placeholders})
+                    FROM S_CRSRD_ACSR_TRF_1HH
+                    WHERE ({" OR ".join(pair_clauses)})
                       AND TOT_DT >= :start_time AND TOT_DT < :end_time
-                    GROUP BY NODE_ID, TRUNC(TOT_DT), TO_NUMBER(TO_CHAR(TOT_DT, 'HH24'))
+                    GROUP BY NODE_ID, ACSR_ID, TRUNC(TOT_DT), TO_NUMBER(TO_CHAR(TOT_DT, 'HH24'))
                     """,
                     query_bind,
                 )
                 hourly_rows = cursor.fetchall()
         finally:
             conn.close()
-        node_to_label = {
-            node_id: label
-            for label, name in names.items()
-            for node_id, actual in nodes
-            if actual == name
-        }
         result = {label: defaultdict(dict) for label in names}
-        for node_id, raw_day, hour, volume in hourly_rows:
+        for node_id, approach_id, raw_day, hour, volume in hourly_rows:
             day = raw_day.date() if isinstance(raw_day, datetime) else raw_day
-            label = node_to_label[str(node_id).strip()]
-            result[label][day][int(hour)] = max(int(volume or 0), 0)
+            label = selected_pairs[(str(node_id).strip(), str(approach_id).strip())]
+            hourly = result[label][day]
+            hourly[int(hour)] = hourly.get(int(hour), 0) + max(int(volume or 0), 0)
         return result
 
 
@@ -358,14 +374,16 @@ def average_hourly_days(
 def average_weekday_peak_hours(
     values: dict[date, dict[int, int]], days: Iterable[date], divisor: int
 ) -> tuple[int, int]:
-    """Return the fixed-divisor weekday sum of the four peak hours.
-
-    Missing or zero-valued hours intentionally contribute zero.  This measure
-    is distinct from the existing monthly and weekday daily averages, which
-    retain their established data-quality rules.
-    """
+    """Return the fixed-divisor average of the four weekday peak hours."""
     total = sum(max(values.get(day, {}).get(hour, 0), 0) for day in days for hour in PEAK_HOURS)
-    return int(Decimal(total) / divisor), divisor
+    return round_half_up(Decimal(total) / divisor), divisor
+
+
+def average_hourly_values(
+    values: dict[date, dict[int, int]], days: Iterable[date], divisor: int
+) -> tuple[int, int]:
+    total = sum(sum(max(volume, 0) for volume in values.get(day, {}).values()) for day in days)
+    return round_half_up(Decimal(total) / divisor), divisor
 
 
 def smart_v2_payload(
@@ -380,10 +398,14 @@ def smart_v2_payload(
         weekday_days = [day for day in month_days if is_weekday(day)]
         for target in TARGETS:
             values = source[target.label]
-            monthly, monthly_days = average_hourly_days(values, month_days)
-            weekday, weekday_count = average_hourly_days(values, weekday_days)
+            monthly, monthly_days = average_hourly_values(
+                values, month_days, MONTHLY_DIVISORS[month]
+            )
+            weekday, weekday_count = average_hourly_values(
+                values, weekday_days, WEEKDAY_DIVISORS[month]
+            )
             peak, peak_count = average_weekday_peak_hours(
-                values, weekday_days, WEEKDAY_PEAK_DIVISORS[month]
+                values, weekday_days, WEEKDAY_DIVISORS[month]
             )
             payload[(month, target.label)] = {
                 "monthly": monthly,
@@ -403,20 +425,32 @@ def write_v2_workbook(workbook_path: Path, payload: dict[tuple[int, str], dict[s
         for row, month in ((row, 5 if row <= 9 else 6) for row in V2_TARGET_ROWS):
             label = str(worksheet.cell(row, 2).value or "").strip()
             values = payload[(month, label)]
-            cell = worksheet.cell(row, V2_TARGET_COLUMN)
-            cell.value = values["peak"]
-            cell.number_format = "#,##0"
+            for metric, column in V2_TARGET_COLUMNS.items():
+                cell = worksheet.cell(row, column)
+                cell.value = values[metric]
+                cell.number_format = "#,##0"
         workbook.save(workbook_path)
     finally:
         workbook.close()
 
 
-def v2_non_target_snapshot(workbook_path: Path) -> dict[tuple[str, str], object]:
+def v2_non_target_snapshot(
+    workbook_path: Path,
+) -> dict[tuple[str, str], tuple[object, str, int, str]]:
     workbook = load_workbook(workbook_path, data_only=False)
     try:
-        target_cells = {(V2_SHEET_NAME, f"J{row}") for row in V2_TARGET_ROWS}
+        target_cells = {
+            (V2_SHEET_NAME, f"{chr(64 + column)}{row}")
+            for row in V2_TARGET_ROWS
+            for column in V2_TARGET_COLUMNS.values()
+        }
         return {
-            (worksheet.title, cell.coordinate): cell.value
+            (worksheet.title, cell.coordinate): (
+                cell.value,
+                cell.data_type,
+                cell.style_id,
+                cell.number_format,
+            )
             for worksheet in workbook.worksheets
             for row in worksheet.iter_rows()
             for cell in row
@@ -429,7 +463,7 @@ def v2_non_target_snapshot(workbook_path: Path) -> dict[tuple[str, str], object]
 def verify_v2_workbook(
     workbook_path: Path,
     payload: dict[tuple[int, str], dict[str, int]],
-    expected_non_target: dict[tuple[str, str], object],
+    expected_non_target: dict[tuple[str, str], tuple[object, str, int, str]],
 ) -> None:
     workbook = load_workbook(workbook_path, data_only=False)
     try:
@@ -437,17 +471,23 @@ def verify_v2_workbook(
         for row, month in ((row, 5 if row <= 9 else 6) for row in V2_TARGET_ROWS):
             label = str(worksheet.cell(row, 2).value or "").strip()
             expected = payload[(month, label)]
-            cell = worksheet.cell(row, V2_TARGET_COLUMN)
-            if cell.value != expected["peak"] or cell.number_format != "#,##0":
-                raise AssertionError(f"스마트교차로 비교 불일치: {cell.coordinate}")
+            for metric, column in V2_TARGET_COLUMNS.items():
+                cell = worksheet.cell(row, column)
+                if cell.value != expected[metric] or cell.number_format != "#,##0":
+                    raise AssertionError(f"스마트교차로 비교 불일치: {cell.coordinate}")
         actual_non_target = {
-            (sheet.title, cell.coordinate): cell.value
+            (sheet.title, cell.coordinate): (
+                cell.value,
+                cell.data_type,
+                cell.style_id,
+                cell.number_format,
+            )
             for sheet in workbook.worksheets
             for row in sheet.iter_rows()
             for cell in row
             if not (
                 sheet.title == V2_SHEET_NAME
-                and cell.column == V2_TARGET_COLUMN
+                and cell.column in V2_TARGET_COLUMNS.values()
                 and cell.row in V2_TARGET_ROWS
             )
         }
@@ -607,6 +647,7 @@ def main() -> int:
         help="Fill smart-intersection values in the v2 remicon comparison workbook.",
     )
     parser.add_argument("--v2-workbook", type=Path, default=V2_WORKBOOK_PATH)
+    parser.add_argument("--verify-v2", action="store_true")
     args = parser.parse_args()
     if args.discover:
         reader = OracleSmartReader()
@@ -670,6 +711,11 @@ def main() -> int:
                 indent=2,
             )
         )
+        return 0
+    if args.verify_v2:
+        payload = smart_v2_payload(OracleIntersectionHourlyReader())
+        non_target = v2_non_target_snapshot(args.v2_workbook)
+        verify_v2_workbook(args.v2_workbook, payload, non_target)
         return 0
     payload = result_payload(SQLiteEdgeReader(args.edge_db), OracleSmartReader())
     write_template(args.template, args.output, payload)
