@@ -13,9 +13,11 @@ from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 import re
 import sqlite3
+from tempfile import NamedTemporaryFile
+from xml.etree import ElementTree
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from openpyxl import load_workbook
-from openpyxl.styles import Side
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -23,6 +25,7 @@ DEFAULT_DB_PATH = PROJECT_ROOT / "00_Data" / "삼정동_레미콘" / "삼정동_
 DEFAULT_WORKBOOK_PATH = PROJECT_ROOT / "02_Result" / "09_기타" / "삼정동_레미콘_교통량_수정_v1.xlsx"
 SHEET_NAME = "Sheet1"
 TABLE_NAME = "vehicle_detection"
+SPREADSHEETML_NAMESPACE = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 HOLIDAYS = {date(2026, 5, 1), date(2026, 5, 5), date(2026, 5, 25), date(2026, 6, 3)}
 PEAK_HOURS = (7, 8, 17, 18)
 REMICON_PATTERNS = (
@@ -330,7 +333,7 @@ def configure_total_row(worksheet: object, group: DirectionGroup) -> None:
         font.bold = True
         cell.font = font
         border = copy(cell.border)
-        border.top = Side(style="medium", color="000000")
+        border.top = copy(worksheet.cell(row=end_row, column=column).border.top)
         cell.border = border
 
 
@@ -422,6 +425,59 @@ def verify_total_rows(worksheet: object) -> None:
         raise RuntimeError(f"Unexpected month merges: {sorted(actual_month_merges)}")
 
 
+def suppress_total_formula_indicators(workbook_path: Path, total_rows: list[int]) -> None:
+    """Suppress Excel's inconsistent-formula indicator only for total formulas."""
+    worksheet_xml_path = "xl/worksheets/sheet1.xml"
+    namespace = f"{{{SPREADSHEETML_NAMESPACE}}}"
+    formula_cells = " ".join(f"F{row}:N{row}" for row in total_rows)
+    with ZipFile(workbook_path, "r") as source:
+        worksheet_xml = source.read(worksheet_xml_path)
+        entries = [(entry, source.read(entry.filename)) for entry in source.infolist()]
+
+    root = ElementTree.fromstring(worksheet_xml)
+    ignored_errors = root.find(f"{namespace}ignoredErrors")
+    if ignored_errors is not None:
+        root.remove(ignored_errors)
+    ignored_errors = ElementTree.Element(f"{namespace}ignoredErrors")
+    ElementTree.SubElement(
+        ignored_errors,
+        f"{namespace}ignoredError",
+        {"sqref": formula_cells, "formula": "1"},
+    )
+    insert_before = {
+        f"{namespace}{tag}"
+        for tag in (
+            "smartTags",
+            "drawing",
+            "legacyDrawing",
+            "legacyDrawingHF",
+            "picture",
+            "oleObjects",
+            "controls",
+            "webPublishItems",
+            "tableParts",
+            "extLst",
+        )
+    }
+    insert_index = next(
+        (index for index, child in enumerate(root) if child.tag in insert_before),
+        len(root),
+    )
+    root.insert(insert_index, ignored_errors)
+
+    with NamedTemporaryFile(dir=workbook_path.parent, suffix=".xlsx", delete=False) as temporary:
+        temporary_path = Path(temporary.name)
+    try:
+        with ZipFile(temporary_path, "w", ZIP_DEFLATED) as destination:
+            for entry, content in entries:
+                if entry.filename == worksheet_xml_path:
+                    content = ElementTree.tostring(root, encoding="utf-8", xml_declaration=True)
+                destination.writestr(entry, content)
+        temporary_path.replace(workbook_path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+
 def apply_or_verify(
     workbook_path: Path, results: dict[int, tuple[object, ...]], verify_only: bool
 ) -> None:
@@ -445,7 +501,13 @@ def apply_or_verify(
         else:
             ensure_total_rows(worksheet)
         if not verify_only:
+            total_rows = [
+                group.total_row
+                for group in find_direction_groups(worksheet)
+                if group.total_row is not None
+            ]
             workbook.save(workbook_path)
+            suppress_total_formula_indicators(workbook_path, total_rows)
     finally:
         workbook.close()
 
