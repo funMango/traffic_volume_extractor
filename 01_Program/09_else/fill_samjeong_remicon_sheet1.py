@@ -60,6 +60,12 @@ class Period:
 
 
 @dataclass(frozen=True)
+class AverageDivisors:
+    daily: int
+    weekday: int
+
+
+@dataclass(frozen=True)
 class Counts:
     total: int
     remicon: int
@@ -78,6 +84,9 @@ class Counts:
 PERIOD_BY_MONTH = {
     "5월": Period(date(2026, 5, 1), date(2026, 6, 1), 31, 18),
     "6월": Period(date(2026, 6, 1), date(2026, 7, 1), 30, 21),
+}
+AVERAGE_DIVISORS_BY_MONTH_AND_LOCATION = {
+    ("5월", "자동차검사소"): AverageDivisors(daily=25, weekday=15),
 }
 MULTI_DIRECTION_INTERSECTIONS = {
     "박촌교 삼거리",
@@ -136,6 +145,13 @@ def weekday_dates(period: Period) -> list[str]:
     if len(dates) != period.weekday_divisor:
         raise RuntimeError(f"Unexpected weekday count: {len(dates)}")
     return dates
+
+
+def average_divisors(month: str, location: str, period: Period) -> AverageDivisors:
+    return AVERAGE_DIVISORS_BY_MONTH_AND_LOCATION.get(
+        (month, location),
+        AverageDivisors(daily=period.daily_divisor, weekday=period.weekday_divisor),
+    )
 
 
 def query_counts(
@@ -252,10 +268,11 @@ def expected_values(workbook_path: Path, db_path: Path) -> dict[int, tuple[objec
             monthly, weekday, peak = query_counts(connection, month_locations, period)
             for row in month_rows:
                 location = row_map[row]
+                divisors = average_divisors(month, location, period)
                 results[row] = (
-                    *monthly[location].rounded_average(period.daily_divisor),
-                    *weekday[location].rounded_average(period.weekday_divisor),
-                    *peak[location].rounded_average(period.weekday_divisor),
+                    *monthly[location].rounded_average(divisors.daily),
+                    *weekday[location].rounded_average(divisors.weekday),
+                    *peak[location].rounded_average(divisors.weekday),
                 )
     finally:
         connection.close()
