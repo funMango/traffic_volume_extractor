@@ -18,7 +18,7 @@ from openpyxl import load_workbook
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WORKBOOK_PATH = PROJECT_ROOT / "02_Result" / "09_기타" / "삼정동_레미콘_교통량_수정_v1.xlsx"
-SHEET_NAME = "Sheet2"
+SHEET_NAME = "스마트교차로 비교"
 TRAFFIC_TABLE = "S_CRSRD_ACSR_TRF_1HH"
 HOLIDAYS = {date(2026, 5, 1), date(2026, 5, 5), date(2026, 5, 25), date(2026, 6, 3)}
 PEAK_HOURS = (7, 8, 17, 18)
@@ -280,6 +280,10 @@ def target_coordinates(groups: Iterable[DirectionGroup]) -> set[tuple[str, str]]
     return coordinates
 
 
+def direction_total(worksheet: Any, direction_rows: tuple[int, ...], column: int) -> int:
+    return sum(int(worksheet.cell(row, column).value or 0) for row in direction_rows)
+
+
 def apply_or_verify(
     workbook_path: Path, values: dict[int, tuple[int, int, int]], verify_only: bool
 ) -> None:
@@ -299,10 +303,9 @@ def apply_or_verify(
                 if group.total_row is None:
                     continue
                 for column in TARGET_COLUMNS:
-                    letter = chr(64 + column)
-                    worksheet.cell(
-                        group.total_row, column
-                    ).value = f"=SUM({letter}{group.direction_rows[0]}:{letter}{group.direction_rows[-1]})"
+                    worksheet.cell(group.total_row, column).value = direction_total(
+                        worksheet, group.direction_rows, column
+                    )
                     worksheet.cell(group.total_row, column).number_format = "#,##0"
             workbook.save(workbook_path)
     finally:
@@ -320,12 +323,11 @@ def apply_or_verify(
             if group.total_row is None:
                 continue
             for column in TARGET_COLUMNS:
-                letter = chr(64 + column)
-                expected = (
-                    f"=SUM({letter}{group.direction_rows[0]}:{letter}{group.direction_rows[-1]})"
-                )
+                expected = direction_total(worksheet, group.direction_rows, column)
                 if worksheet.cell(group.total_row, column).value != expected:
-                    raise AssertionError(f"Total formula mismatch at {letter}{group.total_row}")
+                    raise AssertionError(
+                        f"Total value mismatch at {worksheet.cell(group.total_row, column).coordinate}"
+                    )
         if not verify_only:
             after = workbook_snapshot(saved)
             unexpected = sorted(

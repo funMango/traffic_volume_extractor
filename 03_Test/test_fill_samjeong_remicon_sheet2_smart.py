@@ -37,12 +37,12 @@ def test_metrics_keep_missing_dates_and_hours_as_zero_and_round_half_up() -> Non
     assert sheet2.calculate_metrics(values, period) == (1, 2, 2)
 
 
-def test_apply_only_changes_sheet2_smart_cells_and_writes_total_formulas() -> None:
+def test_apply_only_changes_smart_cells_and_writes_total_values() -> None:
     with tempfile.TemporaryDirectory(dir=Path.cwd()) as temporary_directory:
         workbook_path = Path(temporary_directory) / "sheet2.xlsx"
         workbook = Workbook()
         worksheet = workbook.active
-        worksheet.title = "Sheet2"
+        worksheet.title = sheet2.SHEET_NAME
         row = 4
         for month in ("5월", "6월"):
             for intersection in (
@@ -81,7 +81,7 @@ def test_apply_only_changes_sheet2_smart_cells_and_writes_total_formulas() -> No
                 for cell in row_cells
                 if cell.value is not None
             }
-            groups = sheet2.find_direction_groups(workbook["Sheet2"])
+            groups = sheet2.find_direction_groups(workbook[sheet2.SHEET_NAME])
             targets = sheet2.target_coordinates(groups)
             before_merges = {
                 sheet.title: tuple(str(merged) for merged in sheet.merged_cells.ranges)
@@ -92,7 +92,7 @@ def test_apply_only_changes_sheet2_smart_cells_and_writes_total_formulas() -> No
 
         workbook = sheet2.load_workbook(workbook_path)
         try:
-            groups = sheet2.find_direction_groups(workbook["Sheet2"])
+            groups = sheet2.find_direction_groups(workbook[sheet2.SHEET_NAME])
             values = {
                 direction_row: (11, 22, 33)
                 for group in groups
@@ -106,19 +106,20 @@ def test_apply_only_changes_sheet2_smart_cells_and_writes_total_formulas() -> No
         try:
             assert workbook["Sheet1"]["A1"].value == "unchanged"
             assert workbook["Sheet1"]["A1"].fill.fgColor.rgb == "00FFFF00"
-            assert workbook["Sheet2"]["D4"].fill.fgColor.rgb == "0000FF00"
+            assert workbook[sheet2.SHEET_NAME]["D4"].fill.fgColor.rgb == "0000FF00"
             assert {
                 sheet.title: tuple(str(merged) for merged in sheet.merged_cells.ranges)
                 for sheet in workbook.worksheets
             } == before_merges
-            for group in sheet2.find_direction_groups(workbook["Sheet2"]):
+            for group in sheet2.find_direction_groups(workbook[sheet2.SHEET_NAME]):
                 for direction_row in group.direction_rows:
                     assert tuple(
-                        workbook["Sheet2"].cell(direction_row, col).value for col in (7, 9, 11)
+                        workbook[sheet2.SHEET_NAME].cell(direction_row, col).value
+                        for col in (7, 9, 11)
                     ) == (11, 22, 33)
                 if group.total_row is not None:
-                    assert workbook["Sheet2"].cell(group.total_row, 7).value == (
-                        f"=SUM(G{group.direction_rows[0]}:G{group.direction_rows[-1]})"
+                    assert workbook[sheet2.SHEET_NAME].cell(group.total_row, 7).value == (
+                        11 * len(group.direction_rows)
                     )
             after = {
                 (sheet.title, cell.coordinate): (cell.value, cell.style_id)
