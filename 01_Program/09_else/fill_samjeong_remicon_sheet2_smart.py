@@ -91,16 +91,42 @@ def weekday_dates(period: Period) -> tuple[date, ...]:
 def calculate_metrics(
     hourly_values: dict[date, dict[int, int]], period: Period
 ) -> tuple[int, int, int]:
-    monthly_total = sum(sum(hours.values()) for hours in hourly_values.values())
+    monthly_values = {
+        day: hours for day, hours in hourly_values.items() if period.start <= day < period.end
+    }
+    monthly_total = sum(sum(hours.values()) for hours in monthly_values.values())
     weekdays = weekday_dates(period)
-    weekday_total = sum(sum(hourly_values.get(day, {}).values()) for day in weekdays)
+    weekday_total = sum(sum(monthly_values.get(day, {}).values()) for day in weekdays)
     peak_total = sum(
-        hourly_values.get(day, {}).get(hour, 0) for day in weekdays for hour in PEAK_HOURS
+        monthly_values.get(day, {}).get(hour, 0) for day in weekdays for hour in PEAK_HOURS
     )
     return (
         round_half_up(Decimal(monthly_total) / period.daily_divisor),
         round_half_up(Decimal(weekday_total) / period.weekday_divisor),
         round_half_up(Decimal(peak_total) / period.weekday_divisor),
+    )
+
+
+def validate_monthly_average(
+    metrics: tuple[int, int, int],
+    period: Period,
+    intersection: str,
+    direction: str,
+    hourly_values: dict[date, dict[int, int]],
+) -> None:
+    monthly, weekday, _peak = metrics
+    if monthly <= weekday:
+        return
+    daily_totals = {
+        day.isoformat(): sum(hours.values())
+        for day, hours in sorted(hourly_values.items())
+        if period.start <= day < period.end
+    }
+    mapping = APPROACH_NAMES[(intersection, direction)]
+    raise AssertionError(
+        "Monthly daily average exceeds weekday daily average: "
+        f"{period.month} {intersection} / {direction}; metrics={metrics}; "
+        f"mapping={mapping}; daily_totals={daily_totals}"
     )
 
 
@@ -250,17 +276,30 @@ def expected_values(
         period = PERIOD_BY_MONTH[group.month]
         for row in group.direction_rows:
             direction = str(worksheet.cell(row, 3).value).strip()
-            values[row] = calculate_metrics(hourly_values[(group.intersection, direction)], period)
+            source_values = hourly_values[(group.intersection, direction)]
+            metrics = calculate_metrics(source_values, period)
+            validate_monthly_average(metrics, period, group.intersection, direction, source_values)
+            values[row] = metrics
     return values, groups
 
 
-def workbook_snapshot(workbook: Any) -> dict[tuple[str, str], Any]:
+def workbook_snapshot(workbook: Any) -> dict[tuple[str, str], tuple[Any, str, int, str]]:
     return {
-        (worksheet.title, cell.coordinate): cell.value
+        (worksheet.title, cell.coordinate): (
+            cell.value,
+            cell.data_type,
+            cell.style_id,
+            cell.number_format,
+        )
         for worksheet in workbook.worksheets
-        for row in worksheet.iter_rows()
-        for cell in row
-        if cell.value is not None
+        for cell in worksheet._cells.values()
+    }
+
+
+def merged_ranges_snapshot(workbook: Any) -> dict[str, tuple[str, ...]]:
+    return {
+        worksheet.title: tuple(sorted(str(merged) for merged in worksheet.merged_cells.ranges))
+        for worksheet in workbook.worksheets
     }
 
 
@@ -292,7 +331,10 @@ def apply_or_verify(
         worksheet = workbook[SHEET_NAME]
         groups = find_direction_groups(worksheet)
         targets = target_coordinates(groups)
+        if len(values) != 24 or len(targets) != 102:
+            raise AssertionError("Expected 72 direction cells and 30 total cells")
         before = workbook_snapshot(workbook)
+        before_merges = merged_ranges_snapshot(workbook)
         if not verify_only:
             for row, metrics in values.items():
                 for column, metric in zip(TARGET_COLUMNS, metrics, strict=True):
@@ -337,6 +379,23 @@ def apply_or_verify(
             )
             if unexpected:
                 raise AssertionError(f"Unexpected workbook changes: {unexpected[:10]}")
+            if merged_ranges_snapshot(saved) != before_merges:
+                raise AssertionError("Unexpected merged-range changes")
+        for row in values:
+            for column in TARGET_COLUMNS:
+                if worksheet.cell(row, column).number_format != "#,##0":
+                    raise AssertionError(
+                        f"Number format mismatch at {worksheet.cell(row, column).coordinate}"
+                    )
+        for group in groups:
+            if group.total_row is None:
+                continue
+            for column in TARGET_COLUMNS:
+                if worksheet.cell(group.total_row, column).number_format != "#,##0":
+                    raise AssertionError(
+                        f"Number format mismatch at "
+                        f"{worksheet.cell(group.total_row, column).coordinate}"
+                    )
     finally:
         saved.close()
 

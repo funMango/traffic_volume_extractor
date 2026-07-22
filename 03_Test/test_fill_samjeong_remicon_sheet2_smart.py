@@ -8,6 +8,7 @@ from pathlib import Path
 
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill
+import pytest
 
 
 MODULE_PATH = (
@@ -35,6 +36,29 @@ def test_metrics_keep_missing_dates_and_hours_as_zero_and_round_half_up() -> Non
         date(2026, 5, 7): {7: 1},
     }
     assert sheet2.calculate_metrics(values, period) == (1, 2, 2)
+
+
+def test_monthly_metrics_are_limited_to_each_month() -> None:
+    values = {
+        date(2026, 5, 6): {7: 31},
+        date(2026, 6, 4): {7: 300},
+    }
+
+    assert sheet2.calculate_metrics(values, sheet2.PERIOD_BY_MONTH["5월"]) == (1, 2, 2)
+    assert sheet2.calculate_metrics(values, sheet2.PERIOD_BY_MONTH["6월"]) == (10, 14, 14)
+
+
+def test_monthly_average_validation_reports_mapping_and_daily_values() -> None:
+    with pytest.raises(AssertionError, match="박촌교삼거리-북") as error:
+        sheet2.validate_monthly_average(
+            (100, 99, 10),
+            sheet2.PERIOD_BY_MONTH["5월"],
+            "박촌교 삼거리",
+            "남향",
+            {date(2026, 5, 6): {7: 100}},
+        )
+
+    assert "2026-05-06" in str(error.value)
 
 
 def test_apply_only_changes_smart_cells_and_writes_total_values() -> None:
