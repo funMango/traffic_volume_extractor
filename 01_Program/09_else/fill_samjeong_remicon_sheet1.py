@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Iterable
+from copy import copy
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
@@ -14,6 +15,7 @@ import re
 import sqlite3
 
 from openpyxl import load_workbook
+from openpyxl.styles import Side
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -70,10 +72,37 @@ class Counts:
         )
 
 
-PERIODS = (
-    (range(4, 19), Period(date(2026, 5, 1), date(2026, 6, 1), 31, 18)),
-    (range(19, 34), Period(date(2026, 6, 1), date(2026, 7, 1), 30, 21)),
-)
+PERIOD_BY_MONTH = {
+    "5월": Period(date(2026, 5, 1), date(2026, 6, 1), 31, 18),
+    "6월": Period(date(2026, 6, 1), date(2026, 7, 1), 30, 21),
+}
+MULTI_DIRECTION_INTERSECTIONS = {
+    "박촌교 삼거리",
+    "봉오고가교 사거리",
+    "삼정고가 삼거리",
+    "산업길 사거리",
+    "봉오대로 사거리",
+}
+
+
+@dataclass
+class DirectionGroup:
+    month: str
+    intersection: str
+    direction_rows: list[int]
+    total_row: int | None = None
+
+    @property
+    def start_row(self) -> int:
+        return self.direction_rows[0]
+
+    @property
+    def end_row(self) -> int:
+        return self.direction_rows[-1]
+
+    @property
+    def is_multi_direction(self) -> bool:
+        return len(self.direction_rows) >= 2
 
 
 def parse_args() -> argparse.Namespace:
@@ -154,20 +183,50 @@ def query_counts(
     return monthly, weekday, peak
 
 
-def row_locations(worksheet: object, rows: range) -> dict[int, str]:
+def find_direction_groups(worksheet: object) -> list[DirectionGroup]:
+    current_month = ""
     current_intersection = ""
-    result: dict[int, str] = {}
-    for row in rows:
+    groups: list[DirectionGroup] = []
+    group_by_key: dict[tuple[str, str], DirectionGroup] = {}
+    for row in range(4, worksheet.max_row + 1):
+        month = worksheet.cell(row=row, column=1).value
+        if month:
+            current_month = str(month)
         intersection = worksheet.cell(row=row, column=2).value
         if intersection:
             current_intersection = str(intersection)
         direction = str(worksheet.cell(row=row, column=3).value or "")
-        try:
-            result[row] = LOCATION_BY_DIRECTION[(current_intersection, direction)]
-        except KeyError as error:
-            raise RuntimeError(
-                f"Unmapped worksheet row {row}: {current_intersection} / {direction}"
-            ) from error
+        if not direction:
+            continue
+        if direction == "합계":
+            if groups:
+                groups[-1].total_row = row
+            continue
+        if current_month not in PERIOD_BY_MONTH:
+            raise RuntimeError(f"Unexpected month at worksheet row {row}: {current_month!r}")
+        if not current_intersection:
+            raise RuntimeError(f"Missing intersection at worksheet row {row}")
+        key = (current_month, current_intersection)
+        group = group_by_key.get(key)
+        if group is None:
+            group = DirectionGroup(current_month, current_intersection, [])
+            groups.append(group)
+            group_by_key[key] = group
+        group.direction_rows.append(row)
+    return groups
+
+
+def row_locations(worksheet: object) -> dict[int, str]:
+    result: dict[int, str] = {}
+    for group in find_direction_groups(worksheet):
+        for row in group.direction_rows:
+            direction = str(worksheet.cell(row=row, column=3).value)
+            try:
+                result[row] = LOCATION_BY_DIRECTION[(group.intersection, direction)]
+            except KeyError as error:
+                raise RuntimeError(
+                    f"Unmapped worksheet row {row}: {group.intersection} / {direction}"
+                ) from error
     return result
 
 
@@ -175,19 +234,20 @@ def expected_values(workbook_path: Path, db_path: Path) -> dict[int, tuple[objec
     workbook = load_workbook(workbook_path, read_only=True, data_only=False)
     try:
         worksheet = workbook[SHEET_NAME]
-        row_map = {
-            row: location
-            for rows, _ in PERIODS
-            for row, location in row_locations(worksheet, rows).items()
-        }
+        row_map = row_locations(worksheet)
+        groups = find_direction_groups(worksheet)
     finally:
         workbook.close()
     results: dict[int, tuple[object, ...]] = {}
     connection = connect_readonly(db_path)
     try:
-        for rows, period in PERIODS:
-            monthly, weekday, peak = query_counts(connection, row_map.values(), period)
-            for row in rows:
+        for month, period in PERIOD_BY_MONTH.items():
+            month_rows = [
+                row for group in groups if group.month == month for row in group.direction_rows
+            ]
+            month_locations = [row_map[row] for row in month_rows]
+            monthly, weekday, peak = query_counts(connection, month_locations, period)
+            for row in month_rows:
                 location = row_map[row]
                 results[row] = (
                     *monthly[location].rounded_average(period.daily_divisor),
@@ -197,6 +257,169 @@ def expected_values(workbook_path: Path, db_path: Path) -> dict[int, tuple[objec
     finally:
         connection.close()
     return results
+
+
+def unmerge_data_labels(worksheet: object) -> None:
+    for merged_range in list(worksheet.merged_cells.ranges):
+        if merged_range.max_row >= 4 and merged_range.min_col <= 2:
+            worksheet.unmerge_cells(str(merged_range))
+
+
+def copy_row_style(worksheet: object, source_row: int, target_row: int) -> None:
+    worksheet.row_dimensions[target_row].height = worksheet.row_dimensions[source_row].height
+    for column in range(1, 15):
+        source = worksheet.cell(row=source_row, column=column)
+        target = worksheet.cell(row=target_row, column=column)
+        target._style = copy(source._style)
+        if source.has_style:
+            target.number_format = source.number_format
+        if source.hyperlink:
+            target._hyperlink = copy(source.hyperlink)
+
+
+def rebuild_group_labels_and_merges(worksheet: object) -> None:
+    groups = find_direction_groups(worksheet)
+    for row in range(4, worksheet.max_row + 1):
+        worksheet.cell(row=row, column=1).value = None
+        worksheet.cell(row=row, column=2).value = None
+
+    month_groups: dict[str, list[DirectionGroup]] = {}
+    for group in groups:
+        month_groups.setdefault(group.month, []).append(group)
+        worksheet.cell(row=group.start_row, column=2).value = group.intersection
+        group_end = group.total_row or group.end_row
+        if group_end > group.start_row:
+            worksheet.merge_cells(
+                start_row=group.start_row, start_column=2, end_row=group_end, end_column=2
+            )
+
+    for month, month_group_list in month_groups.items():
+        start_row = month_group_list[0].start_row
+        end_row = month_group_list[-1].total_row or month_group_list[-1].end_row
+        worksheet.cell(row=start_row, column=1).value = month
+        worksheet.merge_cells(start_row=start_row, start_column=1, end_row=end_row, end_column=1)
+
+
+def configure_total_row(worksheet: object, group: DirectionGroup) -> None:
+    if group.total_row is None:
+        raise RuntimeError(f"Missing total row for {group.month} {group.intersection}")
+    row = group.total_row
+    start_row = group.start_row
+    end_row = group.end_row
+    worksheet.cell(row=row, column=3).value = "합계"
+    worksheet.cell(row=row, column=4).value = None
+    worksheet.cell(row=row, column=5).value = None
+    for total_column, remicon_column in ((6, 7), (9, 10), (12, 13)):
+        worksheet.cell(
+            row=row, column=total_column
+        ).value = f"=SUM({worksheet.cell(start_row, total_column).coordinate}:{worksheet.cell(end_row, total_column).coordinate})"
+        worksheet.cell(
+            row=row, column=remicon_column
+        ).value = f"=SUM({worksheet.cell(start_row, remicon_column).coordinate}:{worksheet.cell(end_row, remicon_column).coordinate})"
+        worksheet.cell(row=row, column=total_column).number_format = "#,##0"
+        worksheet.cell(row=row, column=remicon_column).number_format = "#,##0"
+    for total_column, remicon_column, ratio_column in ((6, 7, 8), (9, 10, 11), (12, 13, 14)):
+        worksheet.cell(row=row, column=ratio_column).value = (
+            f"=IF({worksheet.cell(row, total_column).coordinate}=0,0,"
+            f"{worksheet.cell(row, remicon_column).coordinate}/{worksheet.cell(row, total_column).coordinate}*100)"
+        )
+        worksheet.cell(row=row, column=ratio_column).number_format = "0.00"
+    for column in range(1, 15):
+        cell = worksheet.cell(row=row, column=column)
+        font = copy(cell.font)
+        font.bold = True
+        cell.font = font
+        border = copy(cell.border)
+        border.top = Side(style="medium", color="000000")
+        cell.border = border
+
+
+def ensure_total_rows(worksheet: object) -> None:
+    unmerge_data_labels(worksheet)
+    groups = find_direction_groups(worksheet)
+    missing_groups = [
+        group
+        for group in groups
+        if group.is_multi_direction
+        and (
+            group.end_row == worksheet.max_row
+            or worksheet.cell(group.end_row + 1, 3).value != "합계"
+        )
+    ]
+    for group in reversed(missing_groups):
+        total_row = group.end_row + 1
+        worksheet.insert_rows(total_row)
+        copy_row_style(worksheet, total_row - 1, total_row)
+        worksheet.cell(row=total_row, column=3).value = "합계"
+
+    groups = find_direction_groups(worksheet)
+    for group in groups:
+        if group.is_multi_direction:
+            configure_total_row(worksheet, group)
+    rebuild_group_labels_and_merges(worksheet)
+
+
+def verify_total_rows(worksheet: object) -> None:
+    groups = find_direction_groups(worksheet)
+    total_groups = [group for group in groups if group.total_row is not None]
+    if len(total_groups) != 10:
+        raise RuntimeError(f"Expected 10 total rows, found {len(total_groups)}")
+    total_group_keys = {(group.month, group.intersection) for group in total_groups}
+    expected_total_group_keys = {
+        (month, intersection)
+        for month in PERIOD_BY_MONTH
+        for intersection in MULTI_DIRECTION_INTERSECTIONS
+    }
+    if total_group_keys != expected_total_group_keys:
+        raise RuntimeError(f"Unexpected total groups: {sorted(total_group_keys)}")
+    for group in groups:
+        if group.is_multi_direction != (group.total_row is not None):
+            raise RuntimeError(f"Incorrect total row for {group.month} {group.intersection}")
+        if not group.is_multi_direction:
+            continue
+        total_row = group.total_row
+        if total_row is None:
+            raise RuntimeError("Unreachable missing total row")
+        if (
+            worksheet.cell(total_row, 4).value is not None
+            or worksheet.cell(total_row, 5).value is not None
+        ):
+            raise RuntimeError(f"Total row D:E must be blank at row {total_row}")
+        for total_column, remicon_column, ratio_column in ((6, 7, 8), (9, 10, 11), (12, 13, 14)):
+            total_formula = f"=SUM({worksheet.cell(group.start_row, total_column).coordinate}:{worksheet.cell(group.end_row, total_column).coordinate})"
+            remicon_formula = f"=SUM({worksheet.cell(group.start_row, remicon_column).coordinate}:{worksheet.cell(group.end_row, remicon_column).coordinate})"
+            ratio_formula = (
+                f"=IF({worksheet.cell(total_row, total_column).coordinate}=0,0,"
+                f"{worksheet.cell(total_row, remicon_column).coordinate}/{worksheet.cell(total_row, total_column).coordinate}*100)"
+            )
+            if worksheet.cell(total_row, total_column).value != total_formula:
+                raise RuntimeError(f"Unexpected total formula at row {total_row}")
+            if worksheet.cell(total_row, remicon_column).value != remicon_formula:
+                raise RuntimeError(f"Unexpected remicon formula at row {total_row}")
+            if worksheet.cell(total_row, ratio_column).value != ratio_formula:
+                raise RuntimeError(f"Unexpected ratio formula at row {total_row}")
+            if worksheet.cell(total_row, ratio_column).number_format != "0.00":
+                raise RuntimeError(f"Unexpected ratio format at row {total_row}")
+        if not worksheet.cell(total_row, 3).font.bold:
+            raise RuntimeError(f"Total row must be bold at row {total_row}")
+        if worksheet.cell(total_row, 3).border.top.style is None:
+            raise RuntimeError(f"Total row must have a top border at row {total_row}")
+        expected_merge = f"B{group.start_row}:B{total_row}"
+        if expected_merge not in {str(merged) for merged in worksheet.merged_cells.ranges}:
+            raise RuntimeError(f"Missing group merge {expected_merge}")
+
+    expected_month_merges = {
+        f"A{min(group.start_row for group in groups if group.month == month)}:"
+        f"A{max((group.total_row or group.end_row) for group in groups if group.month == month)}"
+        for month in PERIOD_BY_MONTH
+    }
+    actual_month_merges = {
+        str(merged)
+        for merged in worksheet.merged_cells.ranges
+        if merged.min_col == 1 and merged.max_col == 1 and merged.min_row >= 4
+    }
+    if actual_month_merges != expected_month_merges:
+        raise RuntimeError(f"Unexpected month merges: {sorted(actual_month_merges)}")
 
 
 def apply_or_verify(
@@ -217,6 +440,10 @@ def apply_or_verify(
                 cell = worksheet.cell(row=row, column=column)
                 cell.value = value
                 cell.number_format = "0.00" if column in (8, 11, 14) else "#,##0"
+        if verify_only:
+            verify_total_rows(worksheet)
+        else:
+            ensure_total_rows(worksheet)
         if not verify_only:
             workbook.save(workbook_path)
     finally:
