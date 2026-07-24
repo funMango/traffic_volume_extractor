@@ -59,6 +59,7 @@ def test_aggregate_target_vehicles_sums_movements_and_excludes_other_vehicles() 
     assert "SUV" not in summary[hours[0]][approaches[0]]
 
     rendered = format_summary(summary)
-    assert "7월 14일 | 08:00~09:00" in rendered
-    assert "7월 14일 | 09:00~10:00" in rendered
-    assert rendered.count("합계") == 8
+    assert "7월 14일_08~09시" in rendered
+    assert "7월 14일_09~10시" in rendered
+    assert rendered.count("합계") == 4
+    assert rendered.count("100.0%") == 8

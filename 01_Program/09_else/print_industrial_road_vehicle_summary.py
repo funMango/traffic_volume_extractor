@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable
+import unicodedata
 
 from openpyxl import load_workbook
 
@@ -18,7 +19,11 @@ PROJECT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT_PATH = PROJECT_DIR / "02_Result" / "차종별_교통량_추출" / "산업길사거리_260714.xlsx"
 REQUIRED_COLUMNS = ("시간", "교차로 방향", "방향", "차종", "교통량")
 TARGET_VEHICLES = ("세단", "소형트럭", "중형버스", "대형버스", "대형트럭")
-EXPECTED_APPROACHES = ("남", "동", "북", "서")
+EXPECTED_APPROACHES = ("동", "서", "남", "북")
+APPROACH_COLUMN_WIDTH = 30
+VEHICLE_COLUMN_WIDTH = 10
+TRAFFIC_COLUMN_WIDTH = 8
+RATIO_COLUMN_WIDTH = 8
 
 
 @dataclass(frozen=True)
@@ -113,7 +118,7 @@ def approach_direction(approach: str) -> str | None:
 
 
 def sort_approaches(approaches: Iterable[str]) -> list[str]:
-    """남·동·북·서 순서로 접근로를 정렬한다."""
+    """동·서·남·북 순서로 접근로를 정렬한다."""
     direction_order = {direction: index for index, direction in enumerate(EXPECTED_APPROACHES)}
     return sorted(
         approaches,
@@ -136,30 +141,101 @@ def validate_summary(summary: Summary) -> None:
         raise ValueError("접근로가 남·동·북·서 4개인지 확인할 수 없습니다.")
 
 
+def display_width(value: str) -> int:
+    """동아시아 문자 폭을 반영한 콘솔 표시 너비를 계산한다."""
+    return sum(
+        2 if unicodedata.east_asian_width(character) in {"F", "W"} else 1 for character in value
+    )
+
+
+def pad_right(value: str, width: int) -> str:
+    """콘솔에서 지정한 표시 너비만큼 문자열 오른쪽을 공백으로 채운다."""
+    return value + " " * max(0, width - display_width(value))
+
+
+def format_period_label(observed_at: datetime) -> str:
+    """시간대를 표 머리글에 표시할 날짜·시간 범위 문자열로 변환한다."""
+    return f"{observed_at.month}월 {observed_at.day}일_{observed_at:%H}~{(observed_at.hour + 1) % 24:02d}시"
+
+
+def format_ratio(traffic_volume: int, subtotal: int) -> str:
+    """접근로·시간대 합계 대비 차종 교통량 구성비를 표시한다."""
+    if subtotal == 0:
+        return "0.0%"
+    return f"{traffic_volume / subtotal:.1%}"
+
+
 def format_summary(summary: Summary) -> str:
-    """시간대별로 접근로·차종·교통량·합계를 콘솔 표 문자열로 구성한다."""
+    """접근로·차종 행과 시간대 열로 된 콘솔 표 문자열을 구성한다."""
+    periods = sorted(summary)
     approaches = sort_approaches(
         approach for approach_totals in summary.values() for approach in approach_totals
     )
     approaches = list(dict.fromkeys(approaches))
-    lines: list[str] = []
-    for observed_at in sorted(summary):
-        lines.extend(
-            (
-                f"{observed_at.month}월 {observed_at.day}일 | "
-                f"{observed_at:%H}:00~{(observed_at.hour + 1) % 24:02d}:00",
-                f"{'접근로':<32} {'차종':<10} 교통량",
-                "-" * 56,
+    header = " ".join(
+        (
+            pad_right("접근로명", APPROACH_COLUMN_WIDTH),
+            pad_right("차종", VEHICLE_COLUMN_WIDTH),
+            *(
+                pad_right(
+                    format_period_label(period),
+                    TRAFFIC_COLUMN_WIDTH + RATIO_COLUMN_WIDTH + 1,
+                )
+                for period in periods
+            ),
+        )
+    )
+    subheader = " ".join(
+        (
+            " " * APPROACH_COLUMN_WIDTH,
+            " " * VEHICLE_COLUMN_WIDTH,
+            *(
+                f"{'교통량':>{TRAFFIC_COLUMN_WIDTH}} {'구성비':>{RATIO_COLUMN_WIDTH}}"
+                for _ in periods
+            ),
+        )
+    )
+    lines = [header, subheader, "-" * display_width(header)]
+
+    for approach in approaches:
+        subtotals = {
+            period: sum(
+                summary[period].get(approach, {}).get(vehicle, 0) for vehicle in TARGET_VEHICLES
+            )
+            for period in periods
+        }
+        for row_index, vehicle in enumerate(TARGET_VEHICLES):
+            period_cells = []
+            for period in periods:
+                traffic_volume = summary[period].get(approach, {}).get(vehicle, 0)
+                period_cells.append(
+                    f"{traffic_volume:>{TRAFFIC_COLUMN_WIDTH},} "
+                    f"{format_ratio(traffic_volume, subtotals[period]):>{RATIO_COLUMN_WIDTH}}"
+                )
+            lines.append(
+                " ".join(
+                    (
+                        pad_right(approach if row_index == 0 else "", APPROACH_COLUMN_WIDTH),
+                        pad_right(vehicle, VEHICLE_COLUMN_WIDTH),
+                        *period_cells,
+                    )
+                )
+            )
+
+        total_cells = [
+            f"{subtotals[period]:>{TRAFFIC_COLUMN_WIDTH},} {'100.0%':>{RATIO_COLUMN_WIDTH}}"
+            for period in periods
+        ]
+        lines.append(
+            " ".join(
+                (
+                    " " * APPROACH_COLUMN_WIDTH,
+                    pad_right("합계", VEHICLE_COLUMN_WIDTH),
+                    *total_cells,
+                )
             )
         )
-        for approach in approaches:
-            vehicle_totals = summary[observed_at].get(approach, {})
-            for vehicle in TARGET_VEHICLES:
-                lines.append(f"{approach:<32} {vehicle:<10} {vehicle_totals.get(vehicle, 0):,}")
-            subtotal = sum(vehicle_totals.get(vehicle, 0) for vehicle in TARGET_VEHICLES)
-            lines.append(f"{'':<32} {'합계':<10} {subtotal:,}")
-        lines.append("")
-    return "\n".join(lines).rstrip()
+    return "\n".join(lines)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
