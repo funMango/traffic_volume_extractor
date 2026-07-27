@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """차종별 교차로 교통량 추출 프로그램.
 
-S_CRSRD_VKND_TRF_1HH를 읽기 전용 SELECT로 조회해
+선택한 1시간 또는 15분 차종별 원천을 읽기 전용 SELECT로 조회해
 시간, 교차로, 교차로 방향, 방향, 차종, 교통량 컬럼의 결과를 생성한다.
 """
 
@@ -43,11 +43,7 @@ ENV_PATH = BASE_DIR.parent / "00_Data" / ".env"
 VKND_KIND_PATH = BASE_DIR.parent / "00_Data" / "VKND_KIND.json"
 RESULT_DIR = BASE_DIR.parent / "02_Result" / "차종별_교통량_추출"
 FIXED_SQLITE_OUTPUT_PATH = (
-    BASE_DIR
-    / "02_Result"
-    / "교통량_추출"
-    / "교통량"
-    / "전체교차로_차종별_2505~2605.db"
+    BASE_DIR / "02_Result" / "교통량_추출" / "교통량" / "전체교차로_차종별_2505~2605.db"
 )
 TRAFFIC_TABLE = "S_CRSRD_VKND_TRF_1HH"
 INTERSECTION_TABLE = "M_CRSRD_INF"
@@ -138,6 +134,34 @@ class Period:
     start: date
     end: date
     token: str
+
+
+@dataclass(frozen=True)
+class AggregationUnit:
+    """교통량 원천 테이블과 시간 슬롯 규칙."""
+
+    label: str
+    traffic_table: str
+    slot_minutes: int
+
+
+ONE_HOUR_AGGREGATION = AggregationUnit(
+    label="1시간",
+    traffic_table=TRAFFIC_TABLE,
+    slot_minutes=60,
+)
+FIFTEEN_MINUTE_AGGREGATION = AggregationUnit(
+    label="15분",
+    traffic_table="S_CRSRD_VKND_TRF_15MI",
+    slot_minutes=15,
+)
+AGGREGATION_UNIT_CHOICES = {
+    "1": ONE_HOUR_AGGREGATION,
+    "1시간": ONE_HOUR_AGGREGATION,
+    "60분": ONE_HOUR_AGGREGATION,
+    "2": FIFTEEN_MINUTE_AGGREGATION,
+    "15분": FIFTEEN_MINUTE_AGGREGATION,
+}
 
 
 @dataclass(frozen=True)
@@ -352,29 +376,79 @@ def parse_periods(raw: str) -> list[Period]:
     return [parse_period_segment(part) for part in parts]
 
 
-def parse_time_range(raw: str) -> list[int]:
+def full_day_time_slots(aggregation_unit: AggregationUnit) -> list[int]:
+    return list(range(0, 24 * 60, aggregation_unit.slot_minutes))
+
+
+def time_slot_to_text(slot_minutes: int) -> str:
+    return f"{slot_minutes // 60:02d}:{slot_minutes % 60:02d}"
+
+
+def parse_time_boundary(
+    hour_text: str,
+    minute_text: str | None,
+    *,
+    is_end: bool,
+    aggregation_unit: AggregationUnit,
+    segment: str,
+) -> int:
+    hour = int(hour_text)
+    minute = int(minute_text or "0")
+    if hour == 24 and minute == 0 and is_end:
+        return 24 * 60
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        raise ValueError(f"시간대 범위가 올바르지 않습니다: {segment}")
+    if minute % aggregation_unit.slot_minutes:
+        if aggregation_unit.slot_minutes == 60:
+            raise ValueError(f"1시간 단위는 :00 경계만 입력할 수 있습니다: {segment}")
+        raise ValueError(f"15분 단위는 :00, :15, :30, :45 경계만 입력할 수 있습니다: {segment}")
+    return hour * 60 + minute
+
+
+def parse_time_range(
+    raw: str, aggregation_unit: AggregationUnit = ONE_HOUR_AGGREGATION
+) -> list[int]:
     value = raw.strip().lower()
     if value in {"24시간", "1"}:
-        return list(range(24))
+        return full_day_time_slots(aggregation_unit)
     if value in {"첨두시", "2"}:
-        return PEAK_HOURS.copy()
+        return [
+            slot
+            for hour in PEAK_HOURS
+            for slot in range(hour * 60, (hour + 1) * 60, aggregation_unit.slot_minutes)
+        ]
 
     if value in {"직접입력", "직접", "3"}:
         value = input("시간대 직접 입력 (예: 07~09, 18~20): ").strip()
 
-    hours: set[int] = set()
+    slots: set[int] = set()
     for segment in [part.strip() for part in value.split(",") if part.strip()]:
-        match = re.fullmatch(r"(\d{1,2})(?::00)?\s*~\s*(\d{1,2})(?::00)?", segment)
+        match = re.fullmatch(
+            r"(\d{1,2})(?::(\d{2}))?\s*~\s*(\d{1,2})(?::(\d{2}))?",
+            segment,
+        )
         if not match:
             raise ValueError(f"시간대 형식이 올바르지 않습니다: {segment}")
-        start_hour = int(match.group(1))
-        end_hour = int(match.group(2))
-        if not (0 <= start_hour <= 23 and 1 <= end_hour <= 24 and start_hour < end_hour):
+        start = parse_time_boundary(
+            match.group(1),
+            match.group(2),
+            is_end=False,
+            aggregation_unit=aggregation_unit,
+            segment=segment,
+        )
+        end = parse_time_boundary(
+            match.group(3),
+            match.group(4),
+            is_end=True,
+            aggregation_unit=aggregation_unit,
+            segment=segment,
+        )
+        if start >= end:
             raise ValueError(f"시간대 범위가 올바르지 않습니다: {segment}")
-        hours.update(range(start_hour, end_hour))
-    if not hours:
+        slots.update(range(start, end, aggregation_unit.slot_minutes))
+    if not slots:
         raise ValueError("시간대를 입력해 주세요.")
-    return sorted(hours)
+    return sorted(slots)
 
 
 def input_periods() -> list[Period]:
@@ -391,19 +465,33 @@ def input_periods() -> list[Period]:
         return periods
 
 
-def input_hours() -> list[int]:
+def input_aggregation_unit() -> AggregationUnit:
+    print("\n[집계 단위 입력]")
+    print("  1 또는 1시간 : S_CRSRD_VKND_TRF_1HH")
+    print("  2 또는 15분  : S_CRSRD_VKND_TRF_15MI")
+    while True:
+        selected = AGGREGATION_UNIT_CHOICES.get(input("집계 단위: ").strip().lower())
+        if selected is None:
+            print("  오류: 1시간 또는 15분 중 하나를 입력해 주세요.")
+            continue
+        print(f"  선택 집계 단위: {selected.label}")
+        return selected
+
+
+def input_hours(aggregation_unit: AggregationUnit) -> list[int]:
     print("\n[시간대 입력]")
-    print("  1 또는 24시간: 0~23시")
+    print("  1 또는 24시간: 하루 전체 슬롯")
     print("  2 또는 첨두시: 07~09, 16~19 (7, 8, 16, 17, 18시)")
-    print("  3 또는 직접입력: 예) 07~09, 18~20")
+    example = "07~09, 18~20" if aggregation_unit.slot_minutes == 60 else "07:15~09:30"
+    print(f"  3 또는 직접입력: 예) {example}")
     while True:
         try:
-            hours = parse_time_range(input("시간대: "))
+            slots = parse_time_range(input("시간대: "), aggregation_unit)
         except ValueError as exc:
             print(f"  오류: {exc}")
             continue
-        print(f"  선택 시간: {', '.join(str(h) for h in hours)}시")
-        return hours
+        print(f"  선택 시간: {', '.join(time_slot_to_text(slot) for slot in slots)}")
+        return slots
 
 
 def input_output_format() -> str:
@@ -467,9 +555,19 @@ def get_table_columns(cursor: Any, table_name: str) -> set[str]:
     return {str(row[0]).upper() for row in rows}
 
 
-def validate_vehicle_extract_tables(cursor: Any) -> None:
+def validate_vehicle_extract_tables(
+    cursor: Any,
+    aggregation_unit: AggregationUnit = ONE_HOUR_AGGREGATION,
+) -> None:
     required_columns = {
-        TRAFFIC_TABLE: {"NODE_ID", "TOT_DT", "ACSR_ID", "DRCT_CD", "VKND_CD", "TRF_QNTY"},
+        aggregation_unit.traffic_table: {
+            "NODE_ID",
+            "TOT_DT",
+            "ACSR_ID",
+            "DRCT_CD",
+            "VKND_CD",
+            "TRF_QNTY",
+        },
         INTERSECTION_TABLE: {"NODE_ID", "CRSRD_NM"},
         APPROACH_TABLE: {"NODE_ID", "ACSR_ID", "ACSR_NM"},
         CODE_TABLE: {"GRP_CD", "CD", "CD_NM"},
@@ -486,7 +584,9 @@ def validate_vehicle_extract_tables(cursor: Any) -> None:
         raise RuntimeError("필수 컬럼이 없습니다: " + " / ".join(missing_messages))
 
 
-def resolve_intersections(raw: str, all_intersections: list[Intersection]) -> tuple[list[Intersection], bool]:
+def resolve_intersections(
+    raw: str, all_intersections: list[Intersection]
+) -> tuple[list[Intersection], bool]:
     raw = raw.strip()
     if raw.lower() in ALL_INTERSECTION_TOKENS:
         return all_intersections.copy(), True
@@ -534,7 +634,9 @@ def make_safe_filename_part(value: str) -> str:
     return cleaned or "_"
 
 
-def make_filename(intersections: list[Intersection], is_all: bool, period_tokens: Iterable[str]) -> str:
+def make_filename(
+    intersections: list[Intersection], is_all: bool, period_tokens: Iterable[str]
+) -> str:
     period_part = "_".join(period_tokens)
     if is_all:
         name_part = "전체교차로"
@@ -576,8 +678,9 @@ def build_vehicle_traffic_sql(
     *,
     start_expression: str,
     end_expression: str,
+    aggregation_unit: AggregationUnit = ONE_HOUR_AGGREGATION,
     node_filter: bool = False,
-    hour_clause: str = "",
+    time_slot_clause: str = "",
     order_by_expressions: tuple[str, ...] | None = None,
 ) -> str:
     if not vehicle_kind_names:
@@ -612,7 +715,7 @@ def build_vehicle_traffic_sql(
             {vknd_code_expression} AS VKND_CD,
             {vknd_name_expression} AS VKND_NM,
             SUM(NVL(v.TRF_QNTY, 0)) AS TRF_QNTY
-        FROM {TRAFFIC_TABLE} v
+        FROM {aggregation_unit.traffic_table} v
         JOIN {INTERSECTION_TABLE} c
           ON c.NODE_ID = v.NODE_ID
         LEFT JOIN {APPROACH_TABLE} a
@@ -624,7 +727,7 @@ def build_vehicle_traffic_sql(
         WHERE v.TOT_DT >= {start_expression}
           AND v.TOT_DT < {end_expression}
           {node_condition}
-          {hour_clause}
+          {time_slot_clause}
           AND {vknd_code_expression} IN ({vknd_in_clause})
         GROUP BY
             v.TOT_DT,
@@ -649,16 +752,41 @@ def build_all_intersections_vehicle_sql(
         bind_params,
         start_expression=FIXED_START_SQL,
         end_expression=FIXED_END_SQL,
+        aggregation_unit=ONE_HOUR_AGGREGATION,
     )
     return sql, bind_params
 
 
-def build_hour_filter_clause(hours: list[int], bind_params: dict[str, object]) -> str:
-    if set(hours) == set(range(24)):
+def build_time_slot_filter_clause(
+    slots: list[int],
+    bind_params: dict[str, object],
+    aggregation_unit: AggregationUnit,
+) -> str:
+    # 기존 함수 호출부의 시간 정수(예: [7, 8])도 계속 허용한다.
+    if aggregation_unit.slot_minutes == 60 and slots and all(0 <= slot < 24 for slot in slots):
+        slots = [slot * 60 for slot in slots]
+    if set(slots) == set(full_day_time_slots(aggregation_unit)):
         return ""
+    sorted_slots = sorted(set(slots))
+    if aggregation_unit.slot_minutes == 60:
+        hours = [slot // 60 for slot in sorted_slots]
+        return (
+            "AND TO_NUMBER(TO_CHAR(v.TOT_DT, 'HH24')) IN "
+            f"({build_in_clause('hour', hours, bind_params)})"
+        )
+    time_labels = [time_slot_to_text(slot) for slot in sorted_slots]
     return (
-        "AND TO_NUMBER(TO_CHAR(v.TOT_DT, 'HH24')) IN "
-        f"({build_in_clause('hour', sorted(set(hours)), bind_params)})"
+        "AND TO_CHAR(v.TOT_DT, 'HH24:MI') IN "
+        f"({build_in_clause('time_slot', time_labels, bind_params)})"
+    )
+
+
+def build_hour_filter_clause(hours: list[int], bind_params: dict[str, object]) -> str:
+    """기존 호출부 호환용 1시간 슬롯 필터."""
+    return build_time_slot_filter_clause(
+        [hour * 60 for hour in hours],
+        bind_params,
+        ONE_HOUR_AGGREGATION,
     )
 
 
@@ -674,7 +802,9 @@ def build_requested_period_clause(
         start_bind = f"period_start{index}"
         end_bind = f"period_end{index}"
         bind_params[start_bind] = datetime.combine(period.start, datetime.min.time())
-        bind_params[end_bind] = datetime.combine(period.end + timedelta(days=1), datetime.min.time())
+        bind_params[end_bind] = datetime.combine(
+            period.end + timedelta(days=1), datetime.min.time()
+        )
         conditions.append(f"(v.TOT_DT >= :{start_bind} AND v.TOT_DT < :{end_bind})")
 
     return "AND (\n              " + "\n           OR ".join(conditions) + "\n          )"
@@ -682,8 +812,9 @@ def build_requested_period_clause(
 
 def build_fetch_all_intersections_periods_sql_params(
     periods: list[Period],
-    hours: list[int],
+    slots: list[int],
     vehicle_kind_names: dict[str, str],
+    aggregation_unit: AggregationUnit = ONE_HOUR_AGGREGATION,
 ) -> tuple[str, dict[str, object]]:
     if not periods:
         raise RuntimeError("조회 기간이 없습니다.")
@@ -698,7 +829,7 @@ def build_fetch_all_intersections_periods_sql_params(
         clause
         for clause in (
             build_requested_period_clause(periods, bind_params),
-            build_hour_filter_clause(hours, bind_params),
+            build_time_slot_filter_clause(slots, bind_params, aggregation_unit),
         )
         if clause
     ]
@@ -708,8 +839,9 @@ def build_fetch_all_intersections_periods_sql_params(
         bind_params,
         start_expression=":start_dt",
         end_expression=":end_next",
+        aggregation_unit=aggregation_unit,
         node_filter=False,
-        hour_clause="\n          ".join(extra_clauses),
+        time_slot_clause="\n          ".join(extra_clauses),
         order_by_expressions=("v.TOT_DT",),
     )
     ensure_select_sql(sql)
@@ -719,8 +851,9 @@ def build_fetch_all_intersections_periods_sql_params(
 def build_fetch_rows_sql_params(
     intersection: Intersection,
     period: Period,
-    hours: list[int],
+    slots: list[int],
     vehicle_kind_names: dict[str, str],
+    aggregation_unit: AggregationUnit = ONE_HOUR_AGGREGATION,
 ) -> tuple[str, dict[str, object]]:
     start_dt = datetime.combine(period.start, datetime.min.time())
     end_next = datetime.combine(period.end + timedelta(days=1), datetime.min.time())
@@ -729,15 +862,16 @@ def build_fetch_rows_sql_params(
         "start_dt": start_dt,
         "end_next": end_next,
     }
-    hour_clause = build_hour_filter_clause(hours, bind_params)
+    time_slot_clause = build_time_slot_filter_clause(slots, bind_params, aggregation_unit)
 
     sql = build_vehicle_traffic_sql(
         vehicle_kind_names,
         bind_params,
         start_expression=":start_dt",
         end_expression=":end_next",
+        aggregation_unit=aggregation_unit,
         node_filter=True,
-        hour_clause=hour_clause,
+        time_slot_clause=time_slot_clause,
     )
     ensure_select_sql(sql)
     return sql, bind_params
@@ -747,14 +881,16 @@ def fetch_rows_for_step(
     conn,
     intersection: Intersection,
     period: Period,
-    hours: list[int],
+    slots: list[int],
     vehicle_kind_names: dict[str, str],
+    aggregation_unit: AggregationUnit = ONE_HOUR_AGGREGATION,
 ) -> list[tuple]:
     sql, bind_params = build_fetch_rows_sql_params(
         intersection,
         period,
-        hours,
+        slots,
         vehicle_kind_names,
+        aggregation_unit,
     )
     with conn.cursor() as cur:
         cur.arraysize = 10000
@@ -816,7 +952,9 @@ def compact_dates_to_periods(dates: Iterable[date]) -> list[Period]:
         if current == previous + timedelta(days=1):
             previous = current
             continue
-        periods.append(Period(start=start, end=previous, token=format_period_token(start, previous)))
+        periods.append(
+            Period(start=start, end=previous, token=format_period_token(start, previous))
+        )
         start = current
         previous = current
 
@@ -833,15 +971,14 @@ def split_periods_for_parallel_workers(periods: list[Period]) -> list[list[Perio
     base = len(ordered_dates) // worker_count
     remainder = len(ordered_dates) % worker_count
     chunk_sizes = [
-        base + (1 if index >= worker_count - remainder else 0)
-        for index in range(worker_count)
+        base + (1 if index >= worker_count - remainder else 0) for index in range(worker_count)
     ]
     chunks: list[list[Period]] = []
     offset = 0
     for size in chunk_sizes:
         if size <= 0:
             continue
-        chunk_dates = ordered_dates[offset:offset + size]
+        chunk_dates = ordered_dates[offset : offset + size]
         chunks.append(compact_dates_to_periods(chunk_dates))
         offset += size
     return chunks
@@ -879,13 +1016,21 @@ def fetch_rows_for_periods(
     conn,
     intersections: list[Intersection],
     periods: list[Period],
-    hours: list[int],
+    slots: list[int],
     vehicle_kind_names: dict[str, str],
+    aggregation_unit: AggregationUnit = ONE_HOUR_AGGREGATION,
 ) -> list[list]:
     rows: list[list] = []
     for intersection in intersections:
         for period in periods:
-            fetched = fetch_rows_for_step(conn, intersection, period, hours, vehicle_kind_names)
+            fetched = fetch_rows_for_step(
+                conn,
+                intersection,
+                period,
+                slots,
+                vehicle_kind_names,
+                aggregation_unit,
+            )
             rows.extend(normalize_result_row(row) for row in fetched)
     rows.sort(key=result_sort_key)
     return rows
@@ -895,8 +1040,9 @@ def fetch_all_rows(
     conn,
     intersections: list[Intersection],
     periods: list[Period],
-    hours: list[int],
+    slots: list[int],
     vehicle_kind_names: dict[str, str],
+    aggregation_unit: AggregationUnit = ONE_HOUR_AGGREGATION,
 ) -> list[list]:
     progress = StepProgress("[3/4] 교통량 조회", total=len(intersections) * len(periods))
     progress.start()
@@ -904,7 +1050,14 @@ def fetch_all_rows(
     try:
         for intersection in intersections:
             for period in periods:
-                fetched = fetch_rows_for_step(conn, intersection, period, hours, vehicle_kind_names)
+                fetched = fetch_rows_for_step(
+                    conn,
+                    intersection,
+                    period,
+                    slots,
+                    vehicle_kind_names,
+                    aggregation_unit,
+                )
                 rows.extend(normalize_result_row(row) for row in fetched)
                 progress.advance()
     finally:
@@ -1008,9 +1161,7 @@ def apply_worker_progress_event(
     elif event_type == "chunk_merge_progress":
         state.status = "merging"
         state.merge_total_rows = int(event.get("expected_rows", state.merge_total_rows))
-        state.merge_completed_rows = int(
-            event.get("merged_rows", state.merge_completed_rows)
-        )
+        state.merge_completed_rows = int(event.get("merged_rows", state.merge_completed_rows))
         state.row_count = int(event.get("row_count", state.row_count))
     elif event_type == "chunk_merge_completed":
         state.status = "completed_chunk"
@@ -1047,8 +1198,7 @@ def format_worker_progress_line(state: WorkerProgressState, frame: str) -> str:
     elif state.status == "merge_pending":
         marker = "-"
         status_text = (
-            f"병합 대기: {state.last_completed_label or '-'} "
-            f"({state.merge_total_rows:,} rows)"
+            f"병합 대기: {state.last_completed_label or '-'} ({state.merge_total_rows:,} rows)"
         )
     elif state.status == "merging":
         marker = frame
@@ -1107,7 +1257,11 @@ class ParallelProgressBoard:
         now = time.perf_counter()
         if not force and now - self._last_rendered < 0.12:
             return
-        if not self._interactive and not force and completed_chunks == self._last_printed_chunk_count:
+        if (
+            not self._interactive
+            and not force
+            and completed_chunks == self._last_printed_chunk_count
+        ):
             return
 
         frame = self._frames[self._frame_index % len(self._frames)]
@@ -1154,8 +1308,9 @@ def fetch_worker_chunk(
     worker_index: int,
     intersections: list[Intersection],
     periods: list[Period],
-    hours: list[int],
+    slots: list[int],
     vehicle_kind_names: dict[str, str],
+    aggregation_unit: AggregationUnit,
     is_all_intersections: bool,
     chunk_dir: str,
     event_queue: Any,
@@ -1179,8 +1334,7 @@ def fetch_worker_chunk(
         for month_index, month_periods in enumerate(month_chunks, start=1):
             month_label = format_month_chunk_label(month_periods)
             chunk_path = (
-                Path(chunk_dir)
-                / f"worker_{worker_index:02d}_month_{month_index:02d}_"
+                Path(chunk_dir) / f"worker_{worker_index:02d}_month_{month_index:02d}_"
                 f"{make_safe_filename_part(month_label)}.db"
             )
             emit_worker_event(
@@ -1194,6 +1348,7 @@ def fetch_worker_chunk(
 
             conn = connect_db()
             try:
+
                 def emit_day_progress(chunk_completed_days: int) -> None:
                     emit_worker_event(
                         event_queue,
@@ -1209,8 +1364,9 @@ def fetch_worker_chunk(
                     chunk_path,
                     intersections,
                     month_periods,
-                    hours,
+                    slots,
                     vehicle_kind_names,
+                    aggregation_unit,
                     is_all_intersections=is_all_intersections,
                     day_progress_callback=emit_day_progress if is_all_intersections else None,
                 )
@@ -1369,11 +1525,12 @@ def terminate_process_pool_workers(executor: ProcessPoolExecutor) -> None:
 def fetch_all_rows_parallel_to_sqlite(
     intersections: list[Intersection],
     periods: list[Period],
-    hours: list[int],
+    slots: list[int],
     vehicle_kind_names: dict[str, str],
     accumulator_path: Path,
     batch_size: int = SQLITE_INSERT_BATCH_SIZE,
     is_all_intersections: bool = False,
+    aggregation_unit: AggregationUnit = ONE_HOUR_AGGREGATION,
 ) -> int:
     period_chunks = split_periods_for_parallel_workers(periods)
     accumulator_conn = recreate_sqlite_file(accumulator_path)
@@ -1391,8 +1548,7 @@ def fetch_all_rows_parallel_to_sqlite(
     total_month_chunks = sum(len(split_periods_by_month(chunk)) for chunk in period_chunks)
     print(
         "  병렬 조회 작업: "
-        f"총 {total_days}일 -> "
-        + " / ".join(f"{day_count}일" for day_count in chunk_day_counts)
+        f"총 {total_days}일 -> " + " / ".join(f"{day_count}일" for day_count in chunk_day_counts)
     )
 
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
@@ -1419,8 +1575,9 @@ def fetch_all_rows_parallel_to_sqlite(
                         index,
                         worker_intersections,
                         chunk,
-                        hours,
+                        slots,
                         vehicle_kind_names,
+                        aggregation_unit,
                         is_all_intersections,
                         temp_dir,
                         event_queue,
@@ -1430,6 +1587,7 @@ def fetch_all_rows_parallel_to_sqlite(
                 pending = set(futures)
                 board.render(completed_chunk_count, merged_row_count, force=True)
                 try:
+
                     def render_drain_progress(
                         drained_chunk_count: int,
                         drained_row_count: int,
@@ -1509,9 +1667,10 @@ def fetch_all_rows_parallel_to_sqlite(
 def fetch_all_rows_parallel(
     intersections: list[Intersection],
     periods: list[Period],
-    hours: list[int],
+    slots: list[int],
     vehicle_kind_names: dict[str, str],
     is_all_intersections: bool = False,
+    aggregation_unit: AggregationUnit = ONE_HOUR_AGGREGATION,
 ) -> list[list]:
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix="accumulator_", dir=RESULT_DIR) as temp_dir:
@@ -1519,10 +1678,11 @@ def fetch_all_rows_parallel(
         fetch_all_rows_parallel_to_sqlite(
             intersections,
             periods,
-            hours,
+            slots,
             vehicle_kind_names,
             accumulator_path,
             is_all_intersections=is_all_intersections,
+            aggregation_unit=aggregation_unit,
         )
         return read_output_rows_from_sqlite(accumulator_path)
 
@@ -1721,8 +1881,9 @@ def write_oracle_periods_to_sqlite_chunk(
     chunk_path: Path,
     intersections: list[Intersection],
     periods: list[Period],
-    hours: list[int],
+    slots: list[int],
     vehicle_kind_names: dict[str, str],
+    aggregation_unit: AggregationUnit = ONE_HOUR_AGGREGATION,
     batch_size: int = SQLITE_INSERT_BATCH_SIZE,
     is_all_intersections: bool = False,
     day_progress_callback: Callable[[int], None] | None = None,
@@ -1741,8 +1902,9 @@ def write_oracle_periods_to_sqlite_chunk(
 
             sql, bind_params = build_fetch_all_intersections_periods_sql_params(
                 periods,
-                hours,
+                slots,
                 vehicle_kind_names,
+                aggregation_unit,
             )
             with oracle_conn.cursor() as cur:
                 cur.arraysize = batch_size
@@ -1764,8 +1926,9 @@ def write_oracle_periods_to_sqlite_chunk(
                     sql, bind_params = build_fetch_rows_sql_params(
                         intersection,
                         period,
-                        hours,
+                        slots,
                         vehicle_kind_names,
+                        aggregation_unit,
                     )
                     with oracle_conn.cursor() as cur:
                         cur.arraysize = batch_size
@@ -2068,7 +2231,7 @@ def export_all_intersections_vehicle_sqlite(
             with conn.cursor() as cur:
                 run_instant_step(
                     "[2/5] 필수 테이블/컬럼 검증",
-                    lambda: validate_vehicle_extract_tables(cur),
+                    lambda: validate_vehicle_extract_tables(cur, ONE_HOUR_AGGREGATION),
                 )
 
             row_count = run_instant_step(
@@ -2144,6 +2307,7 @@ def main(argv: list[str] | None = None) -> int:
     print("=" * 60)
     print("  차종별 교차로 교통량 추출 프로그램")
     print("=" * 60)
+    aggregation_unit = input_aggregation_unit()
     output_format = input_output_format()
 
     try:
@@ -2153,6 +2317,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
+        with conn.cursor() as cur:
+            run_instant_step(
+                "[1/4] 선택 원천 테이블/컬럼 검증",
+                lambda: validate_vehicle_extract_tables(cur, aggregation_unit),
+            )
         all_intersections, _drct_names, vknd_names = run_instant_step(
             "[1/4] 코드/교차로 정보 로드",
             lambda: load_reference_data(conn),
@@ -2162,7 +2331,7 @@ def main(argv: list[str] | None = None) -> int:
 
     selected_intersections, is_all = input_intersections(all_intersections)
     periods = input_periods()
-    hours = input_hours()
+    slots = input_hours(aggregation_unit)
     print_step_done("[2/4] 입력값 해석 및 조회 조건 확정")
 
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
@@ -2181,10 +2350,11 @@ def main(argv: list[str] | None = None) -> int:
             row_count = fetch_all_rows_parallel_to_sqlite(
                 selected_intersections,
                 periods,
-                hours,
+                slots,
                 vknd_names,
                 temp_output_path,
                 is_all_intersections=is_all,
+                aggregation_unit=aggregation_unit,
             )
             output_path = run_instant_step(
                 save_label,
@@ -2198,10 +2368,11 @@ def main(argv: list[str] | None = None) -> int:
             row_count = fetch_all_rows_parallel_to_sqlite(
                 selected_intersections,
                 periods,
-                hours,
+                slots,
                 vknd_names,
                 accumulator_path,
                 is_all_intersections=is_all,
+                aggregation_unit=aggregation_unit,
             )
 
             def _save_work():
