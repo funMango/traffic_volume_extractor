@@ -94,13 +94,47 @@ def test_save_and_verify_workbook_reconciles_all_vehicle_classes(tmp_path: Path)
         approach_id="ACSR-1",
         approach_name="박촌교삼거리-서 (동향)",
     )
-    rows = [
+    vehicle_rows = [
         module.VehicleTraffic("10", "승용차", 123),
         module.VehicleTraffic("20", "버스", 45),
     ]
+    direction_rows = [
+        module.DirectionTraffic("01", "좌회전", 40),
+        module.DirectionTraffic("02", "직진", 100),
+        module.DirectionTraffic("03", "우회전", 28),
+    ]
     output_path = tmp_path / "bakchon.xlsx"
 
-    total = module.save_workbook(target, rows, output_path)
-    module.verify_workbook(output_path, rows, total)
+    vehicle_total, direction_total = module.save_workbook(
+        target, vehicle_rows, direction_rows, output_path
+    )
+    module.verify_workbook(
+        output_path,
+        vehicle_rows,
+        direction_rows,
+        vehicle_total,
+        direction_total,
+    )
 
-    assert total == 168
+    assert vehicle_total == 168
+    assert direction_total == 168
+
+
+def test_load_direction_traffic_uses_5_minute_direction_source() -> None:
+    executed: list[tuple[str, dict[str, object]]] = []
+
+    class DummyCursor:
+        def execute(self, sql: str, params: dict[str, object]) -> None:
+            executed.append((sql, params))
+
+        def fetchall(self):
+            return [("01", 40), ("02", 100), ("03", 28)]
+
+    target = module.ResolvedTarget("NODE-1", "박촌교삼거리", "ACSR-1", "서 (동향)")
+    result = module.load_direction_traffic(
+        DummyCursor(), target, {"01": "좌회전", "02": "직진", "03": "우회전"}
+    )
+
+    assert [row.direction_name for row in result] == ["좌회전", "직진", "우회전"]
+    assert module.DIRECTION_TRAFFIC_TABLE in executed[0][0]
+    assert "< :end_at" in executed[0][0]
