@@ -24,7 +24,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 ENV_PATH = PROJECT_DIR / "00_Data" / ".env"
 DEFAULT_OUTPUT_PATH = (
-    PROJECT_DIR / "02_Result" / "박촌교삼거리_서_동향_20260713_1000_1015_차종별_교통량.xlsx"
+    PROJECT_DIR / "02_Result" / "박촌교삼거리_서_동향_20260713_1000_1015_방향_차종별_교통량.xlsx"
 )
 
 INTERSECTION_NAME = "박촌교삼거리"
@@ -36,7 +36,6 @@ INTERSECTION_TABLE = "M_CRSRD_INF"
 APPROACH_TABLE = "M_CRSRD_ACSR_INF"
 VEHICLE_CODE_TABLE = "M_CD_INF"
 TRAFFIC_TABLE = "S_CRSRD_VKND_TRF_15MI"
-DIRECTION_TRAFFIC_TABLE = "S_CRSRD_DRCT_TRF_5MI"
 
 BLOCKED_SQL_PATTERN = re.compile(
     r"\b(INSERT|UPDATE|DELETE|MERGE|DROP|TRUNCATE|ALTER|CREATE|COMMIT|ROLLBACK|GRANT|REVOKE)\b",
@@ -55,20 +54,13 @@ class ResolvedTarget:
 
 
 @dataclass(frozen=True)
-class VehicleTraffic:
-    """One vehicle class total for the requested 15-minute slot."""
-
-    vehicle_code: str
-    vehicle_name: str
-    traffic_volume: int
-
-
-@dataclass(frozen=True)
-class DirectionTraffic:
-    """One turning-movement total for the requested 15-minute slot."""
+class DirectionVehicleTraffic:
+    """One direction and vehicle-class total for the requested 15-minute slot."""
 
     direction_code: str
     direction_name: str
+    vehicle_code: str
+    vehicle_name: str
     traffic_volume: int
 
 
@@ -182,41 +174,6 @@ def load_vehicle_code_names(cursor: Any) -> dict[str, str]:
     return {str(code).strip(): str(name).strip() for code, name in rows}
 
 
-def load_vehicle_traffic(
-    cursor: Any, target: ResolvedTarget, vehicle_code_names: dict[str, str]
-) -> list[VehicleTraffic]:
-    """Aggregate every vehicle class in the exact requested 15-minute interval."""
-    rows = execute_select(
-        cursor,
-        f"""
-        SELECT
-            TRIM(TO_CHAR(VKND_CD)) AS VKND_CD,
-            NVL(SUM(TRF_QNTY), 0) AS TRAFFIC_VOLUME
-        FROM {TRAFFIC_TABLE}
-        WHERE NODE_ID = :node_id
-          AND ACSR_ID = :approach_id
-          AND TOT_DT >= :start_at
-          AND TOT_DT < :end_at
-        GROUP BY TRIM(TO_CHAR(VKND_CD))
-        ORDER BY TRIM(TO_CHAR(VKND_CD))
-        """,
-        {
-            "node_id": target.node_id,
-            "approach_id": target.approach_id,
-            "start_at": START_AT,
-            "end_at": END_AT,
-        },
-    )
-    return [
-        VehicleTraffic(
-            vehicle_code=str(code).strip(),
-            vehicle_name=vehicle_code_names.get(str(code).strip(), "미등록 차종"),
-            traffic_volume=int(volume or 0),
-        )
-        for code, volume in rows
-    ]
-
-
 def load_direction_code_names(cursor: Any) -> dict[str, str]:
     """Return turning-movement display names keyed by the DB direction code."""
     rows = execute_select(
@@ -232,24 +189,31 @@ def load_direction_code_names(cursor: Any) -> dict[str, str]:
     return {str(code).strip().zfill(2): str(name).strip() for code, name in rows}
 
 
-def load_direction_traffic(
-    cursor: Any, target: ResolvedTarget, direction_code_names: dict[str, str]
-) -> list[DirectionTraffic]:
-    """Aggregate left/straight/right and other movements from 5-minute source rows."""
+def load_direction_vehicle_traffic(
+    cursor: Any,
+    target: ResolvedTarget,
+    direction_code_names: dict[str, str],
+    vehicle_code_names: dict[str, str],
+) -> list[DirectionVehicleTraffic]:
+    """Aggregate each direction and vehicle class from the 15-minute source table."""
     rows = execute_select(
         cursor,
         f"""
         SELECT
             LPAD(TRIM(TO_CHAR(DRCT_CD)), 2, '0') AS DRCT_CD,
+            TRIM(TO_CHAR(VKND_CD)) AS VKND_CD,
             NVL(SUM(TRF_QNTY), 0) AS TRAFFIC_VOLUME
-        FROM {DIRECTION_TRAFFIC_TABLE}
+        FROM {TRAFFIC_TABLE}
         WHERE NODE_ID = :node_id
           AND ACSR_ID = :approach_id
           AND TOT_DT >= :start_at
           AND TOT_DT < :end_at
-          AND LPAD(TRIM(TO_CHAR(DRCT_CD)), 2, '0') <> '00'
-        GROUP BY LPAD(TRIM(TO_CHAR(DRCT_CD)), 2, '0')
-        ORDER BY LPAD(TRIM(TO_CHAR(DRCT_CD)), 2, '0')
+        GROUP BY
+            LPAD(TRIM(TO_CHAR(DRCT_CD)), 2, '0'),
+            TRIM(TO_CHAR(VKND_CD))
+        ORDER BY
+            LPAD(TRIM(TO_CHAR(DRCT_CD)), 2, '0'),
+            TRIM(TO_CHAR(VKND_CD))
         """,
         {
             "node_id": target.node_id,
@@ -258,72 +222,88 @@ def load_direction_traffic(
             "end_at": END_AT,
         },
     )
-    return [
-        DirectionTraffic(
-            direction_code=str(code).strip().zfill(2),
-            direction_name=direction_code_names.get(str(code).strip().zfill(2), "미등록 방향"),
-            traffic_volume=int(volume or 0),
+    result: list[DirectionVehicleTraffic] = []
+    for direction_code, vehicle_code, volume in rows:
+        normalized_direction_code = str(direction_code).strip().zfill(2)
+        normalized_vehicle_code = str(vehicle_code).strip()
+        direction_name = direction_code_names.get(normalized_direction_code)
+        vehicle_name = vehicle_code_names.get(normalized_vehicle_code)
+        if direction_name is None or vehicle_name is None:
+            raise RuntimeError(
+                "코드 기준정보를 해석할 수 없습니다: "
+                f"방향={normalized_direction_code}, 차종={normalized_vehicle_code}"
+            )
+        result.append(
+            DirectionVehicleTraffic(
+                direction_code=normalized_direction_code,
+                direction_name=direction_name,
+                vehicle_code=normalized_vehicle_code,
+                vehicle_name=vehicle_name,
+                traffic_volume=int(volume or 0),
+            )
         )
-        for code, volume in rows
-    ]
+    return result
 
 
-def save_vehicle_workbook(
-    target: ResolvedTarget, rows: list[VehicleTraffic], output_path: Path
+def save_workbook(
+    target: ResolvedTarget, rows: list[DirectionVehicleTraffic], output_path: Path
 ) -> int:
-    """Create a concise, auditable workbook and return its overall total."""
+    """Create one detailed, auditable direction-by-vehicle workbook."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     total = sum(row.traffic_volume for row in rows)
     workbook = Workbook()
     traffic_sheet = workbook.active
-    traffic_sheet.title = "차종별 교통량"
+    traffic_sheet.title = "상세"
     traffic_sheet.freeze_panes = "A5"
 
-    traffic_sheet.merge_cells("A1:C1")
-    traffic_sheet["A1"] = "박촌교삼거리-서 (동향) 15분 차종별 교통량"
+    traffic_sheet.merge_cells("A1:D1")
+    traffic_sheet["A1"] = "박촌교삼거리-서 (동향) 15분 방향·차종별 교통량"
     traffic_sheet["A1"].font = Font(bold=True, size=14, color="FFFFFF")
     traffic_sheet["A1"].fill = PatternFill("solid", fgColor="1F4E78")
     traffic_sheet["A1"].alignment = Alignment(horizontal="center")
-    traffic_sheet.merge_cells("A2:C2")
+    traffic_sheet.merge_cells("A2:D2")
     traffic_sheet["A2"] = "조회 구간: 2026-07-13 10:00:00 이상 ~ 10:15:00 미만"
     traffic_sheet["A2"].alignment = Alignment(horizontal="center")
-    headers = ["차종 코드", "차종명", "15분 교통량"]
+    headers = ["교차로 방향 이름", "방향", "차종", "교통량"]
     for column, header in enumerate(headers, start=1):
         cell = traffic_sheet.cell(row=4, column=column, value=header)
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = PatternFill("solid", fgColor="5B9BD5")
         cell.alignment = Alignment(horizontal="center")
     for row_index, row in enumerate(rows, start=5):
-        traffic_sheet.cell(row=row_index, column=1, value=row.vehicle_code)
-        traffic_sheet.cell(row=row_index, column=2, value=row.vehicle_name)
-        traffic_sheet.cell(row=row_index, column=3, value=row.traffic_volume)
+        traffic_sheet.cell(row=row_index, column=1, value=target.approach_name)
+        traffic_sheet.cell(row=row_index, column=2, value=row.direction_name)
+        traffic_sheet.cell(row=row_index, column=3, value=row.vehicle_name)
+        traffic_sheet.cell(row=row_index, column=4, value=row.traffic_volume)
     total_row = 5 + len(rows)
     traffic_sheet.cell(row=total_row, column=1, value="전체 합계")
-    traffic_sheet.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=2)
-    traffic_sheet.cell(row=total_row, column=3, value=total)
+    traffic_sheet.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=3)
+    traffic_sheet.cell(row=total_row, column=4, value=total)
     for cell in traffic_sheet[total_row]:
         cell.font = Font(bold=True)
         cell.fill = PatternFill("solid", fgColor="D9EAF7")
-    for row in traffic_sheet.iter_rows(min_row=4, max_row=total_row, min_col=1, max_col=3):
+    for row in traffic_sheet.iter_rows(min_row=4, max_row=total_row, min_col=1, max_col=4):
         for cell in row:
-            cell.alignment = Alignment(horizontal="center" if cell.column != 2 else "left")
+            cell.alignment = Alignment(horizontal="center" if cell.column == 4 else "left")
     for row_number in range(5, total_row + 1):
-        traffic_sheet.cell(row=row_number, column=3).number_format = "#,##0"
-    traffic_sheet.column_dimensions["A"].width = 16
-    traffic_sheet.column_dimensions["B"].width = 24
-    traffic_sheet.column_dimensions["C"].width = 16
-    traffic_sheet.auto_filter.ref = f"A4:C{max(4, total_row - 1)}"
+        traffic_sheet.cell(row=row_number, column=4).number_format = "#,##0"
+    traffic_sheet.column_dimensions["A"].width = 30
+    traffic_sheet.column_dimensions["B"].width = 18
+    traffic_sheet.column_dimensions["C"].width = 20
+    traffic_sheet.column_dimensions["D"].width = 16
+    traffic_sheet.auto_filter.ref = f"A4:D{max(4, total_row - 1)}"
 
     info_sheet = workbook.create_sheet("조회정보")
     info_rows = [
-        ("교차로", target.intersection_name),
-        ("NODE_ID", target.node_id),
-        ("접근로", target.approach_name),
-        ("ACSR_ID", target.approach_id),
+        ("조회 조건", "2026-07-13 10:00:00 이상 ~ 10:15:00 미만"),
         ("원천 테이블", TRAFFIC_TABLE),
+        ("교차로", target.intersection_name),
+        ("해석된 NODE_ID", target.node_id),
+        ("교차로 방향 이름", target.approach_name),
+        ("해석된 ACSR_ID", target.approach_id),
         ("조회 시작", START_AT),
         ("조회 종료(미포함)", END_AT),
-        ("조회 차종 수", len(rows)),
+        ("방향·차종 조합 수", len(rows)),
         ("전체 합계", total),
     ]
     info_sheet.append(["항목", "값"])
@@ -335,27 +315,31 @@ def save_vehicle_workbook(
         info_sheet.append(info_row)
     for row in info_sheet.iter_rows(min_row=2, max_row=len(info_rows) + 1, min_col=1, max_col=2):
         row[0].font = Font(bold=True)
-    info_sheet["B7"].number_format = "yyyy-mm-dd hh:mm:ss"
     info_sheet["B8"].number_format = "yyyy-mm-dd hh:mm:ss"
-    info_sheet["B10"].number_format = "#,##0"
+    info_sheet["B9"].number_format = "yyyy-mm-dd hh:mm:ss"
+    info_sheet["B11"].number_format = "#,##0"
     info_sheet.column_dimensions["A"].width = 20
     info_sheet.column_dimensions["B"].width = 34
     workbook.save(output_path)
     return total
 
 
-def verify_vehicle_workbook(
-    output_path: Path, expected_rows: list[VehicleTraffic], expected_total: int
+def verify_workbook(
+    output_path: Path,
+    target: ResolvedTarget,
+    expected_rows: list[DirectionVehicleTraffic],
+    expected_total: int,
 ) -> None:
-    """Reopen the workbook and validate structure and numeric reconciliation."""
+    """Reopen the workbook and validate detailed values, total, and formats."""
     workbook = load_workbook(output_path, data_only=False)
-    if workbook.sheetnames[0] != "차종별 교통량" or "조회정보" not in workbook.sheetnames:
+    if workbook.sheetnames != ["상세", "조회정보"]:
         raise RuntimeError("Excel 검증 실패: 시트 구성이 일치하지 않습니다.")
-    sheet = workbook["차종별 교통량"]
-    if [sheet.cell(4, column).value for column in range(1, 4)] != [
-        "차종 코드",
-        "차종명",
-        "15분 교통량",
+    sheet = workbook["상세"]
+    if [sheet.cell(4, column).value for column in range(1, 5)] != [
+        "교차로 방향 이름",
+        "방향",
+        "차종",
+        "교통량",
     ]:
         raise RuntimeError("Excel 검증 실패: 헤더가 일치하지 않습니다.")
     actual_rows = [
@@ -363,114 +347,19 @@ def verify_vehicle_workbook(
             str(sheet.cell(row_number, 1).value),
             str(sheet.cell(row_number, 2).value),
             sheet.cell(row_number, 3).value,
+            sheet.cell(row_number, 4).value,
         )
         for row_number in range(5, 5 + len(expected_rows))
     ]
-    expected = [(row.vehicle_code, row.vehicle_name, row.traffic_volume) for row in expected_rows]
+    expected = [
+        (target.approach_name, row.direction_name, row.vehicle_name, row.traffic_volume)
+        for row in expected_rows
+    ]
     if actual_rows != expected:
-        raise RuntimeError("Excel 검증 실패: 차종별 집계가 일치하지 않습니다.")
-    total_cell = sheet.cell(5 + len(expected_rows), 3)
+        raise RuntimeError("Excel 검증 실패: 방향·차종별 집계가 일치하지 않습니다.")
+    total_cell = sheet.cell(5 + len(expected_rows), 4)
     if total_cell.value != expected_total or total_cell.number_format != "#,##0":
         raise RuntimeError("Excel 검증 실패: 전체 합계 또는 숫자 형식이 일치하지 않습니다.")
-
-
-def save_workbook(
-    target: ResolvedTarget,
-    vehicle_rows: list[VehicleTraffic],
-    direction_rows: list[DirectionTraffic],
-    output_path: Path,
-) -> tuple[int, int]:
-    """Create the vehicle sheet plus a separate left/straight/right movement sheet."""
-    vehicle_total = save_vehicle_workbook(target, vehicle_rows, output_path)
-    direction_total = sum(row.traffic_volume for row in direction_rows)
-    workbook = load_workbook(output_path)
-    direction_sheet = workbook.create_sheet("방향별 교통량", 1)
-    direction_sheet.freeze_panes = "A5"
-    direction_sheet.merge_cells("A1:C1")
-    direction_sheet["A1"] = "박촌교삼거리-서 (동향) 15분 방향별 교통량"
-    direction_sheet["A1"].font = Font(bold=True, size=14, color="FFFFFF")
-    direction_sheet["A1"].fill = PatternFill("solid", fgColor="1F4E78")
-    direction_sheet["A1"].alignment = Alignment(horizontal="center")
-    direction_sheet.merge_cells("A2:C2")
-    direction_sheet["A2"] = (
-        "원천: 5분 방향별 자료 합산 / 조회 구간: 2026-07-13 10:00:00 이상 ~ 10:15:00 미만"
-    )
-    direction_sheet["A2"].alignment = Alignment(horizontal="center")
-    for column, header in enumerate(["방향 코드", "방향명", "15분 교통량"], start=1):
-        cell = direction_sheet.cell(row=4, column=column, value=header)
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="70AD47")
-        cell.alignment = Alignment(horizontal="center")
-    for row_index, row in enumerate(direction_rows, start=5):
-        direction_sheet.cell(row=row_index, column=1, value=row.direction_code)
-        direction_sheet.cell(row=row_index, column=2, value=row.direction_name)
-        direction_sheet.cell(row=row_index, column=3, value=row.traffic_volume)
-    total_row = 5 + len(direction_rows)
-    direction_sheet.cell(row=total_row, column=1, value="전체 합계")
-    direction_sheet.merge_cells(
-        start_row=total_row, start_column=1, end_row=total_row, end_column=2
-    )
-    direction_sheet.cell(row=total_row, column=3, value=direction_total)
-    for cell in direction_sheet[total_row]:
-        cell.font = Font(bold=True)
-        cell.fill = PatternFill("solid", fgColor="E2F0D9")
-    for row in direction_sheet.iter_rows(min_row=4, max_row=total_row, min_col=1, max_col=3):
-        for cell in row:
-            cell.alignment = Alignment(horizontal="center" if cell.column != 2 else "left")
-    for row_number in range(5, total_row + 1):
-        direction_sheet.cell(row=row_number, column=3).number_format = "#,##0"
-    direction_sheet.column_dimensions["A"].width = 16
-    direction_sheet.column_dimensions["B"].width = 24
-    direction_sheet.column_dimensions["C"].width = 16
-    direction_sheet.auto_filter.ref = f"A4:C{max(4, total_row - 1)}"
-
-    info_sheet = workbook["조회정보"]
-    info_sheet.append(["방향별 원천 테이블", DIRECTION_TRAFFIC_TABLE])
-    info_sheet.append(["조회 방향 수", len(direction_rows)])
-    info_sheet.append(["방향별 전체 합계", direction_total])
-    info_sheet.cell(info_sheet.max_row, 2).number_format = "#,##0"
-    for row_number in range(info_sheet.max_row - 2, info_sheet.max_row + 1):
-        info_sheet.cell(row_number, 1).font = Font(bold=True)
-    workbook.save(output_path)
-    return vehicle_total, direction_total
-
-
-def verify_workbook(
-    output_path: Path,
-    expected_vehicle_rows: list[VehicleTraffic],
-    expected_direction_rows: list[DirectionTraffic],
-    expected_vehicle_total: int,
-    expected_direction_total: int,
-) -> None:
-    """Reopen the workbook and reconcile vehicle and direction-level totals."""
-    verify_vehicle_workbook(output_path, expected_vehicle_rows, expected_vehicle_total)
-    workbook = load_workbook(output_path, data_only=False)
-    if workbook.sheetnames != ["차종별 교통량", "방향별 교통량", "조회정보"]:
-        raise RuntimeError("Excel 검증 실패: 시트 구성이 일치하지 않습니다.")
-    sheet = workbook["방향별 교통량"]
-    if [sheet.cell(4, column).value for column in range(1, 4)] != [
-        "방향 코드",
-        "방향명",
-        "15분 교통량",
-    ]:
-        raise RuntimeError("Excel 검증 실패: 방향별 헤더가 일치하지 않습니다.")
-    actual_rows = [
-        (
-            str(sheet.cell(row_number, 1).value),
-            str(sheet.cell(row_number, 2).value),
-            sheet.cell(row_number, 3).value,
-        )
-        for row_number in range(5, 5 + len(expected_direction_rows))
-    ]
-    expected = [
-        (row.direction_code, row.direction_name, row.traffic_volume)
-        for row in expected_direction_rows
-    ]
-    if actual_rows != expected:
-        raise RuntimeError("Excel 검증 실패: 방향별 집계가 일치하지 않습니다.")
-    total_cell = sheet.cell(5 + len(expected_direction_rows), 3)
-    if total_cell.value != expected_direction_total or total_cell.number_format != "#,##0":
-        raise RuntimeError("Excel 검증 실패: 방향별 전체 합계 또는 숫자 형식이 일치하지 않습니다.")
 
 
 def parse_args() -> argparse.Namespace:
@@ -486,26 +375,17 @@ def main() -> None:
         with connection.cursor() as cursor:
             target = resolve_target(cursor)
             vehicle_code_names = load_vehicle_code_names(cursor)
-            vehicle_rows = load_vehicle_traffic(cursor, target, vehicle_code_names)
             direction_code_names = load_direction_code_names(cursor)
-            direction_rows = load_direction_traffic(cursor, target, direction_code_names)
+            rows = load_direction_vehicle_traffic(
+                cursor, target, direction_code_names, vehicle_code_names
+            )
     finally:
         connection.close()
 
-    vehicle_total, direction_total = save_workbook(
-        target, vehicle_rows, direction_rows, args.output
-    )
-    verify_workbook(
-        args.output,
-        vehicle_rows,
-        direction_rows,
-        vehicle_total,
-        direction_total,
-    )
-    print(f"추출 차종 수: {len(vehicle_rows)}")
-    print(f"차종별 전체 합계: {vehicle_total:,}")
-    print(f"추출 방향 수: {len(direction_rows)}")
-    print(f"방향별 전체 합계: {direction_total:,}")
+    total = save_workbook(target, rows, args.output)
+    verify_workbook(args.output, target, rows, total)
+    print(f"추출 방향·차종 조합 수: {len(rows)}")
+    print(f"전체 합계: {total:,}")
     print(f"결과 파일: {args.output}")
 
 
