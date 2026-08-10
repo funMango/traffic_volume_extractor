@@ -104,6 +104,11 @@ def test_run_rejects_empty_selection(tmp_path):
 
 def test_notion_client_collects_multiple_pages():
     bodies = [
+        {
+            "data_sources": [
+                {"id": "data-source", "name": exporter.TRAFFIC_ANOMALY_DATA_SOURCE_NAME}
+            ]
+        },
         {"results": [{"id": "one"}], "has_more": True, "next_cursor": "cursor"},
         {"results": [{"id": "two"}], "has_more": False, "next_cursor": None},
     ]
@@ -121,15 +126,19 @@ def test_notion_client_collects_multiple_pages():
         def read(self):
             return json.dumps(self.body).encode()
 
-    calls = []
+    urls = []
+    payloads = []
 
     def opener(request, timeout):
-        calls.append(json.loads(request.data.decode()))
+        urls.append(request.full_url)
+        if request.data:
+            payloads.append(json.loads(request.data.decode()))
         return Response(bodies.pop(0))
 
-    client = exporter.NotionDataSourceClient("secret", "data-source", opener)
+    client = exporter.NotionDataSourceClient("secret", "database-id", opener)
     assert [page["id"] for page in client.fetch_pages()] == ["one", "two"]
-    assert calls == [{"page_size": 100}, {"page_size": 100, "start_cursor": "cursor"}]
+    assert payloads == [{"page_size": 100}, {"page_size": 100, "start_cursor": "cursor"}]
+    assert urls[0].endswith("/v1/databases/database-id")
 
 
 @pytest.mark.parametrize("status_code", [403, 404, 429])

@@ -22,12 +22,14 @@ from openpyxl.utils import get_column_letter
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = PROJECT_ROOT / "00_Data" / ".env"
 OUTPUT_DIR = PROJECT_ROOT / "02_Result" / "교통량_이상추출"
+NOTION_DATABASE_URL = "https://api.notion.com/v1/databases/{database_id}"
 NOTION_API_URL = "https://api.notion.com/v1/data_sources/{data_source_id}/query"
 NOTION_VERSION = "2025-09-03"
 
-# 대상 데이터 소스 ID. Notion에서 데이터 소스를 복제하면 이 값도 함께 갱신해야 한다.
-# ID는 토큰이 아니므로 환경 변수나 출력으로 다루지 않는다.
-TRAFFIC_ANOMALY_DATA_SOURCE_ID = "REPLACE_WITH_TRAFFIC_ANOMALY_DATA_SOURCE_ID"
+# `2026년 교통량 이상 요청 목록`의 Notion 데이터베이스 ID.
+# 실행 시 이 DB에서 실제 데이터 소스 ID를 조회해 사용한다.
+TRAFFIC_ANOMALY_DATABASE_ID = "3b86e6899fbc8003a1efd704239737a8"
+TRAFFIC_ANOMALY_DATA_SOURCE_NAME = "2026년 교통량 이상 요청 목록"
 
 HEADERS = (
     "이상발생일",
@@ -92,16 +94,17 @@ class NotionDataSourceClient:
     def __init__(
         self,
         token: str,
-        data_source_id: str = TRAFFIC_ANOMALY_DATA_SOURCE_ID,
+        database_id: str = TRAFFIC_ANOMALY_DATABASE_ID,
         opener: Callable[..., Any] = urllib.request.urlopen,
     ) -> None:
-        if not data_source_id or data_source_id.startswith("REPLACE_WITH_"):
-            raise NotionRequestError("대상 Notion 데이터 소스 ID가 설정되지 않았습니다.")
+        if not database_id:
+            raise NotionRequestError("대상 Notion 데이터베이스 ID가 설정되지 않았습니다.")
         self._token = token
-        self._data_source_id = data_source_id
+        self._database_id = database_id
         self._opener = opener
 
     def fetch_pages(self) -> list[Mapping[str, Any]]:
+        data_source_id = self._fetch_data_source_id()
         pages: list[Mapping[str, Any]] = []
         cursor: str | None = None
         while True:
@@ -109,7 +112,7 @@ class NotionDataSourceClient:
             if cursor:
                 payload["start_cursor"] = cursor
             request = urllib.request.Request(
-                NOTION_API_URL.format(data_source_id=self._data_source_id),
+                NOTION_API_URL.format(data_source_id=data_source_id),
                 data=json.dumps(payload).encode("utf-8"),
                 headers={
                     "Authorization": f"Bearer {self._token}",
@@ -145,6 +148,45 @@ class NotionDataSourceClient:
             cursor = response_body.get("next_cursor")
             if not isinstance(cursor, str) or not cursor:
                 raise NotionRequestError("Notion 다음 페이지 정보를 확인할 수 없습니다.")
+
+    def _fetch_data_source_id(self) -> str:
+        request = urllib.request.Request(
+            NOTION_DATABASE_URL.format(database_id=self._database_id),
+            headers={
+                "Authorization": f"Bearer {self._token}",
+                "Notion-Version": NOTION_VERSION,
+            },
+            method="GET",
+        )
+        try:
+            with self._opener(request, timeout=30) as response:
+                body = response.read().decode("utf-8")
+        except urllib.error.HTTPError as exc:
+            raise _notion_http_error(exc.code) from exc
+        except urllib.error.URLError as exc:
+            raise NotionRequestError(
+                "Notion 서버에 연결할 수 없습니다. 네트워크를 확인해 주세요."
+            ) from exc
+        except TimeoutError as exc:
+            raise NotionRequestError(
+                "Notion 요청 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
+            ) from exc
+
+        try:
+            response_body = json.loads(body)
+        except json.JSONDecodeError as exc:
+            raise NotionRequestError("Notion 응답을 해석할 수 없습니다.") from exc
+        data_sources = response_body.get("data_sources")
+        if not isinstance(data_sources, list):
+            raise NotionRequestError("Notion 응답에서 데이터 소스 목록을 찾을 수 없습니다.")
+        matching_ids = [
+            item.get("id")
+            for item in data_sources
+            if isinstance(item, Mapping) and item.get("name") == TRAFFIC_ANOMALY_DATA_SOURCE_NAME
+        ]
+        if len(matching_ids) != 1 or not isinstance(matching_ids[0], str):
+            raise NotionRequestError("대상 Notion 데이터 소스를 하나로 식별할 수 없습니다.")
+        return matching_ids[0]
 
 
 def parse_month(raw: str) -> int:
