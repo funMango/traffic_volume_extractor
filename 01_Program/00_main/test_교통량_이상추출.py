@@ -4,7 +4,7 @@ import importlib.util
 import json
 import sys
 import urllib.error
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import pytest
@@ -70,6 +70,52 @@ def test_select_records_applies_status_and_month_boundaries():
     assert [item.occurred_on for item in incomplete] == [date(2026, 1, 31), date(2026, 2, 28)]
 
 
+def test_date_properties_preserve_date_only_and_local_datetime_values():
+    record = exporter.extract_record(
+        notion_page(
+            이상발생일="2026-02-01T09:30:45+09:00",
+            요청일="2026-02-02",
+            **{"조치 완료일": None},
+        )
+    )
+
+    assert record is not None
+    assert record.occurred_on == datetime(2026, 2, 1, 9, 30, 45)
+    assert record.occurred_on.tzinfo is None
+    assert record.requested_on == date(2026, 2, 2)
+    assert record.completed_on is None
+
+
+def test_select_records_sorts_same_day_datetime_values_by_time():
+    records = exporter.extract_records(
+        [
+            notion_page(
+                이상발생일="2026-02-03T15:00:00+09:00",
+                조치상태="미완료",
+                **{"조치 완료일": None},
+            ),
+            notion_page(
+                이상발생일="2026-02-03T09:00:00+09:00",
+                조치상태="미완료",
+                **{"조치 완료일": None},
+            ),
+            notion_page(
+                이상발생일="2026-02-03",
+                조치상태="미완료",
+                **{"조치 완료일": None},
+            ),
+        ]
+    )
+
+    _, incomplete = exporter.select_records(records, 2)
+
+    assert [item.occurred_on for item in incomplete] == [
+        date(2026, 2, 3),
+        datetime(2026, 2, 3, 9),
+        datetime(2026, 2, 3, 15),
+    ]
+
+
 def test_run_writes_expected_workbook(tmp_path):
     class FakeQuery:
         def fetch_pages(self):
@@ -91,6 +137,29 @@ def test_run_writes_expected_workbook(tmp_path):
     assert workbook["완료"]["A2"].number_format == "yyyy-mm-dd"
     assert workbook["미완료"]["A2"].value.date() == date(2026, 1, 1)
     assert output_path.name == "2026년_2월_교통량_이상목록.xlsx"
+
+
+def test_run_writes_date_and_datetime_formats_without_converting_time(tmp_path):
+    class FakeQuery:
+        def fetch_pages(self):
+            return [
+                notion_page(
+                    이상발생일="2026-02-02T09:15:30+09:00",
+                    요청일="2026-02-02",
+                    **{"조치 완료일": "2026-02-28T17:45:00+09:00"},
+                )
+            ]
+
+    output_path = exporter.run("2", FakeQuery(), tmp_path)
+    worksheet = load_workbook(output_path)["완료"]
+
+    assert worksheet["A2"].value == datetime(2026, 2, 2, 9, 15, 30)
+    assert worksheet["B2"].value == datetime(2026, 2, 2)
+    assert worksheet["C2"].value == datetime(2026, 2, 28, 17, 45)
+    assert worksheet["A2"].number_format == "yyyy-mm-dd hh:mm"
+    assert worksheet["B2"].number_format == "yyyy-mm-dd"
+    assert worksheet["C2"].number_format == "yyyy-mm-dd hh:mm"
+    assert worksheet.column_dimensions["A"].width == 18
 
 
 def test_run_rejects_empty_selection(tmp_path):

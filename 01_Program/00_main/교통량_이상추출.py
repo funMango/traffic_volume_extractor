@@ -10,7 +10,7 @@ import urllib.error
 import urllib.request
 from calendar import monthrange
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Protocol
 
@@ -43,6 +43,7 @@ HEADERS = (
     "비고",
 )
 DATE_HEADERS = {"이상발생일", "요청일", "조치 완료일"}
+DateValue = date | datetime | None
 
 EXIT_INPUT_ERROR = 2
 EXIT_TOKEN_ERROR = 3
@@ -64,9 +65,9 @@ class NotionRequestError(RuntimeError):
 
 @dataclass(frozen=True)
 class AnomalyRecord:
-    occurred_on: date | None
-    requested_on: date | None
-    completed_on: date | None
+    occurred_on: DateValue
+    requested_on: DateValue
+    completed_on: DateValue
     status: str
     anomaly_type: str
     intersection: str
@@ -74,7 +75,7 @@ class AnomalyRecord:
     action: str
     note: str
 
-    def values(self) -> tuple[date | None | str, ...]:
+    def values(self) -> tuple[DateValue | str, ...]:
         return (
             self.occurred_on,
             self.requested_on,
@@ -257,7 +258,7 @@ def select_records(
         for record in records
         if record.status == "미완료"
         and record.occurred_on
-        and date(2026, 1, 1) <= record.occurred_on <= end_date
+        and date(2026, 1, 1) <= _calendar_date(record.occurred_on) <= end_date
     ]
     return _sort_by_occurred_on(completed), _sort_by_occurred_on(incomplete)
 
@@ -328,14 +329,17 @@ def main() -> int:
     return 0
 
 
-def _property_date(property_value: Any) -> date | None:
+def _property_date(property_value: Any) -> DateValue:
     if not isinstance(property_value, Mapping):
         return None
     value = property_value.get("date")
     if not isinstance(value, Mapping) or not isinstance(value.get("start"), str):
         return None
+    raw_value = value["start"]
     try:
-        return datetime.fromisoformat(value["start"].replace("Z", "+00:00")).date()
+        if "T" not in raw_value:
+            return date.fromisoformat(raw_value)
+        return datetime.fromisoformat(raw_value.replace("Z", "+00:00")).replace(tzinfo=None)
     except ValueError:
         return None
 
@@ -371,7 +375,19 @@ def _property_text(property_value: Any) -> str:
 
 
 def _sort_by_occurred_on(records: list[AnomalyRecord]) -> list[AnomalyRecord]:
-    return sorted(records, key=lambda record: record.occurred_on or date.max)
+    return sorted(records, key=lambda record: _date_time_sort_key(record.occurred_on))
+
+
+def _calendar_date(value: date | datetime) -> date:
+    return value.date() if isinstance(value, datetime) else value
+
+
+def _date_time_sort_key(value: DateValue) -> datetime:
+    if value is None:
+        return datetime.max
+    if isinstance(value, datetime):
+        return value
+    return datetime.combine(value, time.min)
 
 
 def _write_sheet(worksheet: Any, records: Iterable[AnomalyRecord]) -> None:
@@ -387,13 +403,16 @@ def _write_sheet(worksheet: Any, records: Iterable[AnomalyRecord]) -> None:
     worksheet.auto_filter.ref = worksheet.dimensions
     for column_index, header in enumerate(HEADERS, start=1):
         worksheet.column_dimensions[get_column_letter(column_index)].width = (
-            14 if header in DATE_HEADERS else 20
+            18 if header in DATE_HEADERS else 20
         )
     for row in worksheet.iter_rows(min_row=2, max_col=len(HEADERS)):
         for cell, header in zip(row, HEADERS, strict=True):
             cell.alignment = Alignment(vertical="top", wrap_text=True)
-            if header in DATE_HEADERS and isinstance(cell.value, date):
-                cell.number_format = "yyyy-mm-dd"
+            if header in DATE_HEADERS:
+                if isinstance(cell.value, datetime):
+                    cell.number_format = "yyyy-mm-dd hh:mm"
+                elif isinstance(cell.value, date):
+                    cell.number_format = "yyyy-mm-dd"
 
 
 def _notion_http_error(status_code: int) -> NotionRequestError:
