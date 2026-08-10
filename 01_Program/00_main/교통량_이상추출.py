@@ -31,7 +31,7 @@ NOTION_VERSION = "2025-09-03"
 TRAFFIC_ANOMALY_DATABASE_ID = "3b86e6899fbc8003a1efd704239737a8"
 TRAFFIC_ANOMALY_DATA_SOURCE_NAME = "2026년 교통량 이상 요청 목록"
 
-HEADERS = (
+COMPLETED_HEADERS = (
     "이상발생일",
     "요청일",
     "조치 완료일",
@@ -39,7 +39,18 @@ HEADERS = (
     "이상유형",
     "교차로",
     "요청대상",
+    "원인",
     "조치사항",
+    "비고",
+)
+INCOMPLETE_HEADERS = (
+    "이상발생일",
+    "요청일",
+    "조치상태",
+    "이상유형",
+    "교차로",
+    "요청대상",
+    "원인",
     "비고",
 )
 DATE_HEADERS = {"이상발생일", "요청일", "조치 완료일"}
@@ -72,21 +83,25 @@ class AnomalyRecord:
     anomaly_type: str
     intersection: str
     request_target: str
+    cause: str
     action: str
     note: str
 
-    def values(self) -> tuple[DateValue | str, ...]:
-        return (
-            self.occurred_on,
-            self.requested_on,
-            self.completed_on,
-            self.status,
-            self.anomaly_type,
-            self.intersection,
-            self.request_target,
-            self.action,
-            self.note,
-        )
+    def value_for(self, header: str) -> DateValue | str:
+        """지정한 Excel 헤더에 대응하는 레코드 값을 반환한다."""
+
+        return {
+            "이상발생일": self.occurred_on,
+            "요청일": self.requested_on,
+            "조치 완료일": self.completed_on,
+            "조치상태": self.status,
+            "이상유형": self.anomaly_type,
+            "교차로": self.intersection,
+            "요청대상": self.request_target,
+            "원인": self.cause,
+            "조치사항": self.action,
+            "비고": self.note,
+        }[header]
 
 
 class NotionDataSourceClient:
@@ -234,6 +249,7 @@ def extract_record(page: Mapping[str, Any]) -> AnomalyRecord | None:
         anomaly_type=_property_text(properties.get("이상유형")),
         intersection=_property_text(properties.get("교차로")),
         request_target=_property_text(properties.get("요청대상")),
+        cause=_property_text(properties.get("원인")),
         action=_property_text(properties.get("조치사항")),
         note=_property_text(properties.get("비고")),
     )
@@ -270,8 +286,18 @@ def save_workbook(
     completed_sheet = workbook.active
     completed_sheet.title = "완료"
     incomplete_sheet = workbook.create_sheet("미완료")
-    _write_sheet(completed_sheet, completed)
-    _write_sheet(incomplete_sheet, incomplete)
+    _write_sheet(
+        completed_sheet,
+        completed,
+        COMPLETED_HEADERS,
+        leave_note_blank=True,
+    )
+    _write_sheet(
+        incomplete_sheet,
+        incomplete,
+        INCOMPLETE_HEADERS,
+        leave_note_blank=False,
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     workbook.save(output_path)
 
@@ -390,28 +416,87 @@ def _date_time_sort_key(value: DateValue) -> datetime:
     return datetime.combine(value, time.min)
 
 
-def _write_sheet(worksheet: Any, records: Iterable[AnomalyRecord]) -> None:
-    worksheet.append(HEADERS)
+def _write_sheet(
+    worksheet: Any,
+    records: Iterable[AnomalyRecord],
+    headers: tuple[str, ...],
+    *,
+    leave_note_blank: bool,
+) -> None:
+    worksheet.append(headers)
     for record in records:
-        worksheet.append(record.values())
+        worksheet.append(
+            [
+                _display_value(record.value_for(header), header, leave_note_blank)
+                for header in headers
+            ]
+        )
     header_fill = PatternFill("solid", fgColor="1F4E78")
     for cell in worksheet[1]:
         cell.fill = header_fill
         cell.font = Font(color="FFFFFF", bold=True)
         cell.alignment = Alignment(horizontal="center", vertical="center")
     worksheet.freeze_panes = "A2"
-    for column_index, header in enumerate(HEADERS, start=1):
-        worksheet.column_dimensions[get_column_letter(column_index)].width = (
-            18 if header in DATE_HEADERS else 20
+    for column_index, header in enumerate(headers, start=1):
+        values = [
+            worksheet.cell(row, column_index).value for row in range(1, worksheet.max_row + 1)
+        ]
+        worksheet.column_dimensions[get_column_letter(column_index)].width = _column_width(
+            header, values
         )
-    for row in worksheet.iter_rows(min_row=2, max_col=len(HEADERS)):
-        for cell, header in zip(row, HEADERS, strict=True):
-            cell.alignment = Alignment(vertical="top", wrap_text=True)
+    for row in worksheet.iter_rows(min_row=2, max_col=len(headers)):
+        for cell, header in zip(row, headers, strict=True):
+            cell.alignment = Alignment(
+                horizontal="center" if header == "조치상태" else "left",
+                vertical="top",
+                wrap_text=True,
+            )
             if header in DATE_HEADERS:
                 if isinstance(cell.value, datetime):
                     cell.number_format = "yyyy-mm-dd hh:mm"
                 elif isinstance(cell.value, date):
                     cell.number_format = "yyyy-mm-dd"
+        worksheet.row_dimensions[row[0].row].height = _row_height(row)
+
+
+def _display_value(value: DateValue | str, header: str, leave_note_blank: bool) -> DateValue | str:
+    if value not in (None, ""):
+        return value
+    if leave_note_blank and header == "비고":
+        return ""
+    return "-"
+
+
+def _column_width(header: str, values: Iterable[DateValue | str]) -> float:
+    longest = max((_display_length(_formatted_value(value)) for value in values), default=0)
+    minimum = 12 if header in DATE_HEADERS else 10
+    maximum = 18 if header in DATE_HEADERS else 36
+    return min(maximum, max(minimum, longest + 2))
+
+
+def _row_height(row: Iterable[Any]) -> float:
+    line_count = 1
+    for cell in row:
+        width = cell.parent.column_dimensions[cell.column_letter].width or 10
+        available_width = max(1, int(width) - 2)
+        cell_lines = sum(
+            max(1, -(-_display_length(line) // available_width))
+            for line in _formatted_value(cell.value).splitlines() or [""]
+        )
+        line_count = max(line_count, cell_lines)
+    return max(20, line_count * 15 + 3)
+
+
+def _formatted_value(value: DateValue | str) -> str:
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d %H:%M")
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value or "")
+
+
+def _display_length(value: str) -> int:
+    return sum(2 if ord(character) > 127 else 1 for character in value)
 
 
 def _notion_http_error(status_code: int) -> NotionRequestError:

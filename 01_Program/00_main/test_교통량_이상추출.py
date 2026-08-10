@@ -28,6 +28,7 @@ def notion_page(**overrides):
         "이상유형": ["통신", "결측"],
         "교차로": "테스트교차로",
         "요청대상": "담당자",
+        "원인": "장비 통신 오류",
         "조치사항": "조치함",
         "비고": "확인",
     }
@@ -44,7 +45,7 @@ def notion_page(**overrides):
         "type": "multi_select",
         "multi_select": [{"name": name} for name in values["이상유형"]],
     }
-    for name in ("교차로", "요청대상", "조치사항", "비고"):
+    for name in ("교차로", "요청대상", "원인", "조치사항", "비고"):
         properties[name] = {"type": "rich_text", "rich_text": [{"plain_text": values[name]}]}
     return {"properties": properties}
 
@@ -131,9 +132,12 @@ def test_run_writes_expected_workbook(tmp_path):
     output_path = exporter.run("2", FakeQuery(), tmp_path)
     workbook = load_workbook(output_path)
     assert workbook.sheetnames == ["완료", "미완료"]
-    assert [cell.value for cell in workbook["완료"][1]] == list(exporter.HEADERS)
+    assert [cell.value for cell in workbook["완료"][1]] == list(exporter.COMPLETED_HEADERS)
+    assert [cell.value for cell in workbook["미완료"][1]] == list(exporter.INCOMPLETE_HEADERS)
     assert workbook["완료"]["A2"].value.date() == date(2026, 2, 2)
     assert workbook["완료"]["E2"].value == "통신, 결측"
+    assert workbook["완료"]["H2"].value == "장비 통신 오류"
+    assert workbook["완료"]["I2"].value == "조치함"
     assert workbook["완료"]["A2"].number_format == "yyyy-mm-dd"
     assert workbook["미완료"]["A2"].value.date() == date(2026, 1, 1)
     for worksheet in workbook.worksheets:
@@ -163,6 +167,37 @@ def test_run_writes_date_and_datetime_formats_without_converting_time(tmp_path):
     assert worksheet["B2"].number_format == "yyyy-mm-dd"
     assert worksheet["C2"].number_format == "yyyy-mm-dd hh:mm"
     assert worksheet.column_dimensions["A"].width == 18
+
+
+def test_workbook_uses_sheet_specific_empty_values_and_display_based_formatting(tmp_path):
+    class FakeQuery:
+        def fetch_pages(self):
+            return [
+                notion_page(원인="길이가 긴 원인을 확인하기 위한 텍스트입니다", 비고=""),
+                notion_page(
+                    이상발생일="2026-01-01",
+                    조치상태="미완료",
+                    원인="",
+                    비고="",
+                    **{"조치 완료일": None},
+                ),
+            ]
+
+    output_path = exporter.run("2", FakeQuery(), tmp_path)
+    workbook = load_workbook(output_path)
+    completed = workbook["완료"]
+    incomplete = workbook["미완료"]
+
+    assert completed["J2"].value is None
+    assert incomplete["G2"].value == "-"
+    assert incomplete["H2"].value == "-"
+    assert "조치 완료일" not in [cell.value for cell in incomplete[1]]
+    assert "조치사항" not in [cell.value for cell in incomplete[1]]
+    assert completed["A2"].alignment.horizontal == "left"
+    assert completed["D2"].alignment.horizontal == "center"
+    assert completed["H2"].alignment.horizontal == "left"
+    assert completed.column_dimensions["H"].width > 10
+    assert completed.row_dimensions[2].height >= 20
 
 
 def test_run_rejects_empty_selection(tmp_path):
