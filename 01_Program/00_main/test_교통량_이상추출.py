@@ -177,7 +177,7 @@ def test_workbook_uses_sheet_specific_empty_values_and_display_based_formatting(
                 notion_page(
                     이상발생일="2026-01-01",
                     조치상태="미완료",
-                    요청대상="",
+                    요청대상="없음",
                     원인="",
                     비고="",
                     **{"조치 완료일": None},
@@ -199,6 +199,8 @@ def test_workbook_uses_sheet_specific_empty_values_and_display_based_formatting(
     assert completed["D2"].alignment.horizontal == "center"
     assert completed["H2"].alignment.horizontal == "left"
     assert incomplete["F2"].alignment.horizontal == "center"
+    assert incomplete["G2"].alignment.horizontal == "center"
+    assert incomplete["H2"].alignment.horizontal == "center"
     assert completed.column_dimensions["H"].width > 10
     assert completed.row_dimensions[2].height >= 20
 

@@ -447,11 +447,7 @@ def _write_sheet(
     for row in worksheet.iter_rows(min_row=2, max_col=len(headers)):
         for cell, header in zip(row, headers, strict=True):
             cell.alignment = Alignment(
-                horizontal=(
-                    "center"
-                    if header == "조치상태" or (header == "요청대상" and cell.value == "-")
-                    else "left"
-                ),
+                horizontal=("center" if header == "조치상태" or cell.value == "-" else "left"),
                 vertical="top",
                 wrap_text=True,
             )
@@ -464,6 +460,8 @@ def _write_sheet(
 
 
 def _display_value(value: DateValue | str, header: str, leave_note_blank: bool) -> DateValue | str:
+    if header == "요청대상" and value == "없음":
+        return "-"
     if value not in (None, ""):
         return value
     if leave_note_blank and header == "비고":
