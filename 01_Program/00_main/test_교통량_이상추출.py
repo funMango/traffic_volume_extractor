@@ -136,6 +136,9 @@ def test_run_writes_expected_workbook(tmp_path):
     assert workbook["완료"]["E2"].value == "통신, 결측"
     assert workbook["완료"]["A2"].number_format == "yyyy-mm-dd"
     assert workbook["미완료"]["A2"].value.date() == date(2026, 1, 1)
+    for worksheet in workbook.worksheets:
+        assert worksheet.auto_filter.ref is None
+        assert worksheet.freeze_panes == "A2"
     assert output_path.name == "2026년_2월_교통량_이상목록.xlsx"
 
 

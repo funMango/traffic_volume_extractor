@@ -400,7 +400,6 @@ def _write_sheet(worksheet: Any, records: Iterable[AnomalyRecord]) -> None:
         cell.font = Font(color="FFFFFF", bold=True)
         cell.alignment = Alignment(horizontal="center", vertical="center")
     worksheet.freeze_panes = "A2"
-    worksheet.auto_filter.ref = worksheet.dimensions
     for column_index, header in enumerate(HEADERS, start=1):
         worksheet.column_dimensions[get_column_letter(column_index)].width = (
             18 if header in DATE_HEADERS else 20
