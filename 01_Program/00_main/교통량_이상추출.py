@@ -447,7 +447,11 @@ def _write_sheet(
     for row in worksheet.iter_rows(min_row=2, max_col=len(headers)):
         for cell, header in zip(row, headers, strict=True):
             cell.alignment = Alignment(
-                horizontal="center" if header == "조치상태" else "left",
+                horizontal=(
+                    "center"
+                    if header == "조치상태" or (header == "요청대상" and cell.value == "-")
+                    else "left"
+                ),
                 vertical="top",
                 wrap_text=True,
             )
