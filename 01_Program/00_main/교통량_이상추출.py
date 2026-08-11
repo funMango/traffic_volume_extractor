@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""2026년 교통량 이상 요청 목록을 Notion에서 Excel로 저장한다."""
+"""교통량 이상 요청 목록을 Notion에서 선택 연월 기준 Excel로 저장한다."""
 
 from __future__ import annotations
 
@@ -26,10 +26,9 @@ NOTION_DATABASE_URL = "https://api.notion.com/v1/databases/{database_id}"
 NOTION_API_URL = "https://api.notion.com/v1/data_sources/{data_source_id}/query"
 NOTION_VERSION = "2025-09-03"
 
-# `2026년 교통량 이상 요청 목록`의 Notion 데이터베이스 ID.
-# 실행 시 이 DB에서 실제 데이터 소스 ID를 조회해 사용한다.
+# 연결된 교통량 이상 요청 통합 데이터베이스 ID.
+# 실행 시 단일 데이터 소스를 조회해 사용한다.
 TRAFFIC_ANOMALY_DATABASE_ID = "3b86e6899fbc8003a1efd704239737a8"
-TRAFFIC_ANOMALY_DATA_SOURCE_NAME = "2026년 교통량 이상 요청 목록"
 
 COMPLETED_HEADERS = (
     "이상발생일",
@@ -195,28 +194,23 @@ class NotionDataSourceClient:
         data_sources = response_body.get("data_sources")
         if not isinstance(data_sources, list):
             raise NotionRequestError("Notion 응답에서 데이터 소스 목록을 찾을 수 없습니다.")
-        matching_ids = [
-            item.get("id")
-            for item in data_sources
-            if isinstance(item, Mapping) and item.get("name") == TRAFFIC_ANOMALY_DATA_SOURCE_NAME
-        ]
-        if len(matching_ids) != 1 or not isinstance(matching_ids[0], str):
+        data_source_ids = [item.get("id") for item in data_sources if isinstance(item, Mapping)]
+        if len(data_source_ids) != 1 or not isinstance(data_source_ids[0], str):
             raise NotionRequestError("대상 Notion 데이터 소스를 하나로 식별할 수 없습니다.")
-        return matching_ids[0]
+        return data_source_ids[0]
 
 
-def parse_month(raw: str) -> int:
-    """1~12월 입력값을 검증한다."""
+def parse_year_month(raw: str) -> tuple[int, int]:
+    """YYMM 입력값을 2000년대의 연도와 월로 변환한다."""
 
     value = raw.strip()
-    if not value:
-        raise ValueError("월을 입력해 주세요. (1~12)")
-    if not value.isdigit():
-        raise ValueError("월은 숫자로 입력해 주세요. (1~12)")
-    month = int(value)
+    if len(value) != 4 or not value.isdigit():
+        raise ValueError("연월은 YYMM 형식의 숫자 4자리로 입력해 주세요. (예: 2507)")
+    year = 2000 + int(value[:2])
+    month = int(value[2:])
     if not 1 <= month <= 12:
-        raise ValueError("월은 1부터 12 사이여야 합니다.")
-    return month
+        raise ValueError("월은 01부터 12 사이여야 합니다.")
+    return year, month
 
 
 def load_notion_token(env_path: Path = ENV_PATH) -> str | None:
@@ -255,18 +249,18 @@ def extract_record(page: Mapping[str, Any]) -> AnomalyRecord | None:
     )
 
 
-def select_records(
-    records: Iterable[AnomalyRecord], month: int
+def select_records_for_period(
+    records: Iterable[AnomalyRecord], year: int, month: int
 ) -> tuple[list[AnomalyRecord], list[AnomalyRecord]]:
-    """완료 월별 목록과 연초부터 해당 월까지의 미완료 목록을 선별한다."""
+    """완료일은 선택 연월, 미완료 건은 선택 월말 이전 발생일로 분류한다."""
 
-    end_date = date(2026, month, monthrange(2026, month)[1])
+    end_date = date(year, month, monthrange(year, month)[1])
     completed = [
         record
         for record in records
         if record.status == "완료"
         and record.completed_on
-        and record.completed_on.year == 2026
+        and record.completed_on.year == year
         and record.completed_on.month == month
     ]
     incomplete = [
@@ -274,7 +268,7 @@ def select_records(
         for record in records
         if record.status == "미완료"
         and record.occurred_on
-        and date(2026, 1, 1) <= _calendar_date(record.occurred_on) <= end_date
+        and _calendar_date(record.occurred_on) <= end_date
     ]
     return _sort_by_occurred_on(completed), _sort_by_occurred_on(incomplete)
 
@@ -302,28 +296,29 @@ def save_workbook(
     workbook.save(output_path)
 
 
-def build_output_path(month: int, output_dir: Path = OUTPUT_DIR) -> Path:
-    return output_dir / f"2026년_{month}월_교통량_이상목록.xlsx"
+def build_output_path_for_period(year: int, month: int, output_dir: Path = OUTPUT_DIR) -> Path:
+    return output_dir / f"{year}년 {month}월 교통량 이상목록.xlsx"
 
 
 def run(
-    raw_month: str,
+    raw_year_month: str,
     query: NotionQuery,
     output_dir: Path = OUTPUT_DIR,
 ) -> Path:
-    month = parse_month(raw_month)
+    year, month = parse_year_month(raw_year_month)
     records = extract_records(query.fetch_pages())
-    completed, incomplete = select_records(records, month)
+    completed, incomplete = select_records_for_period(records, year, month)
     if not completed and not incomplete:
         raise LookupError("선택한 기간에 해당하는 완료 또는 미완료 목록이 없습니다.")
-    output_path = build_output_path(month, output_dir)
+    output_path = build_output_path_for_period(year, month, output_dir)
     save_workbook(completed, incomplete, output_path)
     return output_path
 
 
 def main() -> int:
     try:
-        month = parse_month(input("추출할 월을 입력해 주세요 (1~12): "))
+        raw_year_month = input("추출할 연월을 입력해 주세요 (YYMM, 예: 2507): ")
+        parse_year_month(raw_year_month)
     except (EOFError, ValueError) as exc:
         print(f"입력 오류: {exc}", file=sys.stderr)
         return EXIT_INPUT_ERROR
@@ -334,7 +329,7 @@ def main() -> int:
         return EXIT_TOKEN_ERROR
 
     try:
-        output_path = run(str(month), NotionDataSourceClient(token))
+        output_path = run(raw_year_month, NotionDataSourceClient(token))
     except NotionRequestError as exc:
         print(f"Notion 조회 오류: {exc}", file=sys.stderr)
         return EXIT_NOTION_ERROR

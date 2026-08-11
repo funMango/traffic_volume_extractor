@@ -50,25 +50,46 @@ def notion_page(**overrides):
     return {"properties": properties}
 
 
-@pytest.mark.parametrize("raw", ["", "문자", "0", "13"])
-def test_parse_month_rejects_invalid_values(raw):
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("2507", (2025, 7)), ("2607", (2026, 7)), ("2701", (2027, 1))],
+)
+def test_parse_year_month_converts_two_digit_year_and_month(raw, expected):
+    assert exporter.parse_year_month(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["", "문자", "250", "2500", "2513"])
+def test_parse_year_month_rejects_invalid_format_or_month(raw):
     with pytest.raises(ValueError):
-        exporter.parse_month(raw)
+        exporter.parse_year_month(raw)
 
 
-def test_select_records_applies_status_and_month_boundaries():
+def test_select_records_for_period_filters_completed_by_selected_year_and_month():
     records = exporter.extract_records(
         [
-            notion_page(이상발생일="2026-02-03", **{"조치 완료일": "2026-02-28"}),
-            notion_page(이상발생일="2026-01-31", 조치상태="미완료", **{"조치 완료일": None}),
-            notion_page(이상발생일="2026-02-28", 조치상태="미완료", **{"조치 완료일": None}),
-            notion_page(이상발생일="2026-03-01", 조치상태="미완료", **{"조치 완료일": None}),
-            notion_page(이상발생일="2026-01-01", **{"조치 완료일": "2026-03-01"}),
+            notion_page(이상발생일="2025-07-03", **{"조치 완료일": "2025-07-31"}),
+            notion_page(이상발생일="2025-07-03", **{"조치 완료일": "2025-06-30"}),
+            notion_page(이상발생일="2025-07-03", **{"조치 완료일": "2026-07-01"}),
         ]
     )
-    completed, incomplete = exporter.select_records(records, 2)
-    assert [item.completed_on for item in completed] == [date(2026, 2, 28)]
-    assert [item.occurred_on for item in incomplete] == [date(2026, 1, 31), date(2026, 2, 28)]
+    completed, incomplete = exporter.select_records_for_period(records, 2025, 7)
+    assert [item.completed_on for item in completed] == [date(2025, 7, 31)]
+    assert incomplete == []
+
+
+def test_select_records_for_period_includes_all_prior_incomplete_records():
+    records = exporter.extract_records(
+        [
+            notion_page(이상발생일="2024-12-31", 조치상태="미완료", **{"조치 완료일": None}),
+            notion_page(이상발생일="2026-07-31", 조치상태="미완료", **{"조치 완료일": None}),
+            notion_page(이상발생일="2026-08-01", 조치상태="미완료", **{"조치 완료일": None}),
+        ]
+    )
+    _, incomplete = exporter.select_records_for_period(records, 2026, 7)
+    assert [item.occurred_on for item in incomplete] == [
+        date(2024, 12, 31),
+        date(2026, 7, 31),
+    ]
 
 
 def test_date_properties_preserve_date_only_and_local_datetime_values():
@@ -108,7 +129,7 @@ def test_select_records_sorts_same_day_datetime_values_by_time():
         ]
     )
 
-    _, incomplete = exporter.select_records(records, 2)
+    _, incomplete = exporter.select_records_for_period(records, 2026, 2)
 
     assert [item.occurred_on for item in incomplete] == [
         date(2026, 2, 3),
@@ -129,7 +150,7 @@ def test_run_writes_expected_workbook(tmp_path):
                 ),
             ]
 
-    output_path = exporter.run("2", FakeQuery(), tmp_path)
+    output_path = exporter.run("2602", FakeQuery(), tmp_path)
     workbook = load_workbook(output_path)
     assert workbook.sheetnames == ["완료", "미완료"]
     assert [cell.value for cell in workbook["완료"][1]] == list(exporter.COMPLETED_HEADERS)
@@ -143,7 +164,7 @@ def test_run_writes_expected_workbook(tmp_path):
     for worksheet in workbook.worksheets:
         assert worksheet.auto_filter.ref is None
         assert worksheet.freeze_panes == "A2"
-    assert output_path.name == "2026년_2월_교통량_이상목록.xlsx"
+    assert output_path.name == "2026년 2월 교통량 이상목록.xlsx"
 
 
 def test_run_writes_date_and_datetime_formats_without_converting_time(tmp_path):
@@ -157,7 +178,7 @@ def test_run_writes_date_and_datetime_formats_without_converting_time(tmp_path):
                 )
             ]
 
-    output_path = exporter.run("2", FakeQuery(), tmp_path)
+    output_path = exporter.run("2602", FakeQuery(), tmp_path)
     worksheet = load_workbook(output_path)["완료"]
 
     assert worksheet["A2"].value == datetime(2026, 2, 2, 9, 15, 30)
@@ -184,7 +205,7 @@ def test_workbook_uses_sheet_specific_empty_values_and_display_based_formatting(
                 ),
             ]
 
-    output_path = exporter.run("2", FakeQuery(), tmp_path)
+    output_path = exporter.run("2602", FakeQuery(), tmp_path)
     workbook = load_workbook(output_path)
     completed = workbook["완료"]
     incomplete = workbook["미완료"]
@@ -211,16 +232,12 @@ def test_run_rejects_empty_selection(tmp_path):
             return []
 
     with pytest.raises(LookupError, match="해당하는"):
-        exporter.run("2", FakeQuery(), tmp_path)
+        exporter.run("2602", FakeQuery(), tmp_path)
 
 
 def test_notion_client_collects_multiple_pages():
     bodies = [
-        {
-            "data_sources": [
-                {"id": "data-source", "name": exporter.TRAFFIC_ANOMALY_DATA_SOURCE_NAME}
-            ]
-        },
+        {"data_sources": [{"id": "data-source", "name": "통합 목록"}]},
         {"results": [{"id": "one"}], "has_more": True, "next_cursor": "cursor"},
         {"results": [{"id": "two"}], "has_more": False, "next_cursor": None},
     ]
@@ -272,7 +289,7 @@ def test_notion_client_reports_network_error():
 
 def test_main_reports_missing_token(monkeypatch, capsys):
     monkeypatch.setattr(exporter, "load_notion_token", lambda: None)
-    monkeypatch.setattr("builtins.input", lambda _prompt: "2")
+    monkeypatch.setattr("builtins.input", lambda _prompt: "2507")
 
     assert exporter.main() == exporter.EXIT_TOKEN_ERROR
     assert "NOTION_API_TOKEN" in capsys.readouterr().err
