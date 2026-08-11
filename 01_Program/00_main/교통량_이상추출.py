@@ -451,7 +451,6 @@ def _write_sheet(
                     cell.number_format = "yyyy-mm-dd hh:mm"
                 elif isinstance(cell.value, date):
                     cell.number_format = "yyyy-mm-dd"
-        worksheet.row_dimensions[row[0].row].height = _row_height(row)
 
 
 def _display_value(value: DateValue | str, header: str, leave_note_blank: bool) -> DateValue | str:
@@ -469,19 +468,6 @@ def _column_width(header: str, values: Iterable[DateValue | str]) -> float:
     minimum = 12 if header in DATE_HEADERS else 10
     maximum = 18 if header in DATE_HEADERS else 36
     return min(maximum, max(minimum, longest + 2))
-
-
-def _row_height(row: Iterable[Any]) -> float:
-    line_count = 1
-    for cell in row:
-        width = cell.parent.column_dimensions[cell.column_letter].width or 10
-        available_width = max(1, int(width) - 2)
-        cell_lines = sum(
-            max(1, -(-_display_length(line) // available_width))
-            for line in _formatted_value(cell.value).splitlines() or [""]
-        )
-        line_count = max(line_count, cell_lines)
-    return max(20, line_count * 15 + 3)
 
 
 def _formatted_value(value: DateValue | str) -> str:

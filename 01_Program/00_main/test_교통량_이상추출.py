@@ -190,11 +190,11 @@ def test_run_writes_date_and_datetime_formats_without_converting_time(tmp_path):
     assert worksheet.column_dimensions["A"].width == 18
 
 
-def test_workbook_uses_sheet_specific_empty_values_and_display_based_formatting(tmp_path):
+def test_workbook_uses_sheet_specific_empty_values_and_auto_row_heights(tmp_path):
     class FakeQuery:
         def fetch_pages(self):
             return [
-                notion_page(원인="길이가 긴 원인을 확인하기 위한 텍스트입니다", 비고=""),
+                notion_page(원인="길이가 긴 원인을\n확인하기 위한 텍스트입니다", 비고=""),
                 notion_page(
                     이상발생일="2026-01-01",
                     조치상태="미완료",
@@ -223,7 +223,10 @@ def test_workbook_uses_sheet_specific_empty_values_and_display_based_formatting(
     assert incomplete["G2"].alignment.horizontal == "center"
     assert incomplete["H2"].alignment.horizontal == "center"
     assert completed.column_dimensions["H"].width > 10
-    assert completed.row_dimensions[2].height >= 20
+    for worksheet in (completed, incomplete):
+        for row_index in range(2, worksheet.max_row + 1):
+            assert worksheet.row_dimensions[row_index].height is None
+    assert completed["H2"].alignment.wrap_text is True
 
 
 def test_run_rejects_empty_selection(tmp_path):
