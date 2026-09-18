@@ -72,6 +72,19 @@ GOGANG_WEST_RAW_SLOTS = tuple(list(range(7 * 60, 9 * 60, 15)) + list(range(17 * 
 GOGANG_WEST_RAW_INTERSECTION_NAME = "고강지하차도사거리"
 GOGANG_WEST_RAW_APPROACH_ID = "ACSR000003"
 GOGANG_WEST_RAW_DIRECTION = "서"
+TEN_INTERSECTIONS_RAW_NAMES = (
+    "대장동공영차고지사거리",
+    "덕산고교사거리",
+    "봉오고가교사거리",
+    "봉오대로사거리",
+    "삼정고가교삼거리",
+    "수주삼거리",
+    "오정대공원앞삼거리",
+    "오정산업단지사거리",
+    "원종IC사거리",
+    "해주아파트앞",
+)
+TEN_INTERSECTIONS_RAW_OUTPUT_PATH = RESULT_DIR / "지정10개교차로_260904_260917_15분_원천.xlsx"
 SQLITE_TABLE = "traffic_by_vehicle"
 SQLITE_COLUMNS = [
     "observed_at",
@@ -1013,6 +1026,132 @@ def export_gogang_west_raw_15m(
         writer.writerow(GOGANG_WEST_RAW_CSV_HEADER)
         writer.writerows(rows)
     return len(rows)
+
+
+def build_ten_intersections_raw_15m_sql_params(
+    intersections: list[Intersection],
+) -> tuple[str, dict[str, object]]:
+    """Build a source-row query for every approach of the requested intersections."""
+    if not intersections:
+        raise ValueError("조회할 교차로가 없습니다.")
+
+    bind_params: dict[str, object] = {}
+    node_ids = [intersection.node_id for intersection in intersections]
+    node_clause = build_in_clause("node_id", node_ids, bind_params)
+    date_conditions = []
+    for index, target_date in enumerate(GOGANG_WEST_RAW_DATES):
+        bind_params[f"date_start{index}"] = datetime.combine(target_date, datetime.min.time())
+        bind_params[f"date_end{index}"] = datetime.combine(
+            target_date + timedelta(days=1), datetime.min.time()
+        )
+        date_conditions.append(f"(v.TOT_DT >= :date_start{index} AND v.TOT_DT < :date_end{index})")
+    slot_clause = build_time_slot_filter_clause(
+        list(GOGANG_WEST_RAW_SLOTS), bind_params, FIFTEEN_MINUTE_AGGREGATION
+    )
+    direction_code = "TRIM(TO_CHAR(v.DRCT_CD))"
+    vehicle_code = "TRIM(TO_CHAR(v.VKND_CD))"
+    sql = f"""
+        SELECT
+            v.TOT_DT,
+            c.CRSRD_NM,
+            a.ACSR_NM,
+            NVL(d.CD_NM, {direction_code}) AS DRCT_NM,
+            NVL(k.CD_NM, {vehicle_code}) AS VKND_NM,
+            {vehicle_code} AS VKND_CD,
+            v.TRF_QNTY
+        FROM {FIFTEEN_MINUTE_AGGREGATION.traffic_table} v
+        JOIN {INTERSECTION_TABLE} c
+          ON c.NODE_ID = v.NODE_ID
+        LEFT JOIN {APPROACH_TABLE} a
+          ON a.NODE_ID = v.NODE_ID
+         AND a.ACSR_ID = v.ACSR_ID
+        LEFT JOIN {CODE_TABLE} d
+          ON d.GRP_CD = 'DRCT_CD'
+         AND TRIM(TO_CHAR(d.CD)) = {direction_code}
+        LEFT JOIN {CODE_TABLE} k
+          ON k.GRP_CD = 'VHCL_ATTR_CD'
+         AND TRIM(TO_CHAR(k.CD)) = {vehicle_code}
+        WHERE v.NODE_ID IN ({node_clause})
+          AND ({" OR ".join(date_conditions)})
+          {slot_clause}
+        ORDER BY v.TOT_DT, c.CRSRD_NM, a.ACSR_NM, VKND_NM, DRCT_NM, {vehicle_code}
+    """
+    ensure_select_sql(sql)
+    return sql, bind_params
+
+
+def normalize_ten_intersections_raw_row(row: tuple) -> list[object]:
+    (
+        tot_dt,
+        intersection,
+        approach_direction,
+        direction,
+        vehicle_kind,
+        vehicle_code,
+        traffic_volume,
+    ) = row
+    approach = {"좌회전": "좌", "직진": "직", "우회전": "우"}.get(direction, direction)
+    return [
+        format_time(tot_dt),
+        intersection,
+        approach_direction or "",
+        approach,
+        vehicle_kind,
+        normalize_code(vehicle_code),
+        traffic_volume,
+    ]
+
+
+def resolve_ten_intersections(all_intersections: list[Intersection]) -> list[Intersection]:
+    """Resolve the fixed names in request order and fail before source-row retrieval."""
+    by_name = {intersection.name: intersection for intersection in all_intersections}
+    missing = [name for name in TEN_INTERSECTIONS_RAW_NAMES if name not in by_name]
+    if missing:
+        raise LookupError("요청 교차로를 찾을 수 없습니다: " + ", ".join(missing))
+    return [by_name[name] for name in TEN_INTERSECTIONS_RAW_NAMES]
+
+
+def save_ten_intersections_raw_xlsx(
+    rows_by_intersection: dict[str, list[list[object]]], output_path: Path
+) -> None:
+    try:
+        from openpyxl import Workbook
+    except ImportError as exc:  # pragma: no cover - 실행 환경 안내용
+        raise RuntimeError("XLSX 저장에는 openpyxl 패키지가 필요합니다.") from exc
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    workbook = Workbook(write_only=True)
+    for intersection_name in TEN_INTERSECTIONS_RAW_NAMES:
+        sheet = workbook.create_sheet(intersection_name)
+        sheet.append(GOGANG_WEST_RAW_CSV_HEADER)
+        for row in rows_by_intersection[intersection_name]:
+            sheet.append(row)
+    workbook.save(output_path)
+
+
+def export_ten_intersections_raw_15m(
+    output_path: Path = TEN_INTERSECTIONS_RAW_OUTPUT_PATH,
+) -> dict[str, int]:
+    """Export unaggregated 15-minute rows to one requested-order sheet per intersection."""
+    conn = connect_db()
+    try:
+        with conn.cursor() as cursor:
+            validate_vehicle_extract_tables(cursor, FIFTEEN_MINUTE_AGGREGATION)
+            all_intersections, _drct_names, _vknd_names = load_reference_data(conn)
+            intersections = resolve_ten_intersections(all_intersections)
+            sql, bind_params = build_ten_intersections_raw_15m_sql_params(intersections)
+            source_rows = execute_select(cursor, sql, bind_params)
+    finally:
+        conn.close()
+
+    rows_by_intersection = {name: [] for name in TEN_INTERSECTIONS_RAW_NAMES}
+    for source_row in source_rows:
+        row = normalize_ten_intersections_raw_row(source_row)
+        rows_by_intersection[row[1]].append(row)
+    for rows in rows_by_intersection.values():
+        rows.sort(key=result_sort_key)
+    save_ten_intersections_raw_xlsx(rows_by_intersection, output_path)
+    return {name: len(rows) for name, rows in rows_by_intersection.items()}
 
 
 def result_sort_key(row: list[object]) -> tuple[object, object, object, object, object]:
@@ -2375,6 +2514,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Export the fixed Gogang west raw 15-minute CSV.",
     )
     parser.add_argument(
+        "--ten-intersections-raw-15m",
+        action="store_true",
+        help="Export fixed ten-intersection raw 15-minute rows to an XLSX workbook.",
+    )
+    parser.add_argument(
         "--output",
         default=None,
         help="--all-intersections-2505-2605-db 사용 시 SQLite 저장 경로를 지정합니다.",
@@ -2399,6 +2543,17 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(f"\nSaved: {output_path}")
         print(f"Raw rows: {row_count:,}")
+        return 0
+
+    if args.ten_intersections_raw_15m:
+        output_path = Path(args.output) if args.output else TEN_INTERSECTIONS_RAW_OUTPUT_PATH
+        try:
+            row_counts = export_ten_intersections_raw_15m(output_path)
+        except Exception as exc:
+            print(f"\nRaw export failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"\nSaved: {output_path}")
+        print(f"Raw rows: {sum(row_counts.values()):,}")
         return 0
 
     if args.all_intersections_2505_2605_db:

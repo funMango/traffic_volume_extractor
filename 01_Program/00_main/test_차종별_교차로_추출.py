@@ -194,3 +194,73 @@ def test_gogang_west_raw_export_writes_requested_header_and_preserves_quantity(
         "10",
     ]
     assert content[2].endswith(",07,38")
+
+
+def test_ten_intersections_raw_sql_uses_source_rows_and_requested_conditions():
+    intersections = [
+        vehicle.Intersection(node_id=index, name=name)
+        for index, name in enumerate(vehicle.TEN_INTERSECTIONS_RAW_NAMES, start=1)
+    ]
+    sql, params = vehicle.build_ten_intersections_raw_15m_sql_params(intersections)
+    compact_sql = re.sub(r"\s+", " ", sql)
+
+    assert "FROM S_CRSRD_VKND_TRF_15MI v" in compact_sql
+    assert "SUM(" not in compact_sql
+    assert "GROUP BY" not in compact_sql
+    assert "HAVING" not in compact_sql
+    assert "a.ACSR_NM" in compact_sql
+    assert "TRIM(TO_CHAR(v.VKND_CD)) AS VKND_CD" in compact_sql
+    assert [params[f"date_start{index}"].date() for index in range(2)] == list(
+        vehicle.GOGANG_WEST_RAW_DATES
+    )
+    assert [params[f"time_slot{index}"] for index in range(16)] == [
+        "07:00",
+        "07:15",
+        "07:30",
+        "07:45",
+        "08:00",
+        "08:15",
+        "08:30",
+        "08:45",
+        "17:00",
+        "17:15",
+        "17:30",
+        "17:45",
+        "18:00",
+        "18:15",
+        "18:30",
+        "18:45",
+    ]
+
+
+def test_ten_intersections_xlsx_has_requested_sheets_headers_and_separated_rows(tmp_path):
+    from openpyxl import load_workbook
+
+    first_name, second_name, *_ = vehicle.TEN_INTERSECTIONS_RAW_NAMES
+    output_path = tmp_path / "ten-intersections.xlsx"
+    vehicle.save_ten_intersections_raw_xlsx(
+        {
+            first_name: [["2026-09-04 07:00:00", first_name, "북", "좌", "세단", "02", 10]],
+            second_name: [["2026-09-04 07:15:00", second_name, "남", "직", "SUV", "07", 38]],
+            **{
+                name: []
+                for name in vehicle.TEN_INTERSECTIONS_RAW_NAMES
+                if name not in {first_name, second_name}
+            },
+        },
+        output_path,
+    )
+
+    workbook = load_workbook(output_path, read_only=True, data_only=True)
+    try:
+        assert workbook.sheetnames == list(vehicle.TEN_INTERSECTIONS_RAW_NAMES)
+        assert list(workbook[first_name].values) == [
+            tuple(vehicle.GOGANG_WEST_RAW_CSV_HEADER),
+            ("2026-09-04 07:00:00", first_name, "북", "좌", "세단", "02", 10),
+        ]
+        assert list(workbook[second_name].values)[1][5] == "07"
+        assert list(workbook[vehicle.TEN_INTERSECTIONS_RAW_NAMES[2]].values) == [
+            tuple(vehicle.GOGANG_WEST_RAW_CSV_HEADER)
+        ]
+    finally:
+        workbook.close()
