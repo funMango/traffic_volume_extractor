@@ -112,18 +112,30 @@ def parse_periods(raw: str) -> list[Period]:
     return periods
 
 
-def parse_target(raw: str) -> Target:
-    value = raw.strip()
-    if value in {"*", "전체", "all", "ALL"}:
-        return Target()
-    if not value:
+def parse_target(raw: str) -> list[Target]:
+    values = [value.strip() for value in raw.split(",") if value.strip()]
+    if not values:
         raise ValueError("대상 교차로를 입력해 주세요.")
-    if "-" not in value:
-        return Target(intersection=value)
-    intersection, direction = (part.strip() for part in value.rsplit("-", 1))
-    if not intersection or not direction:
-        raise ValueError("방향 대상은 교차로명-북 (동향) 형식으로 입력해 주세요.")
-    return Target(intersection=intersection, direction=direction)
+    all_values = {"*", "전체", "all"}
+    if any(value.lower() in all_values for value in values):
+        if len(values) != 1:
+            raise ValueError("전체 대상(*, 전체, all)은 다른 대상과 함께 입력할 수 없습니다.")
+        return [Target()]
+
+    targets: list[Target] = []
+    for value in values:
+        if "-" not in value:
+            targets.append(Target(intersection=value))
+            continue
+        intersection, direction = (part.strip() for part in value.rsplit("-", 1))
+        if not intersection or not direction:
+            raise ValueError("방향 대상은 교차로명-북(동향) 형식으로 입력해 주세요.")
+        targets.append(Target(intersection=intersection, direction=re.sub(r"\s+", "", direction)))
+    return targets
+
+
+def targets_label(targets: list[Target]) -> str:
+    return ", ".join(target.label for target in targets)
 
 
 def parse_hours(raw: str) -> list[int]:
@@ -187,7 +199,7 @@ def connect_read_only():
     return connection
 
 
-def build_day_sql(target: Target, hours: list[int]) -> tuple[str, dict[str, Any]]:
+def build_day_sql(targets: list[Target], hours: list[int]) -> tuple[str, dict[str, Any]]:
     params: dict[str, Any] = {f"hour{index}": hour for index, hour in enumerate(hours)}
     filters = [
         "v.TOT_DT >= :start_dt",
@@ -196,12 +208,18 @@ def build_day_sql(target: Target, hours: list[int]) -> tuple[str, dict[str, Any]
         + ", ".join(f":hour{i}" for i in range(len(hours)))
         + ")",
     ]
-    if target.intersection is not None:
-        params["intersection_name"] = target.intersection
-        filters.append("c.CRSRD_NM = :intersection_name")
-    if target.direction is not None:
-        params["direction_name"] = target.direction
-        filters.append("a.ACSR_NM = :direction_name")
+    target_filters: list[str] = []
+    for index, target in enumerate(targets):
+        if target.intersection is None:
+            continue
+        params[f"intersection_name{index}"] = target.intersection
+        condition = f"c.CRSRD_NM = :intersection_name{index}"
+        if target.direction is not None:
+            params[f"direction_name{index}"] = target.direction
+            condition += f" AND a.ACSR_NM = :direction_name{index}"
+        target_filters.append(f"({condition})")
+    if target_filters:
+        filters.append("(" + " OR ".join(target_filters) + ")")
     code = "TRIM(TO_CHAR(v.VKND_CD))"
     sql = f"""
         SELECT c.CRSRD_NM, NVL(a.ACSR_NM, ''), NVL(d.CD_NM, TRIM(TO_CHAR(v.DRCT_CD))),
@@ -226,8 +244,10 @@ def day_chunks(periods: Iterable[Period]) -> list[tuple[Period, date]]:
     ]
 
 
-def fetch_day(period: Period, day: date, target: Target, hours: list[int]) -> list[AnalysisRow]:
-    sql, params = build_day_sql(target, hours)
+def fetch_day(
+    period: Period, day: date, targets: list[Target], hours: list[int]
+) -> list[AnalysisRow]:
+    sql, params = build_day_sql(targets, hours)
     params.update(
         start_dt=datetime.combine(day, datetime.min.time()),
         end_dt=datetime.combine(day + timedelta(days=1), datetime.min.time()),
@@ -255,21 +275,27 @@ def combine_rows(rows: Iterable[AnalysisRow]) -> list[AnalysisRow]:
 
 
 def fetch_parallel(
-    periods: list[Period], target: Target, hours: list[int], workers: int = DEFAULT_WORKERS
+    periods: list[Period], targets: list[Target], hours: list[int], workers: int = DEFAULT_WORKERS
 ) -> list[AnalysisRow]:
     chunks = day_chunks(periods)
     if not chunks:
         return []
     completed: list[AnalysisRow] = []
     with ThreadPoolExecutor(max_workers=max(1, min(workers, len(chunks)))) as executor:
-        futures = [executor.submit(fetch_day, period, day, target, hours) for period, day in chunks]
+        futures = [
+            executor.submit(fetch_day, period, day, targets, hours) for period, day in chunks
+        ]
         for future in as_completed(futures):
             completed.extend(future.result())
     return combine_rows(completed)
 
 
 def save_xlsx(
-    rows: list[AnalysisRow], periods: list[Period], target: Target, hours: list[int], path: Path
+    rows: list[AnalysisRow],
+    periods: list[Period],
+    targets: list[Target],
+    hours: list[int],
+    path: Path,
 ) -> None:
     workbook = Workbook()
     sheet = workbook.active
@@ -283,7 +309,7 @@ def save_xlsx(
         ("입력 조건", ""),
         ("기간", ", ".join(period.label for period in periods)),
         ("시간대", hours_label(hours)),
-        ("대상", target.label),
+        ("대상", targets_label(targets)),
         ("계산 기준", "미확인=차종코드 0 또는 1의 교통량 합계 / 전체=모든 차종 교통량 합계"),
         ("표시 기준", "전체 교통량이 0이면 0.00%"),
     ]
@@ -360,7 +386,7 @@ def run_benchmark() -> int:
     durations: dict[int, float] = {}
     for workers in range(1, 6):
         started = time.perf_counter()
-        fetch_parallel(periods, Target(), [7, 8], workers)
+        fetch_parallel(periods, [Target()], [7, 8], workers)
         durations[workers] = time.perf_counter() - started
         print(f"{workers} worker: {durations[workers]:.2f}초")
     print(f"권장 기본 워커: {choose_worker_count(durations)}")
@@ -375,11 +401,13 @@ def main() -> int:
         return run_benchmark()
     try:
         periods = parse_periods(input("기간 (YYMMDD~YYMMDD, YYMM, 단일일): "))
-        target = parse_target(input("대상 (*, 교차로명, 교차로명-북 (동향)): "))
+        targets = parse_target(
+            input("대상 (*, 교차로명, 교차로명-북(동향), 쉼표로 여러 개 입력 가능): ")
+        )
         hours = parse_hours(input("시간 (첨두시, 일반시간, 07~09, 07~09, 17~19): "))
-        rows = fetch_parallel(periods, target, hours)
+        rows = fetch_parallel(periods, targets, hours)
         output = RESULT_DIR / f"차종_미확인_비율_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
-        save_xlsx(rows, periods, target, hours, output)
+        save_xlsx(rows, periods, targets, hours, output)
         print(f"저장 완료: {output} ({len(rows)}건)")
     except (RuntimeError, ValueError) as exc:
         print(f"오류: {exc}", file=sys.stderr)
