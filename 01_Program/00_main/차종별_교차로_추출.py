@@ -72,6 +72,8 @@ GOGANG_WEST_RAW_SLOTS = tuple(list(range(7 * 60, 9 * 60, 15)) + list(range(17 * 
 GOGANG_WEST_RAW_INTERSECTION_NAME = "고강지하차도사거리"
 GOGANG_WEST_RAW_APPROACH_ID = "ACSR000003"
 GOGANG_WEST_RAW_DIRECTION = "서"
+GOGANG_PEAK_RAW_DATE = date(2026, 9, 4)
+GOGANG_PEAK_RAW_OUTPUT_PATH = RESULT_DIR / "고강지하차도사거리_260904_첨두시간_15분_원천.xlsx"
 TEN_INTERSECTIONS_RAW_NAMES = (
     "대장동공영차고지사거리",
     "덕산고교사거리",
@@ -1025,6 +1027,86 @@ def export_gogang_west_raw_15m(
         writer = csv.writer(file)
         writer.writerow(GOGANG_WEST_RAW_CSV_HEADER)
         writer.writerows(rows)
+    return len(rows)
+
+
+def build_gogang_peak_raw_15m_sql_params() -> tuple[str, dict[str, object]]:
+    """Build the fixed all-approach source-row query without aggregation."""
+    bind_params: dict[str, object] = {
+        "intersection_name": GOGANG_WEST_RAW_INTERSECTION_NAME,
+        "date_start": datetime.combine(GOGANG_PEAK_RAW_DATE, datetime.min.time()),
+        "date_end": datetime.combine(GOGANG_PEAK_RAW_DATE + timedelta(days=1), datetime.min.time()),
+    }
+    slot_clause = build_time_slot_filter_clause(
+        list(GOGANG_WEST_RAW_SLOTS), bind_params, FIFTEEN_MINUTE_AGGREGATION
+    )
+    direction_code = "TRIM(TO_CHAR(v.DRCT_CD))"
+    vehicle_code = "TRIM(TO_CHAR(v.VKND_CD))"
+    sql = f"""
+        SELECT
+            v.TOT_DT,
+            c.CRSRD_NM,
+            a.ACSR_NM,
+            NVL(d.CD_NM, {direction_code}) AS DRCT_NM,
+            NVL(k.CD_NM, {vehicle_code}) AS VKND_NM,
+            {vehicle_code} AS VKND_CD,
+            v.TRF_QNTY
+        FROM {FIFTEEN_MINUTE_AGGREGATION.traffic_table} v
+        JOIN {INTERSECTION_TABLE} c
+          ON c.NODE_ID = v.NODE_ID
+        LEFT JOIN {APPROACH_TABLE} a
+          ON a.NODE_ID = v.NODE_ID
+         AND a.ACSR_ID = v.ACSR_ID
+        LEFT JOIN {CODE_TABLE} d
+          ON d.GRP_CD = 'DRCT_CD'
+         AND TRIM(TO_CHAR(d.CD)) = {direction_code}
+        LEFT JOIN {CODE_TABLE} k
+          ON k.GRP_CD = 'VHCL_ATTR_CD'
+         AND TRIM(TO_CHAR(k.CD)) = {vehicle_code}
+        WHERE c.CRSRD_NM = :intersection_name
+          AND v.TOT_DT >= :date_start
+          AND v.TOT_DT < :date_end
+          {slot_clause}
+        ORDER BY v.TOT_DT, a.ACSR_NM, VKND_NM, DRCT_NM, {vehicle_code}
+    """
+    ensure_select_sql(sql)
+    return sql, bind_params
+
+
+def save_gogang_peak_raw_xlsx(rows: list[list[object]], output_path: Path) -> None:
+    """Save one fixed-sheet workbook for the requested raw source rows."""
+    try:
+        from openpyxl import Workbook
+    except ImportError as exc:  # pragma: no cover - 실행 환경 안내용
+        raise RuntimeError("XLSX 저장에는 openpyxl 패키지가 필요합니다.") from exc
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    workbook = Workbook(write_only=True)
+    sheet = workbook.create_sheet(GOGANG_WEST_RAW_INTERSECTION_NAME)
+    sheet.append(GOGANG_WEST_RAW_CSV_HEADER)
+    for row in rows:
+        sheet.append(row)
+    workbook.save(output_path)
+
+
+def export_gogang_peak_raw_15m(
+    output_path: Path = GOGANG_PEAK_RAW_OUTPUT_PATH,
+) -> int:
+    """Export all Gogang approaches, turns, and vehicle kinds as source rows."""
+    conn = connect_db()
+    try:
+        with conn.cursor() as cursor:
+            validate_vehicle_extract_tables(cursor, FIFTEEN_MINUTE_AGGREGATION)
+            sql, bind_params = build_gogang_peak_raw_15m_sql_params()
+            rows = [
+                normalize_ten_intersections_raw_row(row)
+                for row in execute_select(cursor, sql, bind_params)
+            ]
+    finally:
+        conn.close()
+
+    rows.sort(key=result_sort_key)
+    save_gogang_peak_raw_xlsx(rows, output_path)
     return len(rows)
 
 
@@ -2514,6 +2596,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Export the fixed Gogang west raw 15-minute CSV.",
     )
     parser.add_argument(
+        "--gogang-peak-raw-15m",
+        action="store_true",
+        help="Export fixed Gogang all-approach peak raw 15-minute rows to an XLSX workbook.",
+    )
+    parser.add_argument(
         "--ten-intersections-raw-15m",
         action="store_true",
         help="Export fixed ten-intersection raw 15-minute rows to an XLSX workbook.",
@@ -2538,6 +2625,17 @@ def main(argv: list[str] | None = None) -> int:
         output_path = Path(args.output) if args.output else GOGANG_WEST_RAW_OUTPUT_PATH
         try:
             row_count = export_gogang_west_raw_15m(output_path)
+        except Exception as exc:
+            print(f"\nRaw export failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"\nSaved: {output_path}")
+        print(f"Raw rows: {row_count:,}")
+        return 0
+
+    if args.gogang_peak_raw_15m:
+        output_path = Path(args.output) if args.output else GOGANG_PEAK_RAW_OUTPUT_PATH
+        try:
+            row_count = export_gogang_peak_raw_15m(output_path)
         except Exception as exc:
             print(f"\nRaw export failed: {exc}", file=sys.stderr)
             return 1

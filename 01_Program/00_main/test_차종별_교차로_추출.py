@@ -196,6 +196,59 @@ def test_gogang_west_raw_export_writes_requested_header_and_preserves_quantity(
     assert content[2].endswith(",07,38")
 
 
+def test_gogang_peak_raw_sql_uses_all_approaches_and_requested_slots():
+    sql, params = vehicle.build_gogang_peak_raw_15m_sql_params()
+    compact_sql = re.sub(r"\s+", " ", sql)
+
+    assert "FROM S_CRSRD_VKND_TRF_15MI v" in compact_sql
+    assert "a.ACSR_NM" in compact_sql
+    assert "TRIM(TO_CHAR(v.VKND_CD)) AS VKND_CD" in compact_sql
+    assert "SUM(" not in compact_sql
+    assert "GROUP BY" not in compact_sql
+    assert "HAVING" not in compact_sql
+    assert params["intersection_name"] == "고강지하차도사거리"
+    assert params["date_start"].date() == vehicle.GOGANG_PEAK_RAW_DATE
+    assert params["date_end"].date() == vehicle.GOGANG_PEAK_RAW_DATE.replace(day=5)
+    assert [params[f"time_slot{index}"] for index in range(16)] == [
+        "07:00",
+        "07:15",
+        "07:30",
+        "07:45",
+        "08:00",
+        "08:15",
+        "08:30",
+        "08:45",
+        "17:00",
+        "17:15",
+        "17:30",
+        "17:45",
+        "18:00",
+        "18:15",
+        "18:30",
+        "18:45",
+    ]
+
+
+def test_gogang_peak_raw_xlsx_has_one_sheet_header_and_vehicle_code(tmp_path):
+    from openpyxl import load_workbook
+
+    output_path = tmp_path / "gogang-peak.xlsx"
+    vehicle.save_gogang_peak_raw_xlsx(
+        [["2026-09-04 07:00:00", "고강지하차도사거리", "동(서향)", "좌", "SUV", "07", 38]],
+        output_path,
+    )
+
+    workbook = load_workbook(output_path, read_only=True, data_only=True)
+    try:
+        assert workbook.sheetnames == ["고강지하차도사거리"]
+        assert list(workbook.active.values) == [
+            tuple(vehicle.GOGANG_WEST_RAW_CSV_HEADER),
+            ("2026-09-04 07:00:00", "고강지하차도사거리", "동(서향)", "좌", "SUV", "07", 38),
+        ]
+    finally:
+        workbook.close()
+
+
 def test_ten_intersections_raw_sql_uses_source_rows_and_requested_conditions():
     intersections = [
         vehicle.Intersection(node_id=index, name=name)
