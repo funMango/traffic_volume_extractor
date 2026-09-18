@@ -59,6 +59,7 @@ def test_fifteen_minute_sql_uses_selected_table_and_minute_slots():
     compact_sql = re.sub(r"\s+", " ", sql)
 
     assert "FROM S_CRSRD_VKND_TRF_15MI v" in compact_sql
+    assert "TRIM(TO_CHAR(v.VKND_CD)) AS VKND_CD" in compact_sql
     assert "TO_CHAR(v.TOT_DT, 'HH24:MI') IN" in compact_sql
     assert [params[f"time_slot{index}"] for index in range(9)] == [
         "07:15",
@@ -171,8 +172,8 @@ def test_gogang_west_raw_export_writes_requested_header_and_preserves_quantity(
             return None
 
     rows = [
-        (datetime(2026, 9, 4, 7), "고강지하차도사거리", "직진", "SUV", 38),
-        (datetime(2026, 9, 4, 7), "고강지하차도사거리", "좌회전", "세단", 10),
+        (datetime(2026, 9, 4, 7), "고강지하차도사거리", "직진", "SUV", "07", 38),
+        (datetime(2026, 9, 4, 7), "고강지하차도사거리", "좌회전", "세단", "02", 10),
     ]
     monkeypatch.setattr(vehicle, "connect_db", lambda: Connection())
     monkeypatch.setattr(vehicle, "validate_vehicle_extract_tables", lambda *_args: None)
@@ -189,6 +190,7 @@ def test_gogang_west_raw_export_writes_requested_header_and_preserves_quantity(
         "서",
         "좌",
         "세단",
+        "02",
         "10",
     ]
-    assert content[2].endswith(",38")
+    assert content[2].endswith(",07,38")

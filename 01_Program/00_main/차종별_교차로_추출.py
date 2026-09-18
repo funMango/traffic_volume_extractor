@@ -57,7 +57,15 @@ SQLITE_INSERT_BATCH_SIZE = 10000
 EXCLUDED_VEHICLE_CODES = {"0", "1"}
 RESULT_HEADER = ["시간", "교차로", "교차로 방향", "방향", "차종", "교통량"]
 CSV_HEADER = RESULT_HEADER
-GOGANG_WEST_RAW_CSV_HEADER = ["일시", "교차로", "교차로 방향", "교차로 접근로", "차종", "교통량"]
+GOGANG_WEST_RAW_CSV_HEADER = [
+    "일시",
+    "교차로",
+    "교차로 방향",
+    "교차로 접근로",
+    "차종",
+    "차종 코드",
+    "교통량",
+]
 GOGANG_WEST_RAW_OUTPUT_PATH = RESULT_DIR / "고강지하차도사거리_서_동향__260904_260917_15분.csv"
 GOGANG_WEST_RAW_DATES = (date(2026, 9, 4), date(2026, 9, 17))
 GOGANG_WEST_RAW_SLOTS = tuple(list(range(7 * 60, 9 * 60, 15)) + list(range(17 * 60, 19 * 60, 15)))
@@ -947,6 +955,7 @@ def build_gogang_west_raw_15m_sql_params() -> tuple[str, dict[str, object]]:
             c.CRSRD_NM,
             NVL(d.CD_NM, {direction_code}) AS DRCT_NM,
             NVL(k.CD_NM, {vehicle_code}) AS VKND_NM,
+            {vehicle_code} AS VKND_CD,
             v.TRF_QNTY
         FROM {FIFTEEN_MINUTE_AGGREGATION.traffic_table} v
         JOIN {INTERSECTION_TABLE} c
@@ -968,7 +977,7 @@ def build_gogang_west_raw_15m_sql_params() -> tuple[str, dict[str, object]]:
 
 
 def normalize_gogang_west_raw_row(row: tuple) -> list[object]:
-    tot_dt, intersection, direction, vehicle_kind, traffic_volume = row
+    tot_dt, intersection, direction, vehicle_kind, vehicle_code, traffic_volume = row
     approach = {"좌회전": "좌", "직진": "직", "우회전": "우"}.get(direction, direction)
     return [
         format_time(tot_dt),
@@ -976,6 +985,7 @@ def normalize_gogang_west_raw_row(row: tuple) -> list[object]:
         GOGANG_WEST_RAW_DIRECTION,
         approach,
         vehicle_kind,
+        vehicle_code,
         traffic_volume,
     ]
 
