@@ -10,7 +10,7 @@ import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Iterable
@@ -59,6 +59,7 @@ class Period:
 class Target:
     intersection: str | None = None
     direction: str | None = None
+    approach_name: str | None = None
 
     @property
     def label(self) -> str:
@@ -130,7 +131,7 @@ def parse_target(raw: str) -> list[Target]:
         intersection, direction = (part.strip() for part in value.rsplit("-", 1))
         if not intersection or not direction:
             raise ValueError("방향 대상은 교차로명-북(동향) 형식으로 입력해 주세요.")
-        targets.append(Target(intersection=intersection, direction=re.sub(r"\s+", "", direction)))
+        targets.append(Target(intersection=intersection, direction=direction))
     return targets
 
 
@@ -139,10 +140,13 @@ def targets_label(targets: list[Target]) -> str:
 
 
 def parse_hours(raw: str) -> list[int]:
-    aliases = {"첨두시": "07~09", "일반시간": "07~10"}
+    aliases = {"첨두시": "07~09, 17~19", "일반시간": "07~10"}
     slots: set[int] = set()
-    for token in (part.strip().lower() for part in raw.split(",")):
-        token = aliases.get(token, token)
+    tokens = []
+    for part in raw.split(","):
+        tokens.extend(aliases.get(part.strip().lower(), part).split(","))
+    for token in tokens:
+        token = token.strip()
         match = re.fullmatch(r"(\d{1,2})(?::00)?\s*~\s*(\d{1,2})(?::00)?", token)
         if not match:
             raise ValueError(f"시간 형식이 올바르지 않습니다: {token}")
@@ -199,6 +203,59 @@ def connect_read_only():
     return connection
 
 
+def load_approach_names(connection: Any) -> dict[str, list[str]]:
+    """Load actual approach names once before starting the traffic queries."""
+    with connection.cursor() as cursor:
+        rows = execute_select(
+            cursor,
+            """
+            SELECT c.CRSRD_NM, a.ACSR_NM
+            FROM M_CRSRD_INF c
+            JOIN M_CRSRD_ACSR_INF a ON a.NODE_ID = c.NODE_ID
+            ORDER BY c.CRSRD_NM, a.ACSR_NM
+            """,
+        )
+    approaches: dict[str, list[str]] = {}
+    for intersection, approach in rows:
+        approaches.setdefault(str(intersection), []).append(str(approach))
+    return approaches
+
+
+def normalize_direction(direction: str) -> str:
+    compact = re.sub(r"\s+", "", direction)
+    match = re.fullmatch(r"([동서남북])\(([동서남북])향\)", compact)
+    if match is None:
+        raise ValueError("방향 대상은 교차로명-북(동향) 형식으로 입력해 주세요.")
+    return f"{match.group(1)} ({match.group(2)}향)"
+
+
+def resolve_target_approaches(
+    targets: list[Target], approach_names: dict[str, list[str]]
+) -> list[Target]:
+    """Resolve user direction input to one actual DB approach name."""
+    resolved: list[Target] = []
+    for target in targets:
+        if target.direction is None:
+            resolved.append(target)
+            continue
+
+        direction = normalize_direction(target.direction)
+        approaches = approach_names.get(target.intersection or "", [])
+        normalized = [(name, re.sub(r"\s+", "", name)) for name in approaches]
+        exact_name = f"{target.intersection}-{direction}"
+        exact = [name for name, value in normalized if value == re.sub(r"\s+", "", exact_name)]
+        candidates = exact or [
+            name
+            for name, value in normalized
+            if value.endswith(re.sub(r"\s+", "", f"-{direction}"))
+        ]
+        if len(candidates) != 1:
+            candidate_text = ", ".join(candidates) if candidates else "후보 없음"
+            raise LookupError(f"'{target.label}' 접근로 해석 실패: {candidate_text}")
+        resolved.append(replace(target, approach_name=candidates[0]))
+    return resolved
+
+
 def build_day_sql(targets: list[Target], hours: list[int]) -> tuple[str, dict[str, Any]]:
     params: dict[str, Any] = {f"hour{index}": hour for index, hour in enumerate(hours)}
     filters = [
@@ -215,7 +272,9 @@ def build_day_sql(targets: list[Target], hours: list[int]) -> tuple[str, dict[st
         params[f"intersection_name{index}"] = target.intersection
         condition = f"c.CRSRD_NM = :intersection_name{index}"
         if target.direction is not None:
-            params[f"direction_name{index}"] = target.direction
+            if target.approach_name is None:
+                raise RuntimeError(f"'{target.label}'의 실제 접근로명이 해석되지 않았습니다.")
+            params[f"direction_name{index}"] = target.approach_name
             condition += f" AND a.ACSR_NM = :direction_name{index}"
         target_filters.append(f"({condition})")
     if target_filters:
@@ -404,6 +463,11 @@ def main() -> int:
         targets = parse_target(
             input("대상 (*, 교차로명, 교차로명-북(동향), 쉼표로 여러 개 입력 가능): ")
         )
+        connection = connect_read_only()
+        try:
+            targets = resolve_target_approaches(targets, load_approach_names(connection))
+        finally:
+            connection.close()
         hours = parse_hours(input("시간 (첨두시, 일반시간, 07~09, 07~09, 17~19): "))
         rows = fetch_parallel(periods, targets, hours)
         output = RESULT_DIR / f"차종_미확인_비율_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
