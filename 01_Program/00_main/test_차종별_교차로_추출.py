@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -111,3 +112,83 @@ def test_required_column_validation_uses_selected_traffic_table(monkeypatch):
     vehicle.validate_vehicle_extract_tables(object(), vehicle.FIFTEEN_MINUTE_AGGREGATION)
 
     assert checked_tables[0] == "S_CRSRD_VKND_TRF_15MI"
+
+
+@pytest.mark.parametrize("sql", ["DELETE FROM traffic", "SELECT 1; SELECT 2"])
+def test_ensure_select_sql_rejects_non_read_only_or_multiple_statements(sql):
+    with pytest.raises(RuntimeError):
+        vehicle.ensure_select_sql(sql)
+
+
+def test_gogang_west_raw_sql_reads_only_requested_source_rows():
+    sql, params = vehicle.build_gogang_west_raw_15m_sql_params()
+    compact_sql = re.sub(r"\s+", " ", sql)
+
+    assert "FROM S_CRSRD_VKND_TRF_15MI v" in compact_sql
+    assert "SUM(" not in compact_sql
+    assert "GROUP BY" not in compact_sql
+    assert "HAVING" not in compact_sql
+    assert params["approach_id"] == "ACSR000003"
+    assert [params[f"date_start{index}"].date() for index in range(2)] == [
+        vehicle.GOGANG_WEST_RAW_DATES[0],
+        vehicle.GOGANG_WEST_RAW_DATES[1],
+    ]
+    assert [params[f"time_slot{index}"] for index in range(16)] == [
+        "07:00",
+        "07:15",
+        "07:30",
+        "07:45",
+        "08:00",
+        "08:15",
+        "08:30",
+        "08:45",
+        "17:00",
+        "17:15",
+        "17:30",
+        "17:45",
+        "18:00",
+        "18:15",
+        "18:30",
+        "18:45",
+    ]
+
+
+def test_gogang_west_raw_export_writes_requested_header_and_preserves_quantity(
+    monkeypatch, tmp_path
+):
+    class Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    class Connection:
+        def cursor(self):
+            return Cursor()
+
+        def close(self):
+            return None
+
+    rows = [
+        (datetime(2026, 9, 4, 7), "고강지하차도사거리", "직진", "SUV", 38),
+        (datetime(2026, 9, 4, 7), "고강지하차도사거리", "좌회전", "세단", 10),
+    ]
+    monkeypatch.setattr(vehicle, "connect_db", lambda: Connection())
+    monkeypatch.setattr(vehicle, "validate_vehicle_extract_tables", lambda *_args: None)
+    monkeypatch.setattr(vehicle, "execute_select", lambda *_args: rows)
+    output_path = tmp_path / "raw.csv"
+
+    assert vehicle.export_gogang_west_raw_15m(output_path) == 2
+    content = output_path.read_text(encoding="utf-8-sig").splitlines()
+
+    assert content[0].split(",") == vehicle.GOGANG_WEST_RAW_CSV_HEADER
+    assert content[1].split(",") == [
+        "2026-09-04 07:00:00",
+        "고강지하차도사거리",
+        "서",
+        "좌",
+        "세단",
+        "10",
+    ]
+    assert content[2].endswith(",38")

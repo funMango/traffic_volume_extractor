@@ -57,6 +57,13 @@ SQLITE_INSERT_BATCH_SIZE = 10000
 EXCLUDED_VEHICLE_CODES = {"0", "1"}
 RESULT_HEADER = ["시간", "교차로", "교차로 방향", "방향", "차종", "교통량"]
 CSV_HEADER = RESULT_HEADER
+GOGANG_WEST_RAW_CSV_HEADER = ["일시", "교차로", "교차로 방향", "교차로 접근로", "차종", "교통량"]
+GOGANG_WEST_RAW_OUTPUT_PATH = RESULT_DIR / "고강지하차도사거리_서_동향__260904_260917_15분.csv"
+GOGANG_WEST_RAW_DATES = (date(2026, 9, 4), date(2026, 9, 17))
+GOGANG_WEST_RAW_SLOTS = tuple(list(range(7 * 60, 9 * 60, 15)) + list(range(17 * 60, 19 * 60, 15)))
+GOGANG_WEST_RAW_INTERSECTION_NAME = "고강지하차도사거리"
+GOGANG_WEST_RAW_APPROACH_ID = "ACSR000003"
+GOGANG_WEST_RAW_DIRECTION = "서"
 SQLITE_TABLE = "traffic_by_vehicle"
 SQLITE_COLUMNS = [
     "observed_at",
@@ -914,6 +921,88 @@ def normalize_result_row(row: tuple) -> list[object]:
         vknd_nm or normalize_code(vknd_cd),
         int(trf_qnty or 0),
     ]
+
+
+def build_gogang_west_raw_15m_sql_params() -> tuple[str, dict[str, object]]:
+    """Build the fixed raw-row query without aggregation or value filtering."""
+    bind_params: dict[str, object] = {
+        "intersection_name": GOGANG_WEST_RAW_INTERSECTION_NAME,
+        "approach_id": GOGANG_WEST_RAW_APPROACH_ID,
+    }
+    date_conditions = []
+    for index, target_date in enumerate(GOGANG_WEST_RAW_DATES):
+        bind_params[f"date_start{index}"] = datetime.combine(target_date, datetime.min.time())
+        bind_params[f"date_end{index}"] = datetime.combine(
+            target_date + timedelta(days=1), datetime.min.time()
+        )
+        date_conditions.append(f"(v.TOT_DT >= :date_start{index} AND v.TOT_DT < :date_end{index})")
+    slot_clause = build_time_slot_filter_clause(
+        list(GOGANG_WEST_RAW_SLOTS), bind_params, FIFTEEN_MINUTE_AGGREGATION
+    )
+    direction_code = "TRIM(TO_CHAR(v.DRCT_CD))"
+    vehicle_code = "TRIM(TO_CHAR(v.VKND_CD))"
+    sql = f"""
+        SELECT
+            v.TOT_DT,
+            c.CRSRD_NM,
+            NVL(d.CD_NM, {direction_code}) AS DRCT_NM,
+            NVL(k.CD_NM, {vehicle_code}) AS VKND_NM,
+            v.TRF_QNTY
+        FROM {FIFTEEN_MINUTE_AGGREGATION.traffic_table} v
+        JOIN {INTERSECTION_TABLE} c
+          ON c.NODE_ID = v.NODE_ID
+        LEFT JOIN {CODE_TABLE} d
+          ON d.GRP_CD = 'DRCT_CD'
+         AND TRIM(TO_CHAR(d.CD)) = {direction_code}
+        LEFT JOIN {CODE_TABLE} k
+          ON k.GRP_CD = 'VHCL_ATTR_CD'
+         AND TRIM(TO_CHAR(k.CD)) = {vehicle_code}
+        WHERE c.CRSRD_NM = :intersection_name
+          AND v.ACSR_ID = :approach_id
+          AND ({" OR ".join(date_conditions)})
+          {slot_clause}
+        ORDER BY v.TOT_DT, VKND_NM, DRCT_NM, {vehicle_code}
+    """
+    ensure_select_sql(sql)
+    return sql, bind_params
+
+
+def normalize_gogang_west_raw_row(row: tuple) -> list[object]:
+    tot_dt, intersection, direction, vehicle_kind, traffic_volume = row
+    approach = {"좌회전": "좌", "직진": "직", "우회전": "우"}.get(direction, direction)
+    return [
+        format_time(tot_dt),
+        intersection,
+        GOGANG_WEST_RAW_DIRECTION,
+        approach,
+        vehicle_kind,
+        traffic_volume,
+    ]
+
+
+def export_gogang_west_raw_15m(
+    output_path: Path = GOGANG_WEST_RAW_OUTPUT_PATH,
+) -> int:
+    """Export the requested 15-minute source rows with their unmodified quantities."""
+    conn = connect_db()
+    try:
+        with conn.cursor() as cursor:
+            validate_vehicle_extract_tables(cursor, FIFTEEN_MINUTE_AGGREGATION)
+            sql, bind_params = build_gogang_west_raw_15m_sql_params()
+            rows = [
+                normalize_gogang_west_raw_row(row)
+                for row in execute_select(cursor, sql, bind_params)
+            ]
+    finally:
+        conn.close()
+
+    rows.sort(key=result_sort_key)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8-sig") as file:
+        writer = csv.writer(file)
+        writer.writerow(GOGANG_WEST_RAW_CSV_HEADER)
+        writer.writerows(rows)
+    return len(rows)
 
 
 def result_sort_key(row: list[object]) -> tuple[object, object, object, object, object]:
@@ -2271,6 +2360,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="2025-05-01 이상 2026-06-01 미만 전체교차로 차종별 1시간 교통량을 SQLite DB로 저장합니다.",
     )
     parser.add_argument(
+        "--gogang-west-raw-15m",
+        action="store_true",
+        help="Export the fixed Gogang west raw 15-minute CSV.",
+    )
+    parser.add_argument(
         "--output",
         default=None,
         help="--all-intersections-2505-2605-db 사용 시 SQLite 저장 경로를 지정합니다.",
@@ -2286,6 +2380,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.gogang_west_raw_15m:
+        output_path = Path(args.output) if args.output else GOGANG_WEST_RAW_OUTPUT_PATH
+        try:
+            row_count = export_gogang_west_raw_15m(output_path)
+        except Exception as exc:
+            print(f"\nRaw export failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"\nSaved: {output_path}")
+        print(f"Raw rows: {row_count:,}")
+        return 0
+
     if args.all_intersections_2505_2605_db:
         output_path = Path(args.output) if args.output else FIXED_SQLITE_OUTPUT_PATH
         try:
