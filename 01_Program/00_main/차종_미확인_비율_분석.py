@@ -50,7 +50,9 @@ class Period:
 
     @property
     def label(self) -> str:
-        return f"{self.start:%Y.%m.%d} 00:00~{self.end:%Y.%m.%d} 23:59"
+        if self.start == self.end:
+            return f"{self.start:%Y.%m.%d}"
+        return f"{self.start:%Y.%m.%d}-{self.end:%Y.%m.%d}"
 
 
 @dataclass(frozen=True)
@@ -142,7 +144,13 @@ def parse_hours(raw: str) -> list[int]:
 
 
 def hours_label(hours: list[int]) -> str:
-    return ", ".join(f"{hour:02d}:00" for hour in hours)
+    ranges: list[tuple[int, int]] = []
+    for hour in sorted(set(hours)):
+        if ranges and hour == ranges[-1][1]:
+            ranges[-1] = (ranges[-1][0], hour + 1)
+        else:
+            ranges.append((hour, hour + 1))
+    return ", ".join(f"{start:02d}:00-{end:02d}:00" for start, end in ranges)
 
 
 def ensure_select_sql(sql: str) -> None:
@@ -266,7 +274,7 @@ def save_xlsx(
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "미확인 분석"
-    sheet.merge_cells("A1:G1")
+    sheet.merge_cells("A1:H1")
     sheet["A1"] = "차종 미확인 비율 분석"
     sheet["A1"].font = Font(size=16, bold=True, color="FFFFFF")
     sheet["A1"].fill = PatternFill("solid", fgColor="1F4E78")
@@ -274,18 +282,19 @@ def save_xlsx(
     conditions = [
         ("입력 조건", ""),
         ("기간", ", ".join(period.label for period in periods)),
+        ("시간대", hours_label(hours)),
         ("대상", target.label),
-        ("시간", hours_label(hours)),
         ("계산 기준", "미확인=차종코드 0 또는 1의 교통량 합계 / 전체=모든 차종 교통량 합계"),
         ("표시 기준", "전체 교통량이 0이면 0.00%"),
     ]
     for row_no, (label, value) in enumerate(conditions, 3):
         sheet.cell(row_no, 1, label).font = Font(bold=True)
         sheet.cell(row_no, 2, value)
-        sheet.merge_cells(start_row=row_no, start_column=2, end_row=row_no, end_column=7)
+        sheet.merge_cells(start_row=row_no, start_column=2, end_row=row_no, end_column=8)
     header_row = 10
     headers = [
         "기간",
+        "시간",
         "교차로",
         "방향",
         "접근로",
@@ -302,24 +311,34 @@ def save_xlsx(
         sheet.append(
             [
                 row.period,
+                hours_label(hours),
                 row.intersection,
                 row.direction,
                 row.approach,
                 row.unidentified,
                 row.total,
-                f"=IF(F{row_no}=0,0,E{row_no}/F{row_no})",
+                f"=IF(G{row_no}=0,0,F{row_no}/G{row_no})",
             ]
         )
-        sheet.cell(row_no, 5).number_format = "#,##0"
         sheet.cell(row_no, 6).number_format = "#,##0"
-        sheet.cell(row_no, 7).number_format = "0.00%"
+        sheet.cell(row_no, 7).number_format = "#,##0"
+        sheet.cell(row_no, 8).number_format = "0.00%"
     end_row = max(header_row + 1, header_row + len(rows))
-    table = Table(displayName="UnidentifiedVehicleAnalysis", ref=f"A{header_row}:G{end_row}")
+    table = Table(displayName="UnidentifiedVehicleAnalysis", ref=f"A{header_row}:H{end_row}")
     table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True)
     sheet.add_table(table)
     sheet.freeze_panes = f"A{header_row + 1}"
-    sheet.auto_filter.ref = f"A{header_row}:G{end_row}"
-    for column, width in {"A": 38, "B": 24, "C": 20, "D": 14, "E": 18, "F": 16, "G": 24}.items():
+    sheet.auto_filter.ref = f"A{header_row}:H{end_row}"
+    for column, width in {
+        "A": 24,
+        "B": 24,
+        "C": 24,
+        "D": 20,
+        "E": 14,
+        "F": 18,
+        "G": 16,
+        "H": 24,
+    }.items():
         sheet.column_dimensions[column].width = width
     path.parent.mkdir(parents=True, exist_ok=True)
     workbook.save(path)
