@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
 import sys
 from datetime import datetime
@@ -15,6 +16,81 @@ assert SPEC is not None and SPEC.loader is not None
 vehicle = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = vehicle
 SPEC.loader.exec_module(vehicle)
+
+
+def test_load_vehicle_kind_names_keeps_unidentified_codes(tmp_path):
+    path = tmp_path / "vehicle-kinds.json"
+    path.write_text(
+        json.dumps({"0": "미확인", "1": "미확인", "2": "세단"}),
+        encoding="utf-8",
+    )
+
+    assert vehicle.load_vehicle_kind_names(path) == {
+        "0": "미확인",
+        "1": "미확인",
+        "2": "세단",
+    }
+
+
+@pytest.mark.parametrize(
+    "aggregation_unit",
+    [vehicle.ONE_HOUR_AGGREGATION, vehicle.FIFTEEN_MINUTE_AGGREGATION],
+)
+def test_common_traffic_sql_merges_unidentified_vehicle_codes(aggregation_unit):
+    sql, params = vehicle.build_fetch_all_intersections_periods_sql_params(
+        vehicle.parse_periods("260501"),
+        vehicle.parse_time_range("07~09", aggregation_unit),
+        {"0": "미확인", "1": "미확인", "2": "세단"},
+        aggregation_unit,
+    )
+    compact_sql = re.sub(r"\s+", " ", sql)
+
+    assert "CASE WHEN TRIM(TO_CHAR(v.VKND_CD)) IN ('0', '1') THEN '0/1'" in compact_sql
+    assert "TRIM(TO_CHAR(v.VKND_CD)) IN (:vknd0, :vknd1, :vknd2)" in compact_sql
+    assert "0/1" in params.values()
+
+
+def test_sqlite_validation_accepts_merged_unidentified_code(tmp_path):
+    output_path = tmp_path / "traffic.db"
+    conn = vehicle.recreate_sqlite_file(output_path)
+    try:
+        vehicle.insert_sqlite_records(
+            conn,
+            [("2025-05-01 00:00:00", "A", "", "직진", "미확인", 3, "0/1")],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    summary = vehicle.validate_sqlite_output(output_path)
+
+    assert summary["raw_unidentified_code_rows"] == 0
+
+
+@pytest.mark.parametrize(
+    "observed_at, traffic_volume, vehicle_code",
+    [
+        ("2025-05-01 00:00:00", 3, "0"),
+        ("2025-05-01 00:00:00", 0, "2"),
+        ("2025-04-30 23:00:00", 3, "2"),
+    ],
+)
+def test_sqlite_validation_keeps_raw_code_volume_and_period_checks(
+    tmp_path, observed_at, traffic_volume, vehicle_code
+):
+    output_path = tmp_path / "traffic.db"
+    conn = vehicle.recreate_sqlite_file(output_path)
+    try:
+        vehicle.insert_sqlite_records(
+            conn,
+            [(observed_at, "A", "", "직진", "차종", traffic_volume, vehicle_code)],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    with pytest.raises(RuntimeError):
+        vehicle.validate_sqlite_output(output_path)
 
 
 def test_parse_time_range_supports_hourly_and_quarter_hour_slots():
@@ -59,7 +135,7 @@ def test_fifteen_minute_sql_uses_selected_table_and_minute_slots():
     compact_sql = re.sub(r"\s+", " ", sql)
 
     assert "FROM S_CRSRD_VKND_TRF_15MI v" in compact_sql
-    assert "TRIM(TO_CHAR(v.VKND_CD)) AS VKND_CD" in compact_sql
+    assert "CASE WHEN TRIM(TO_CHAR(v.VKND_CD)) IN ('0', '1') THEN '0/1'" in compact_sql
     assert "TO_CHAR(v.TOT_DT, 'HH24:MI') IN" in compact_sql
     assert [params[f"time_slot{index}"] for index in range(9)] == [
         "07:15",

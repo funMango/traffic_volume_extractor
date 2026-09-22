@@ -54,7 +54,8 @@ FIXED_END_SQL = "DATE '2026-06-01'"
 FIXED_START_TEXT = "2025-05-01 00:00:00"
 FIXED_END_TEXT = "2026-06-01 00:00:00"
 SQLITE_INSERT_BATCH_SIZE = 10000
-EXCLUDED_VEHICLE_CODES = {"0", "1"}
+UNIDENTIFIED_VEHICLE_CODES = {"0", "1"}
+UNIDENTIFIED_VEHICLE_CODE = "0/1"
 RESULT_HEADER = ["시간", "교차로", "교차로 방향", "방향", "차종", "교통량"]
 CSV_HEADER = RESULT_HEADER
 GOGANG_WEST_RAW_CSV_HEADER = [
@@ -356,7 +357,7 @@ def load_vehicle_kind_names(path: Path = VKND_KIND_PATH) -> dict[str, str]:
     vehicle_kind_names: dict[str, str] = {}
     for raw_code, raw_name in raw_data.items():
         code = normalize_code(raw_code)
-        if not code or code in EXCLUDED_VEHICLE_CODES:
+        if not code:
             continue
         name = normalize_code(raw_name) or code
         vehicle_kind_names[code] = name
@@ -716,11 +717,24 @@ def build_vehicle_traffic_sql(
     if not vehicle_kind_names:
         raise RuntimeError("조회 가능한 차종 코드가 없습니다.")
 
-    vknd_code_expression = "TRIM(TO_CHAR(v.VKND_CD))"
+    source_vknd_code_expression = "TRIM(TO_CHAR(v.VKND_CD))"
+    unidentified_vehicle_codes_sql = ", ".join(
+        f"'{code}'" for code in sorted(UNIDENTIFIED_VEHICLE_CODES)
+    )
+    vknd_code_expression = (
+        f"CASE WHEN {source_vknd_code_expression} IN ({unidentified_vehicle_codes_sql}) "
+        f"THEN '{UNIDENTIFIED_VEHICLE_CODE}' ELSE {source_vknd_code_expression} END"
+    )
     drct_code_expression = "TRIM(TO_CHAR(v.DRCT_CD))"
     vknd_in_clause = build_in_clause("vknd", vehicle_kind_names.keys(), bind_params)
+    vehicle_display_names = {
+        **vehicle_kind_names,
+        UNIDENTIFIED_VEHICLE_CODE: vehicle_kind_names.get("0")
+        or vehicle_kind_names.get("1")
+        or UNIDENTIFIED_VEHICLE_CODE,
+    }
     vknd_name_expression = build_vehicle_name_case_expression(
-        vehicle_kind_names,
+        vehicle_display_names,
         vknd_code_expression,
         bind_params,
     )
@@ -758,7 +772,7 @@ def build_vehicle_traffic_sql(
           AND v.TOT_DT < {end_expression}
           {node_condition}
           {time_slot_clause}
-          AND {vknd_code_expression} IN ({vknd_in_clause})
+          AND {source_vknd_code_expression} IN ({vknd_in_clause})
         GROUP BY
             v.TOT_DT,
             c.CRSRD_NM,
@@ -2500,7 +2514,7 @@ def validate_sqlite_output(output_path: Path) -> dict[str, object]:
                 COUNT(*) AS row_count,
                 MIN(observed_at) AS min_observed_at,
                 MAX(observed_at) AS max_observed_at,
-                SUM(CASE WHEN vehicle_code IN ('0', '1') THEN 1 ELSE 0 END) AS excluded_code_rows,
+                SUM(CASE WHEN vehicle_code IN ('0', '1') THEN 1 ELSE 0 END) AS raw_unidentified_code_rows,
                 SUM(CASE WHEN traffic_volume <= 0 THEN 1 ELSE 0 END) AS non_positive_rows
             FROM {SQLITE_TABLE}
             """
@@ -2512,11 +2526,11 @@ def validate_sqlite_output(output_path: Path) -> dict[str, object]:
         "row_count": int(row[0] or 0),
         "min_observed_at": row[1],
         "max_observed_at": row[2],
-        "excluded_code_rows": int(row[3] or 0),
+        "raw_unidentified_code_rows": int(row[3] or 0),
         "non_positive_rows": int(row[4] or 0),
     }
-    if summary["excluded_code_rows"]:
-        raise RuntimeError("SQLite 검증 실패: vehicle_code 0 또는 1 행이 있습니다.")
+    if summary["raw_unidentified_code_rows"]:
+        raise RuntimeError("SQLite 검증 실패: vehicle_code 0 또는 1 원본 행이 있습니다.")
     if summary["non_positive_rows"]:
         raise RuntimeError("SQLite 검증 실패: 교통량이 0 이하인 행이 있습니다.")
     if summary["min_observed_at"] and summary["min_observed_at"] < FIXED_START_TEXT:
