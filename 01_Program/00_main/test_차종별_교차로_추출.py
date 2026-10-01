@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
+import csv
 import json
 import re
+import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -36,7 +38,7 @@ def test_load_vehicle_kind_names_keeps_unidentified_codes(tmp_path):
     "aggregation_unit",
     [vehicle.ONE_HOUR_AGGREGATION, vehicle.FIFTEEN_MINUTE_AGGREGATION],
 )
-def test_common_traffic_sql_merges_unidentified_vehicle_codes(aggregation_unit):
+def test_common_traffic_sql_preserves_all_vehicle_codes(aggregation_unit):
     sql, params = vehicle.build_fetch_all_intersections_periods_sql_params(
         vehicle.parse_periods("260501"),
         vehicle.parse_time_range("07~09", aggregation_unit),
@@ -45,18 +47,24 @@ def test_common_traffic_sql_merges_unidentified_vehicle_codes(aggregation_unit):
     )
     compact_sql = re.sub(r"\s+", " ", sql)
 
-    assert "CASE WHEN TRIM(TO_CHAR(v.VKND_CD)) IN ('0', '1') THEN '0/1'" in compact_sql
-    assert "TRIM(TO_CHAR(v.VKND_CD)) IN (:vknd0, :vknd1, :vknd2)" in compact_sql
-    assert "0/1" in params.values()
+    assert "TRIM(TO_CHAR(v.VKND_CD)) AS VKND_CD" in compact_sql
+    assert "TRIM(TO_CHAR(v.VKND_CD)) IN" not in compact_sql
+    assert "0/1" not in params.values()
+    assert "ELSE '미확인' END" in compact_sql
+    assert "TRIM(TO_CHAR(v.VKND_CD))" in compact_sql.split("GROUP BY")[1]
+    assert "HAVING SUM(NVL(v.TRF_QNTY, 0)) > 0" in compact_sql
 
 
-def test_sqlite_validation_accepts_merged_unidentified_code(tmp_path):
+def test_sqlite_validation_accepts_original_unidentified_codes(tmp_path):
     output_path = tmp_path / "traffic.db"
     conn = vehicle.recreate_sqlite_file(output_path)
     try:
         vehicle.insert_sqlite_records(
             conn,
-            [("2025-05-01 00:00:00", "A", "", "직진", "미확인", 3, "0/1")],
+            [
+                ("2025-05-01 00:00:00", "A", "", "직진", "미확인", 3, code)
+                for code in ("0", "1", "99")
+            ],
         )
         conn.commit()
     finally:
@@ -64,13 +72,77 @@ def test_sqlite_validation_accepts_merged_unidentified_code(tmp_path):
 
     summary = vehicle.validate_sqlite_output(output_path)
 
-    assert summary["raw_unidentified_code_rows"] == 0
+    assert summary["raw_unidentified_code_rows"] == 2
+    assert summary["row_count"] == 3
+
+
+@pytest.mark.parametrize(
+    "aggregation_unit",
+    [vehicle.ONE_HOUR_AGGREGATION, vehicle.FIFTEEN_MINUTE_AGGREGATION],
+)
+def test_generated_query_groups_by_original_code(aggregation_unit):
+    # Execute the shared query against local sample tables without an Oracle connection.
+    conn = sqlite3.connect(":memory:")
+    conn.create_function("TO_CHAR", 1, str)
+    conn.create_function(
+        "TO_CHAR", 2, lambda value, fmt: value[11:16] if fmt == "HH24:MI" else value[11:13]
+    )
+    conn.create_function("TO_NUMBER", 1, int)
+    conn.create_function("NVL", 2, lambda value, fallback: fallback if value is None else value)
+    try:
+        conn.executescript(f"""
+            CREATE TABLE {aggregation_unit.traffic_table}
+                (TOT_DT TEXT, NODE_ID INTEGER, ACSR_ID TEXT, DRCT_CD TEXT, VKND_CD TEXT, TRF_QNTY INTEGER);
+            CREATE TABLE M_CRSRD_INF (NODE_ID INTEGER, CRSRD_NM TEXT);
+            CREATE TABLE M_CRSRD_ACSR_INF (NODE_ID INTEGER, ACSR_ID TEXT, ACSR_NM TEXT);
+            CREATE TABLE M_CD_INF (GRP_CD TEXT, CD TEXT, CD_NM TEXT);
+            INSERT INTO M_CRSRD_INF VALUES (7, 'A');
+            INSERT INTO M_CRSRD_ACSR_INF VALUES (7, 'N', '북');
+            INSERT INTO M_CD_INF VALUES ('DRCT_CD', '1', '직진');
+        """)
+        conn.executemany(
+            f"INSERT INTO {aggregation_unit.traffic_table} VALUES (?, 7, 'N', '1', ?, ?)",
+            [
+                ("2026-05-01 07:00:00", code, volume)
+                for code, volume in [
+                    ("0", 3),
+                    ("1", 5),
+                    ("02", 7),
+                    ("03", 11),
+                    ("99", 13),
+                    ("99", 2),
+                    ("100", 17),
+                    ("101", 0),
+                ]
+            ],
+        )
+        sql, params = vehicle.build_fetch_rows_sql_params(
+            vehicle.Intersection(7, "A"),
+            vehicle.parse_periods("260501")[0],
+            vehicle.parse_time_range("07~09", aggregation_unit),
+            {"0": "미확인", "1": "미확인", "02": "세단", "03": "세단", "100": ""},
+            aggregation_unit,
+        )
+        params = {
+            key: str(value) if isinstance(value, datetime) else value
+            for key, value in params.items()
+        }
+        rows = conn.execute(sql, params).fetchall()
+        assert {row[5]: (row[6], row[7]) for row in rows} == {
+            "0": ("미확인", 3),
+            "1": ("미확인", 5),
+            "02": ("세단", 7),
+            "03": ("세단", 11),
+            "99": ("미확인", 15),
+            "100": ("미확인", 17),
+        }
+    finally:
+        conn.close()
 
 
 @pytest.mark.parametrize(
     "observed_at, traffic_volume, vehicle_code",
     [
-        ("2025-05-01 00:00:00", 3, "0"),
         ("2025-05-01 00:00:00", 0, "2"),
         ("2025-04-30 23:00:00", 3, "2"),
     ],
@@ -112,6 +184,75 @@ def test_parse_time_range_supports_hourly_and_quarter_hour_slots():
     )
 
 
+def test_blank_vehicle_names_and_empty_mapping_use_unidentified(tmp_path):
+    path = tmp_path / "kinds.json"
+    path.write_text(json.dumps({"02": "세단", "99": " ", "100": None}), encoding="utf-8")
+    names = vehicle.load_vehicle_kind_names(path)
+    assert names == {"02": "세단", "99": "미확인", "100": "미확인"}
+    params = {}
+    expression = vehicle.build_vehicle_name_case_expression({"99": " "}, "code", params)
+    assert params["vknd_case_name0"] == "미확인"
+    assert "ELSE '미확인' END" in expression
+    sql, _ = vehicle.build_all_intersections_vehicle_sql({})
+    assert "'미확인' AS VKND_NM" in sql
+    path.write_text("{}", encoding="utf-8")
+    assert vehicle.load_vehicle_kind_names(path) == {}
+
+
+def test_all_output_paths_preserve_codes_names_and_volumes(tmp_path):
+    from openpyxl import load_workbook
+
+    source_rows = [
+        (datetime(2026, 5, 1, 7), "A", "북", "1", "직진", code, name, volume)
+        for code, name, volume in [
+            ("0", "미확인", 3),
+            ("1", "미확인", 5),
+            ("02", "세단", 7),
+            ("03", "세단", 11),
+            ("99", None, 13),
+            ("100", "", 17),
+        ]
+    ]
+    rows = [vehicle.normalize_result_row(row) for row in source_rows]
+    records = [vehicle.normalize_sqlite_record(row) for row in source_rows]
+    assert [tuple(row) for row in rows] == records
+    assert [row[4] for row in rows] == ["미확인", "미확인", "세단", "세단", "미확인", "미확인"]
+    db_path = tmp_path / "traffic.db"
+    vehicle.save_sqlite(rows, db_path)
+    stored = vehicle.read_output_rows_from_sqlite(db_path)
+    assert sorted(stored) == sorted(rows)
+    assert sum(row[5] for row in stored) == 56
+    assert vehicle.validate_sqlite_output(db_path)["row_count"] == 6
+    for export in (False, True):
+        csv_path = tmp_path / f"traffic-{export}.csv"
+        xlsx_path = tmp_path / f"traffic-{export}.xlsx"
+        if export:
+            vehicle.export_sqlite_to_csv(db_path, csv_path, batch_size=1)
+            vehicle.export_sqlite_to_xlsx(db_path, xlsx_path, batch_size=1)
+        else:
+            vehicle.save_csv(rows, csv_path)
+            vehicle.save_xlsx(rows, xlsx_path)
+        with csv_path.open(encoding="utf-8-sig", newline="") as stream:
+            csv_rows = list(csv.reader(stream))
+        assert csv_rows[0] == [
+            "시간",
+            "교차로",
+            "교차로 방향",
+            "방향",
+            "차종",
+            "교통량",
+            "차종 코드",
+        ]
+        assert sorted(csv_rows[1:]) == sorted([[str(value) for value in row] for row in rows])
+        workbook = load_workbook(xlsx_path, read_only=True)
+        try:
+            xlsx_rows = list(workbook.active.values)
+            assert xlsx_rows[0] == tuple(csv_rows[0])
+            assert sorted(xlsx_rows[1:]) == sorted(records)
+        finally:
+            workbook.close()
+
+
 @pytest.mark.parametrize(
     ("raw", "aggregation_unit", "message"),
     [
@@ -135,7 +276,7 @@ def test_fifteen_minute_sql_uses_selected_table_and_minute_slots():
     compact_sql = re.sub(r"\s+", " ", sql)
 
     assert "FROM S_CRSRD_VKND_TRF_15MI v" in compact_sql
-    assert "CASE WHEN TRIM(TO_CHAR(v.VKND_CD)) IN ('0', '1') THEN '0/1'" in compact_sql
+    assert "TRIM(TO_CHAR(v.VKND_CD)) AS VKND_CD" in compact_sql
     assert "TO_CHAR(v.TOT_DT, 'HH24:MI') IN" in compact_sql
     assert [params[f"time_slot{index}"] for index in range(9)] == [
         "07:15",

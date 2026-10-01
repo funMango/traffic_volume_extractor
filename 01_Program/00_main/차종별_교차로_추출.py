@@ -3,7 +3,7 @@
 """차종별 교차로 교통량 추출 프로그램.
 
 선택한 1시간 또는 15분 차종별 원천을 읽기 전용 SELECT로 조회해
-시간, 교차로, 교차로 방향, 방향, 차종, 교통량 컬럼의 결과를 생성한다.
+시간, 교차로, 교차로 방향, 방향, 차종, 교통량, 차종 코드 컬럼의 결과를 생성한다.
 """
 
 from __future__ import annotations
@@ -54,9 +54,7 @@ FIXED_END_SQL = "DATE '2026-06-01'"
 FIXED_START_TEXT = "2025-05-01 00:00:00"
 FIXED_END_TEXT = "2026-06-01 00:00:00"
 SQLITE_INSERT_BATCH_SIZE = 10000
-UNIDENTIFIED_VEHICLE_CODES = {"0", "1"}
-UNIDENTIFIED_VEHICLE_CODE = "0/1"
-RESULT_HEADER = ["시간", "교차로", "교차로 방향", "방향", "차종", "교통량"]
+RESULT_HEADER = ["시간", "교차로", "교차로 방향", "방향", "차종", "교통량", "차종 코드"]
 CSV_HEADER = RESULT_HEADER
 GOGANG_WEST_RAW_CSV_HEADER = [
     "일시",
@@ -359,11 +357,9 @@ def load_vehicle_kind_names(path: Path = VKND_KIND_PATH) -> dict[str, str]:
         code = normalize_code(raw_code)
         if not code:
             continue
-        name = normalize_code(raw_name) or code
+        name = normalize_code(raw_name) or "미확인"
         vehicle_kind_names[code] = name
 
-    if not vehicle_kind_names:
-        raise RuntimeError(f"사용 가능한 차종 코드가 없습니다: {path}")
     return vehicle_kind_names
 
 
@@ -692,14 +688,16 @@ def build_vehicle_name_case_expression(
     code_expression: str,
     bind_params: dict[str, object],
 ) -> str:
+    if not vehicle_kind_names:
+        return "'미확인'"
     parts = ["CASE"]
     for index, (code, name) in enumerate(vehicle_kind_names.items()):
         code_bind = f"vknd_case_code{index}"
         name_bind = f"vknd_case_name{index}"
         bind_params[code_bind] = code
-        bind_params[name_bind] = name
+        bind_params[name_bind] = normalize_code(name) or "미확인"
         parts.append(f"WHEN {code_expression} = :{code_bind} THEN :{name_bind}")
-    parts.append(f"ELSE {code_expression} END")
+    parts.append("ELSE '미확인' END")
     return "\n                ".join(parts)
 
 
@@ -714,27 +712,10 @@ def build_vehicle_traffic_sql(
     time_slot_clause: str = "",
     order_by_expressions: tuple[str, ...] | None = None,
 ) -> str:
-    if not vehicle_kind_names:
-        raise RuntimeError("조회 가능한 차종 코드가 없습니다.")
-
-    source_vknd_code_expression = "TRIM(TO_CHAR(v.VKND_CD))"
-    unidentified_vehicle_codes_sql = ", ".join(
-        f"'{code}'" for code in sorted(UNIDENTIFIED_VEHICLE_CODES)
-    )
-    vknd_code_expression = (
-        f"CASE WHEN {source_vknd_code_expression} IN ({unidentified_vehicle_codes_sql}) "
-        f"THEN '{UNIDENTIFIED_VEHICLE_CODE}' ELSE {source_vknd_code_expression} END"
-    )
+    vknd_code_expression = "TRIM(TO_CHAR(v.VKND_CD))"
     drct_code_expression = "TRIM(TO_CHAR(v.DRCT_CD))"
-    vknd_in_clause = build_in_clause("vknd", vehicle_kind_names.keys(), bind_params)
-    vehicle_display_names = {
-        **vehicle_kind_names,
-        UNIDENTIFIED_VEHICLE_CODE: vehicle_kind_names.get("0")
-        or vehicle_kind_names.get("1")
-        or UNIDENTIFIED_VEHICLE_CODE,
-    }
     vknd_name_expression = build_vehicle_name_case_expression(
-        vehicle_display_names,
+        vehicle_kind_names,
         vknd_code_expression,
         bind_params,
     )
@@ -772,7 +753,6 @@ def build_vehicle_traffic_sql(
           AND v.TOT_DT < {end_expression}
           {node_condition}
           {time_slot_clause}
-          AND {source_vknd_code_expression} IN ({vknd_in_clause})
         GROUP BY
             v.TOT_DT,
             c.CRSRD_NM,
@@ -955,8 +935,9 @@ def normalize_result_row(row: tuple) -> list[object]:
         crsrd_nm,
         acsr_nm or "",
         drct_nm or normalize_code(drct_cd),
-        vknd_nm or normalize_code(vknd_cd),
+        normalize_code(vknd_nm) or "미확인",
         int(trf_qnty or 0),
+        normalize_code(vknd_cd),
     ]
 
 
@@ -2093,7 +2074,7 @@ def normalize_sqlite_record(row: tuple) -> tuple[str, str, str, str, str, int, s
         str(crsrd_nm),
         str(acsr_nm or ""),
         str(drct_nm or normalize_code(drct_cd)),
-        str(vknd_nm or vehicle_code),
+        normalize_code(vknd_nm) or "미확인",
         int(trf_qnty or 0),
         vehicle_code,
     )
@@ -2348,7 +2329,8 @@ def iter_output_rows_from_sqlite(
                 approach_direction,
                 direction,
                 vehicle_type,
-                traffic_volume
+                traffic_volume,
+                vehicle_code
             FROM {SQLITE_TABLE}
             ORDER BY
                 observed_at,
@@ -2370,6 +2352,7 @@ def iter_output_rows_from_sqlite(
                     str(row[3]),
                     str(row[4]),
                     int(row[5] or 0),
+                    str(row[6]),
                 ]
     finally:
         conn.close()
@@ -2529,8 +2512,6 @@ def validate_sqlite_output(output_path: Path) -> dict[str, object]:
         "raw_unidentified_code_rows": int(row[3] or 0),
         "non_positive_rows": int(row[4] or 0),
     }
-    if summary["raw_unidentified_code_rows"]:
-        raise RuntimeError("SQLite 검증 실패: vehicle_code 0 또는 1 원본 행이 있습니다.")
     if summary["non_positive_rows"]:
         raise RuntimeError("SQLite 검증 실패: 교통량이 0 이하인 행이 있습니다.")
     if summary["min_observed_at"] and summary["min_observed_at"] < FIXED_START_TEXT:
